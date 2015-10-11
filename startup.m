@@ -1,6 +1,7 @@
 % General startup code
 
 addpath ./datasets/;
+addpath ./util/;
 
 conf = get_conf();
 mkdir(conf.cache_dir);
