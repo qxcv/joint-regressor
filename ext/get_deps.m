@@ -37,11 +37,7 @@ if ~exist(deepmatching_touch_file, 'file')
     if status ~= 0
         error('Could not build DeepMatching');
     end
-    if use_mkl
-        mex deepmatching_matlab.cpp deep_matching.o conv.o hog.o image.o io.o main.o maxfilter.o pixel_desc.o -output deepmatching '-DUSEOMP' CFLAGS="-fPIC -Wall -g -std=c++11 -O3 -fopenmp" LDFLAGS="-fopenmp" -lpng -ljpeg -lm -L/opt/intel/mkl/lib -L/opt/intel/mkl/lib/intel64/ -lmkl_rt -lgomp;
-    else
-        mex deepmatching_matlab.cpp deep_matching.o conv.o hog.o image.o io.o main.o maxfilter.o pixel_desc.o -output deepmatching '-DUSEOMP' CFLAGS="-fPIC -Wall -g -std=c++11 -O3 -fopenmp" LDFLAGS="-fopenmp" -lpng -ljpeg -lm -lblas -lgomp;
-    end
+    mex deepmatching_matlab.cpp deep_matching.o conv.o hog.o image.o io.o main.o maxfilter.o pixel_desc.o -output deepmatching '-DUSEOMP' CFLAGS="-fPIC -Wall -g -std=c++11 -O3 -fopenmp" LDFLAGS="-fopenmp" -lpng -ljpeg -lm -lmwblas
     cd(last_folder);
     
     % Touch a file so that we don't have to do that again
