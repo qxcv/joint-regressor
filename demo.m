@@ -3,4 +3,4 @@
 
 startup;
 conf = get_conf;
-get_flic('datasets/', 'cache/');
+get_flic(conf.dataset_dir, conf.cache_dir);

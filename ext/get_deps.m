@@ -13,7 +13,6 @@ make_flags = sprintf(' -j%i', feature('numCores'));
 if ~exist(deepmatching_touch_file, 'file')
     % First, make sure we have a copy of DeepMatching
     if ~exist(deepmatching_dir, 'dir')
-        mkdir(deepmatching_dir);
         zip_path = fullfile(cache_dir, 'deepmatching.zip');
         if ~exist(zip_path, 'file')
             fprintf('Downloading DeepMatching from %s\n', DEEPMATCHING_URL);
@@ -25,12 +24,24 @@ if ~exist(deepmatching_touch_file, 'file')
     
     % Now we can build DeepMatching
     last_folder = cd(deepmatching_dir);
-    !sed -i.bak -e 's/\(\s\+LAPACKLDFLAGS=\).\+$/\1-lblas/' Makefile
+    use_mkl = false;
+    if exist('/opt/intel/mkl/', 'dir')
+        % Use MKL, OpenMP
+        use_mkl = true;
+        !sed -i.bak -e 's?\(\s\+LAPACKLDFLAGS=\).\+$?\1-L/opt/intel/mkl/lib -L/opt/intel/mkl/lib/intel64/ -lmkl_rt -lgomp?' Makefile
+    else
+        % Use OpenBLAS, OpenMP
+        !sed -i.bak -e 's/\(\s\+LAPACKLDFLAGS=\).\+$/\1-lblas -lgomp/' Makefile
+    end
     status = system(['make' make_flags]);
     if status ~= 0
         error('Could not build DeepMatching');
     end
-    mex deepmatching_matlab.cpp deep_matching.o conv.o hog.o image.o io.o main.o maxfilter.o pixel_desc.o -output deepmatching '-DUSEOMP' CFLAGS="-fPIC -Wall -g -std=c++11 -O3 -fopenmp" LDFLAGS="-fopenmp" -lpng -ljpeg -lm -lblas;
+    if use_mkl
+        mex deepmatching_matlab.cpp deep_matching.o conv.o hog.o image.o io.o main.o maxfilter.o pixel_desc.o -output deepmatching '-DUSEOMP' CFLAGS="-fPIC -Wall -g -std=c++11 -O3 -fopenmp" LDFLAGS="-fopenmp" -lpng -ljpeg -lm -L/opt/intel/mkl/lib -L/opt/intel/mkl/lib/intel64/ -lmkl_rt -lgomp;
+    else
+        mex deepmatching_matlab.cpp deep_matching.o conv.o hog.o image.o io.o main.o maxfilter.o pixel_desc.o -output deepmatching '-DUSEOMP' CFLAGS="-fPIC -Wall -g -std=c++11 -O3 -fopenmp" LDFLAGS="-fopenmp" -lpng -ljpeg -lm -lblas -lgomp;
+    end
     cd(last_folder);
     
     % Touch a file so that we don't have to do that again
@@ -43,7 +54,6 @@ addpath(deepmatching_dir);
 if ~exist(deepflow_touch_file, 'file')
     % Download it
     if ~exist(deepflow_dir, 'dir')
-        mkdir(deepflow_dir);
         tar_path = fullfile(cache_dir, 'deepflow.tar');
         zip_path = fullfile(cache_dir, 'deepflow.tar.gz');
         if ~exist(zip_path, 'file')

@@ -1,6 +1,6 @@
-% Downloads FLIC data, if necessary
+% Load FLIC data. Also downloads FLIC data, if necessary.
 
-function get_flic(dest_dir, cache_dir)
+function flic_data = get_flic(dest_dir, cache_dir)
 FLIC_URL = 'http://vision.grasp.upenn.edu/video/FLIC.zip';
 DEST_PATH = fullfile(dest_dir, 'FLIC/');
 CACHE_PATH = fullfile(cache_dir, 'FLIC.zip');
