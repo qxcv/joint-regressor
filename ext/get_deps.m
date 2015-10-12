@@ -24,20 +24,16 @@ if ~exist(deepmatching_touch_file, 'file')
     
     % Now we can build DeepMatching
     last_folder = cd(deepmatching_dir);
-    use_mkl = false;
-    if exist('/opt/intel/mkl/', 'dir')
-        % Use MKL, OpenMP
-        use_mkl = true;
-        !sed -i.bak -e 's?\(\s\+LAPACKLDFLAGS=\).\+$?\1-L/opt/intel/mkl/lib -L/opt/intel/mkl/lib/intel64/ -lmkl_rt -lgomp?' Makefile
-    else
-        % Use OpenBLAS, OpenMP
-        !sed -i.bak -e 's/\(\s\+LAPACKLDFLAGS=\).\+$/\1-lblas -lgomp/' Makefile
-    end
-    status = system(['make' make_flags]);
-    if status ~= 0
-        error('Could not build DeepMatching');
-    end
-    mex deepmatching_matlab.cpp deep_matching.o conv.o hog.o image.o io.o main.o maxfilter.o pixel_desc.o -output deepmatching '-DUSEOMP' CFLAGS="-fPIC -Wall -g -std=c++11 -O3 -fopenmp" LDFLAGS="-fopenmp" -lpng -ljpeg -lm -lmwblas
+    % Don't bother with the makefile
+    % NB: This REALLY requries
+    % LD_PRELOAD=/opt/intel/mkl/lib/intel64/libmkl_rt.so before starting
+    % Matlab. Otherwise, Matlab segfaults when producing flow and doesn't
+    % bother writing anything to the crash dump. This makes no sense, and I
+    % don't have time to fix it :P
+    mex deepmatching_matlab.cpp deep_matching.cpp conv.cpp hog.cpp ...
+        image.cpp io.cpp main.cpp maxfilter.cpp pixel_desc.cpp ...
+        -output deepmatching CXXFLAGS="-fPIC -Wall -g -std=c++11 -O3" ...
+        -lpng -ljpeg -lm -lmwblas
     cd(last_folder);
     
     % Touch a file so that we don't have to do that again
