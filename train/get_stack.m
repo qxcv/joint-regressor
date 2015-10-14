@@ -24,14 +24,14 @@ all_joints = cat(1, d1.joint_locs, d2.joint_locs);
 % Translations!
 %% 1) Flip
 if flip
-    stacked = stacked(:, end:1, :);
-    all_joints = size(im1, 2) - all_joints + 1;
+    stacked = stacked(:, end:-1:1, :);
+    all_joints(:, 1) = size(im1, 2) - all_joints(:, 1) + 1;
 end
 
 %% 2) Rotate
 if rotate ~= 0
-    stacked = imrotate(stacked, 'bilinear', 'loose');
     all_joints = map_rotate_points(all_joints, stacked, rotate, 'ori2new');
+    stacked = improtate(stacked, rotate, 'bilinear');
 end
 
 %% 3) Get bounding box for joints
@@ -39,14 +39,15 @@ maxes = max(all_joints, [], 1);
 mins = min(all_joints, [], 1);
 % Always crop a square patch
 side = max(maxes - mins);
+% box_center is (x, y)
 box_center = mins + (maxes - mins) ./ 2;
 
 %% 4) Scale box
-side = side * scale;
+side = round(side / scale);
 
 %% 5) Translate box
-box_center = box_center + side * translate;
-box = cat(1, box_center, [side side]);
+box_center = round(box_center + side * translate);
+box = round(cat(2, box_center - side / 2, [side side]));
 
 %% 6) Get the crop!
 cropped = impcrop(stacked, box);
@@ -56,8 +57,8 @@ cropped = impcrop(stacked, box);
 rv_stack = imresize(cropped, conf.cnn.window);
 
 %% 9) Rescale joints to be in image coordinates
-scale_factors = size(rv_stack) ./ size(stacked);
-scale_factors = scale_factors(1:2);
+scale_factors = size(rv_stack) ./ size(cropped);
+scale_factors = scale_factors(2:-1:1);
 for i=1:size(all_joints, 1)
     all_joints(i, :) = (all_joints(i, :) - box(1:2)) .* scale_factors;
 end

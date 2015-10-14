@@ -1,13 +1,8 @@
 function rotated = improtate(im, angle, sampling)
 %IMPROTATE Rotate and pad, all in one!
-if cos(angle) == 0
-    alphas = [0 0];
-else
-    % TODO: This doesn't really work :(
-    alphas = abs(tand(angle) ./ [sind(angle), cosd(angle)]);
-end
-pads = size(im) .* [alphas(1) alphas(2) 0];
-padded = padarray(im, round(pads), 'replicate', 'both');
+pads = size(im);
+pads(3) = 0;
+padded = padarray(im, pads, 'replicate', 'both');
 if nargin < 3
     sampling = 'bicubic';
 end
