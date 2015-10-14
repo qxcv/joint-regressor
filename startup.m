@@ -3,6 +3,7 @@
 addpath ./datasets/;
 addpath ./util/;
 addpath ./train/;
+addpath ./visualisation/;
 
 conf = get_conf();
 if ~exist(conf.cache_dir, 'dir')
