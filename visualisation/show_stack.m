@@ -1,5 +1,6 @@
 function show_stack(stack, labels)
 %SHOW_STACK Show a stack of RGB/RGB/flow. Optionally show labels as well.
+stack = permute(stack, [2 1 3]);
 all_joints = reshape(labels, [2, numel(labels) / 2])';
 per_set = size(all_joints, 1) / 2;
 j1 = all_joints(1:per_set, :);
