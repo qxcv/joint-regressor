@@ -9,15 +9,15 @@ function [rv_stack, rv_joints] = get_stack(conf, d1, d2, flip, rotate, scale, tr
 
 im1 = readim(d1);
 im2 = readim(d2);
-flow = cached_imflow(fst, snd, conf.cache_dir);
+flow = cached_imflow(d1, d2, conf.cache_dir);
 assert(all(size(im1) == size(im2)));
 assert(size(im1, 1) == size(flow, 1) && size(im1, 2) == size(flow, 2));
 assert(size(flow, 3) == 2);
 assert(size(im1, 3) == 3);
 % Concatenate along channels
-stacked = cat(norm_im(im1), ...
-              norm_im(im2), ...
-              norm_flow(flow), 3);
+stacked = cat(3, norm_im(im1), ...
+                 norm_im(im2), ...
+                 norm_flow(flow));
 % Now join joints
 all_joints = cat(1, d1.joint_locs, d2.joint_locs);
           
@@ -53,7 +53,7 @@ cropped = impcrop(stacked, box);
 
 %% 8) Rescale crop to CNN
 % imresize size is (rows, cols), which corresponds to (height, width).
-rv_stack = imresize(cropped, conf.cnn.window');
+rv_stack = imresize(cropped, conf.cnn.window);
 
 %% 9) Rescale joints to be in image coordinates
 scale_factors = size(rv_stack) ./ size(stacked);
@@ -63,3 +63,10 @@ for i=1:size(all_joints, 1)
 end
 % Return column vector [x1 y1 x2 y2 ... xn yn]'
 rv_joints = reshape(all_joints', [numel(all_joints), 1]);
+
+function normed = norm_im(im)
+normed = single(im) / 255.0;
+
+% Try to keep most flow in [-1, 1]
+function normed = norm_flow(flow)
+normed = single(flow);

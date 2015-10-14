@@ -51,12 +51,5 @@ for i=randperm(size(pairs, 1))
     end
 end
 
-function normed = norm_im(im)
-normed = single(im) / 255.0;
-
-% Try to keep most flow in [-1, 1]
-function normed = norm_flow(flow)
-normed = single(flow) / max(conf.cnn_window);
-
 function name = h5_name(idx)
 name = fullfile(conf.cache_dir, 'patches', sprintf('samples-%06i.h5', idx));
