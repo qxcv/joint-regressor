@@ -26,7 +26,7 @@ channels = 8;
 num_outputs = 2 * numel(first_datum.joint_locs);
 
 data_mat = zeros(width, height, channels, conf.hdf5_samples);
-label_mat = zeros(num_outputs, conf.hdf5_samples);
+label_mat = zeros(conf.hdf5_samples, num_outputs);
 result_samples = 0;
 h5_idx = 1;
 
@@ -37,10 +37,9 @@ for i=randperm(size(pairs, 1))
     snd = flic_data(snd_idx);
     
     result_samples = result_samples + 1;
-    % Crop around torso box
-    bbox = crop_box(fst, snd);
-    % Permute to be width-first and store in data matrix
-    data_mat(:, :, :, result_samples) = permute(stacked, [2 1 3]);
+    [stacked, labels] = get_stack(conf, fst, snd, 0, 0, 1.0, 0);
+    data_mat(:, :, :, result_samples) = stacked;
+    label_mat(:, result_samples) = labels;
         
     % Now write out to HDF5, if necessary
     if result_samples >= conf.hdf5_samples

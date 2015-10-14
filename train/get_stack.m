@@ -1,12 +1,13 @@
-function [rv_stack, rv_joints] = get_stack(conf, d1, d2, flip, rotate, scale, translate)
+function [rv_stack, rv_joints] = get_stack(conf, d1, d2, flip, rotate, scale, randtrans)
 %GET_STACK Get the image/flow stack for a given data pair.
 % d1: First datum
 % d2: Second datum
 % flip: Should we flip the image left/right?
 % rotate: How many degrees should we rotate by?
-% translate: Matrix giving [x y] amounts to translate by, as fractions of
-% computed boundix box size (after cropping to the skeleton and scaling).
-
+% randtrans: If this is specified, and there's some space between the
+% bounding box of the pose and the edge of the image, then the pose
+% box will be translated randomly around in that space. Otherwise, the pose
+% will be centered perfectly in the crop.
 im1 = readim(d1);
 im2 = readim(d2);
 flow = cached_imflow(d1, d2, conf.cache_dir);
@@ -43,15 +44,19 @@ end
 maxes = max(all_joints, [], 1);
 mins = min(all_joints, [], 1);
 % Always crop a square patch
-side = max(maxes - mins);
+pose_side = max(maxes - mins);
 % box_center is (x, y)
 box_center = mins + (maxes - mins) ./ 2;
 
 %% 4) Scale box
-side = round(side / scale);
+side = round(pose_side / scale);
 
 %% 5) Translate box
-box_center = round(box_center + side * translate);
+wiggle_room = side - pose_side;
+if randtrans && wiggle_room > 1
+    trans_amount = wiggle_room * rand(1, 2) - wiggle_room / 2;
+    box_center = box_center + trans_amount;
+end
 box = round(cat(2, box_center - side / 2, [side side]));
 
 %% 6) Get the crop!
@@ -80,6 +85,6 @@ rv_joints = reshape(all_joints', [numel(all_joints), 1]);
 function normed = norm_im(im)
 normed = single(im) / 255.0;
 
-% Try to keep most flow in [-1, 1]
+% TODO: Consider ways of normalising flow
 function normed = norm_flow(flow)
 normed = single(flow);
