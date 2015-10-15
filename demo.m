@@ -7,12 +7,12 @@ startup;
 conf = get_conf;
 [flic_data, pairs] = get_flic(conf.dataset_dir, conf.cache_dir);
 
+% Just cache the flow. We'll use it later.
 parfor i=1:size(pairs, 1)
     fst_idx = pairs(i, 1);
     snd_idx = pairs(i, 2);
     fst = flic_data(fst_idx);
     snd = flic_data(snd_idx);
-    % Yeah, just compute the flow. We'll use it later.
     cached_imflow(fst, snd, conf.cache_dir);
 end
 

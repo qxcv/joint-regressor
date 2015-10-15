@@ -1,5 +1,22 @@
 function show_stack(stack, labels)
 %SHOW_STACK Show a stack of RGB/RGB/flow. Optionally show labels as well.
+%Can handle a struct array of stacks/labels (show_stack(arr)) if desired.
+
+if nargin == 1 && isstruct(stack)
+    for i=1:length(stack)
+        real_stack = stack(i).stack;
+        real_labels = stack(i).labels;
+        figure;
+        show_single_stack(real_stack, real_labels);
+    end
+elseif nargin == 2
+    show_single_stack(stack, labels);
+else
+    error('Need struct array of stacks/lables or a single stack/labels');
+end
+end
+
+function show_single_stack(stack, labels)
 stack = permute(stack, [2 1 3]);
 all_joints = reshape(labels, [2, numel(labels) / 2])';
 per_set = size(all_joints, 1) / 2;
@@ -36,7 +53,4 @@ flow = stack(:, :, 7:8);
 mags = sqrt(sum(flow.^2, 3));
 norm_mags = mags / max(mags(:));
 imshow(norm_mags);
-% axis equal;
-% axis([0, size(flow, 2), 0, size(flow, 1)]);
-% axis off;
 end
