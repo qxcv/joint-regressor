@@ -38,8 +38,15 @@ for flip=flips
     flip_joints = all_joints;
     flip_stack = stacked;
     if flip
-        flip_stack = flip_stack(:, end:-1:1, :);
+        % Reverse joints
         flip_joints(:, 1) = size(im1, 2) - flip_joints(:, 1) + 1;
+        % Swap indices 2-4 with indices 5-7 (left side <-> right side)
+        % XXX FIXME: This code will break if I change the joints I'm
+        % selecting from FLIC.
+        flip_joints = flip_joints([1 5:7 2:4 8 12:14 9:11], :);
+        % Reverse images
+        flip_stack = flip_stack(:, end:-1:1, :);
+        % Flip flow
         flip_stack(:, :, 7) = -flip_stack(:, :, 7);
     end
 
