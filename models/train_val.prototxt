@@ -1,7 +1,7 @@
 name: "CaffeNet"
 layer {
   name: "data"
-  type: "Data"
+  type: "HDF5Data"
   top: "data"
   top: "label"
   include {

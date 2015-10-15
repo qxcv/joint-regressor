@@ -1,4 +1,4 @@
-function rvs = get_stacks(conf, d1, d2, flips, rotations, scales, randtrans)
+function rvs = get_stacks(d1, d2, cache_dir, cnn_window, flips, rotations, scales, randtrans)
 %GET_STACK Get the image/flow stacks for a given data pair and set of
 %transformations.
 % d1: First datum
@@ -17,7 +17,7 @@ function rvs = get_stacks(conf, d1, d2, flips, rotations, scales, randtrans)
 % data) attributes.
 im1 = readim(d1);
 im2 = readim(d2);
-flow = cached_imflow(d1, d2, conf.cache_dir);
+flow = cached_imflow(d1, d2, cache_dir);
 assert(all(size(im1) == size(im2)));
 assert(size(im1, 1) == size(flow, 1) && size(im1, 2) == size(flow, 2));
 assert(size(flow, 3) == 2);
@@ -100,7 +100,7 @@ for flip=flips
                 %% 8) Rescale crop to CNN and rescale joints/flow to be in image coordinates
                 % permute(x, [2 1 3]) puts the width dimension first in x, which is what
                 % caffe wants (IIRC Caffe uses width * height * channels * num).
-                final_stack = permute(imresize(cropped, conf.cnn.window), [2 1 3]);
+                final_stack = permute(imresize(cropped, cnn_window), [2 1 3]);
 
                 % Scale factors for flow and joints
                 scale_factors = size(final_stack) ./ size(cropped);
