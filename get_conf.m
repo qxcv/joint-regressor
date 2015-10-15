@@ -29,8 +29,19 @@ conf.aug.randtrans = 3;
 % Normal orientation plus one flip
 conf.aug.flips = [0, 1];
 
+% Validation augmentations are basically nonexistent (scaling is just to
+% keep the pose in a box)
+conf.val_aug.rots = 0;
+conf.val_aug.scales = 0.8;
+conf.val_aug.randtrans = 0;
+conf.val_aug.flips = 0;
+
 %% Other training junk
 % How many HDF5 files should we split our data set across? When writing out
 % samples, a HDF5 file will be chosen at random and written to (this will
 % work out in the long run).
 conf.num_hdf5s = 100;
+% Number of hdf5s to use for validation
+conf.num_val_hdf5s = 4;
+% Fraction of pairs to use for validation
+conf.val_pairs_frac = 0.2;

@@ -2,7 +2,7 @@ name: "CaffeNet"
 input: "data"
 input_shape {
   dim: 10
-  dim: 3
+  dim: 8
   dim: 227
   dim: 227
 }
@@ -203,12 +203,6 @@ layer {
   bottom: "fc7"
   top: "fc8"
   inner_product_param {
-    num_output: 1000
+    num_output: 28
   }
-}
-layer {
-  name: "prob"
-  type: "Softmax"
-  bottom: "fc8"
-  top: "prob"
 }
