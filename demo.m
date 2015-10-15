@@ -16,38 +16,39 @@ parfor i=1:size(pairs, 1)
     cached_imflow(fst, snd, conf.cache_dir);
 end
 
-% We store a matrix of samples which we write out to a HDF5 file and reset
-% once full.
-first_datum = flic_data(1);
-first_im = readim(first_datum);
-width = size(first_im, 2);
-height = size(first_im, 1);
-channels = 8;
-num_outputs = 2 * numel(first_datum.joint_locs);
-
-data_mat = zeros(width, height, channels, conf.hdf5_samples);
-label_mat = zeros(conf.hdf5_samples, num_outputs);
-result_samples = 0;
-h5_idx = 1;
-
-for i=randperm(size(pairs, 1))
-    fst_idx = pairs(i, 1);
-    snd_idx = pairs(i, 2);
-    fst = flic_data(fst_idx);
-    snd = flic_data(snd_idx);
+for i=size(pairs, 1)
+    fprintf('Working on pair %d/%d\n', i, size(pairs, 1));
+    fst = flic_data(pairs(i, 1));
+    snd = flic_data(pairs(i, 2));
     
-    result_samples = result_samples + 1;
-    [stacked, labels] = get_stack(conf, fst, snd, 0, 0, 1.0, 0);
-    data_mat(:, :, :, result_samples) = stacked;
-    label_mat(:, result_samples) = labels;
+    stack_start = tic;
+    stacks = get_stack(...
+        conf, fst, snd, conf.aug.flips, conf.aug.rots, conf.aug.scales, ...
+        conf.aug.randtrans);
+    stack_time = toc(stack_start);
+    fprintf('get_stack() took %fs\n', stack_time);
+    
+    write_start = tic;
+    for j=1:length(stacks)
+        % Get stack and labels; we don't add in dummy dimensions because
+        % apparently Matlab can't tell the difference between a
+        % j*k*l*1*1*1*1... matrix and a j*k*l matrix.
+        stack = stacks(i).stack;
+        labels = stacks(i).labels;
         
-    % Now write out to HDF5, if necessary
-    if result_samples >= conf.hdf5_samples
-        result_samples = 0;
+        % Choose a file, regardless of whether it exists
+        h5_idx = randi(conf.num_hdf5s);
         filename = h5_name(h5_idx);
-        store2hdf5(filename, data_mat, label_mat, 1);
-        h5_idx = h5_idx + 1;
+        create = 0;
+        if ~exist(filename, 'file')
+            create = 1;
+        end
+        
+        % Write!
+        store2hdf5(filename, stack, labels, create);
     end
+    write_time = toc(write_start);
+    fprintf('Writing %d examples took %fs\n', length(stacks), write_time);
 end
 
 function name = h5_name(idx)

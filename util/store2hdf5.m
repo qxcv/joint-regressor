@@ -21,6 +21,11 @@ function [curr_dat_sz, curr_lab_sz] = store2hdf5(filename, data, labels, create,
   % verify that format is right
   dat_dims=size(data);
   lab_dims=size(labels);
+  if length(dat_dims) == 3
+      % If we don't do this, then we can't write out samples one at a time,
+      % since Matlab won't let us have a trailing dimension of size 1 :(
+      dat_dims = [dat_dims 1];
+  end
   num_samples=dat_dims(end);
 
   assert(lab_dims(end)==num_samples, 'Number of samples should be matched between data and labels');
