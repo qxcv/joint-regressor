@@ -7,24 +7,22 @@ layer {
   include {
     phase: TRAIN
   }
-  data_param {
-    source: "examples/imagenet/ilsvrc12_train_lmdb"
+  hdf5_data_param {
+    source: "train-patches.txt"
     batch_size: 256
-    backend: LMDB
   }
 }
 layer {
   name: "data"
-  type: "Data"
+  type: "HDF5Data"
   top: "data"
   top: "label"
   include {
     phase: TEST
   }
-  data_param {
-    source: "examples/imagenet/ilsvrc12_val_lmdb"
-    batch_size: 50
-    backend: LMDB
+  hdf5_data_param {
+    source: "val-patches.txt"
+    batch_size: 64
   }
 }
 layer {
@@ -356,19 +354,9 @@ layer {
   }
 }
 layer {
-  name: "accuracy"
-  type: "Accuracy"
+  name: "loss"
+  type: "EuclideanLoss"
   bottom: "fc8"
   bottom: "label"
-  top: "accuracy"
-  include {
-    phase: TEST
-  }
+  top: "loss"
 }
-layers: {
- name: 'loss'
- type: "EuclideanLoss"
- bottom: 'fc8'
- bottom: 'label'
- top: 'loss'
-};
