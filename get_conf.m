@@ -10,6 +10,12 @@ conf.ext_dir = 'ext/';
 %% CNN-related props
 % Size of CNN crop necessary
 conf.cnn.window = [227 227];
+% Deploy prototxt
+conf.cnn.deploy_prototxt = 'models/deploy.prototxt';
+% Trained net
+conf.cnn.model = fullfile(conf.cache_dir, 'regressor.caffemodel');
+% GPU ID for testing (negative to disable)
+conf.cnn.gpu_id = 0;
 
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 
