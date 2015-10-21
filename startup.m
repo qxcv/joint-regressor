@@ -1,6 +1,7 @@
 % General startup code
 
 addpath ./datasets/;
+addpath ./detect/;
 addpath ./util/;
 addpath ./train/;
 addpath ./visualisation/;
