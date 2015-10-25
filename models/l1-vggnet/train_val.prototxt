@@ -34,6 +34,9 @@ layers {
     num_output: 64
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -53,6 +56,9 @@ layers {
     num_output: 64
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -83,6 +89,9 @@ layers {
     num_output: 128
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -102,6 +111,9 @@ layers {
     num_output: 128
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -132,6 +144,9 @@ layers {
     num_output: 256
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -151,6 +166,9 @@ layers {
     num_output: 256
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -170,6 +188,9 @@ layers {
     num_output: 256
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -200,6 +221,9 @@ layers {
     num_output: 512
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -219,6 +243,9 @@ layers {
     num_output: 512
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -238,6 +265,9 @@ layers {
     num_output: 512
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -268,6 +298,9 @@ layers {
     num_output: 512
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -287,6 +320,9 @@ layers {
     num_output: 512
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -306,6 +342,9 @@ layers {
     num_output: 512
     pad: 1
     kernel_size: 3
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -334,6 +373,9 @@ layers {
   type: "InnerProduct"
   inner_product_param {
     num_output: 4096
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
@@ -360,6 +402,9 @@ layers {
   type: "InnerProduct"
   inner_product_param {
     num_output: 4096
+    weight_filler {
+      type: "xavier"
+    }
   }
   blobs_lr: 0
   blobs_lr: 0
