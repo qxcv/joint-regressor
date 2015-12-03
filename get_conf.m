@@ -26,9 +26,9 @@ conf.cnn.gpu_id = 0;
 % which doesn't count random translations on images which aren't sub-scale.
 
 % Rotations for data augmentation (degrees from non-rotated)
-conf.aug.rots = -20:10:20;
+conf.aug.rots = -30:15:30;
 % Scales for data augmentation (2.0 = one quarter of a skeleton per frame, 0.5 = four skeletons per frame)
-conf.aug.scales = [0.6, 0.85, 1.0];
+conf.aug.scales = [0.8, 0.85, 0.9];
 % 3 random translations at each scale where it's possible to translate
 % whilst keeping the pose in-frame.
 conf.aug.randtrans = 3;

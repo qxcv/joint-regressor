@@ -3,7 +3,7 @@ function outputs = scrape_random_detections(num_to_fetch)
 %   Stores relevant data in outputs(i).stack and outputs(i).labels. This is
 %   a really hacky script which I use for debugging :)
 conf = get_conf();
-train_dir = fullfile(conf.cache_dir, 'train-patches');
+train_dir = fullfile(conf.cache_dir, 'val-patches');
 h5_names = dir(fullfile(train_dir, '*.h5'));
 all_h5s = fullfile(train_dir, {h5_names.name});
 my_h5_path = all_h5s{randi(length(all_h5s))};

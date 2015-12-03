@@ -18,10 +18,12 @@
 % 17 Nose
 % We probably only want to return a subset of those
 
-function [flic_data, pairs] = get_flic(dest_dir, cache_dir)
-FLIC_URL = 'http://vision.grasp.upenn.edu/video/FLIC.zip';
-DEST_PATH = fullfile(dest_dir, 'FLIC/');
-CACHE_PATH = fullfile(cache_dir, 'FLIC.zip');
+function [flic_data, train_pairs, test_pairs] = get_flic(dest_dir, cache_dir)
+FLIC_URL = 'http://vision.grasp.upenn.edu/video/FLIC-full.zip';
+DEST_PATH = fullfile(dest_dir, 'FLIC-full/');
+CACHE_PATH = fullfile(cache_dir, 'FLIC-full.zip');
+FLIC_PLUS_URL = 'http://cims.nyu.edu/~tompson/data/tr_plus_indices.mat';
+FLIC_PLUS_DEST = fullfile(dest_dir, 'tr_plus_indices.mat');
 % If two samples are within 20 frames of each other, then they can be used
 % for training. Some frames are too far apart to reliably compute flow, so
 % we ignore them.
@@ -34,7 +36,15 @@ if ~exist(DEST_PATH, 'dir')
     end
     fprintf('Extracting FLIC data to %s\n', DEST_PATH);
     unzip(CACHE_PATH, dest_dir);
-end;
+end
+
+if ~exist(FLIC_PLUS_DEST, 'file')
+    fprintf('Downloading FLIC+ annotations from %s\n', FLIC_PLUS_URL);
+    websave(FLIC_PLUS_DEST, FLIC_PLUS_URL);
+end
+
+fp_loaded = load(FLIC_PLUS_DEST);
+flic_plus_indices = sort(fp_loaded.tr_plus_indices);
 
 flic_examples_s = load(fullfile(DEST_PATH, 'examples.mat')');
 flic_examples = flic_examples_s.examples;
@@ -51,14 +61,30 @@ for i=1:length(flic_examples)
     flic_data(i).is_test = ex.istest;
 end
 
-% Find close pairs of frames
-inds = 1:(length(flic_examples)-1);
-names_eq = strcmp({flic_data(inds).movie_name}, {flic_data(inds+1).movie_name});
-fdiffs = [flic_data(inds+1).frame_no] - [flic_data(inds).frame_no];
-firsts = find(names_eq & fdiffs > 0 & fdiffs <= FRAME_THRESHOLD);
+% Find close pairs of frames from within the FLIC+ indices. The .istrain
+% and .istest attributes happen to be useless for our application, since
+% none of the test pairs are adjacent, and the training pairs weren't
+% explicitly chosen to be adjacent.
+test_movies = {...
+'bourne-supremacy', 'goldeneye', 'collateral-disc1', 'daredevil-disc1', ...
+'battle-cry', 'million-dollar-baby'};
+train_inds = intersect(flic_plus_indices, find(~[flic_examples.istest]));
+test_inds = intersect(flic_plus_indices, find([flic_examples.istest]));
+train_pairs = find_pairs(train_inds, flic_data, FRAME_THRESHOLD);
+test_pairs = find_pairs(test_inds, flic_data, FRAME_THRESHOLD);
+end
+
+function pairs = find_pairs(inds, flic_data, thresh)
+fst_inds = inds(1:end-1);
+snd_inds = inds(2:end);
+names_eq = strcmp({flic_data(fst_inds).movie_name}, {flic_data(snd_inds).movie_name});
+fdiffs = [flic_data(snd_inds).frame_no] - [flic_data(fst_inds).frame_no];
+firsts = find(names_eq & fdiffs > 0 & fdiffs <= thresh);
 pairs = cat(2, firsts', firsts'+1);
+end
 
 function locs = convert_joints(orig_locs)
 % Return head, followed by L shoulder/elbow/wrist, followed by R
 % shoulder/elbow/wrist
 locs = orig_locs(:, [17 1:6])';
+end

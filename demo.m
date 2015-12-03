@@ -1,22 +1,10 @@
 % Run this, sit back and watch the blinkenlights.
 
 function demo
-
 startup;
 conf = get_conf;
-[flic_data, pairs] = get_flic(conf.dataset_dir, conf.cache_dir);
-
-pairs_cache = fullfile(conf.cache_dir, 'pairs.mat');
-try
-    loaded_pairs = load(pairs_cache);
-    train_pairs = loaded_pairs.train_pairs;
-    val_pairs = loaded_pairs.val_pairs;
-catch
-    val_num = round(size(pairs, 1) * conf.val_pairs_frac);
-    val_pairs = pairs(1:val_num, :);
-    train_pairs = pairs(val_num+1:end, :);
-    save(pairs_cache, 'train_pairs', 'val_pairs');
-end
+% We don't use the third return value (test_pairs) for now
+[flic_data, train_pairs, ~] = get_flic(conf.dataset_dir, conf.cache_dir);
 
 fprintf('Writing validation set\n');
 val_patch_dir = fullfile(conf.cache_dir, 'val-patches');
