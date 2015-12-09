@@ -436,9 +436,23 @@ layers {
   blobs_lr: 0
 }
 layer {
+  name: "slicer"
+  type: "Slice"
+  bottom: "data"
+  top: "junk"
+  top: "flow"
+  slice_param {
+    slice_dim: 1
+    slice_point: 6
+  }
+}
+layer {
   name: "regressor-loss"
   type: "ManhattanLoss"
   bottom: "fc8"
   bottom: "label"
   top: "regressor-loss"
 }
+layer {
+  name: "poselet-loss"
+  type: "SoftmaxLoss"

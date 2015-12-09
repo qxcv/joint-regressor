@@ -9,7 +9,7 @@ conf.ext_dir = 'ext/';
 
 %% CNN-related props
 % Size of CNN crop necessary
-conf.cnn.window = [227 227];
+conf.cnn.window = [224 224];
 % Deploy prototxt
 conf.cnn.deploy_prototxt = 'models/deploy.prototxt';
 % Trained net
@@ -51,3 +51,9 @@ conf.num_hdf5s = 100;
 conf.num_val_hdf5s = 4;
 % Fraction of pairs to use for validation
 conf.val_pairs_frac = 0.2;
+% Use only parts with these indices
+conf.poselet = [17 1:6];
+% Use K-means to cluster 2 * length(conf.poselet)-dimensional
+% poselet-per-frame vectors, then use the resulting centroids as classes
+% for biposelet prediction.
+conf.biposelet_classes = 100;

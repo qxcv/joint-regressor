@@ -32,18 +32,18 @@ for i=1:size(pairs, 1)
         % apparently Matlab can't tell the difference between a
         % j*k*l*1*1*1*1... matrix and a j*k*l matrix.
         stack = stacks(j).stack;
-        labels = stacks(j).labels;
+        joint_labels = stacks(j).joint_labels;
         
         % Choose a file, regardless of whether it exists
         h5_idx = randi(num_hdf5s);
         filename = fullfile(patch_dir, sprintf('samples-%06i.h5', h5_idx));
-        create = 0;
+        create = false;
         if ~exist(filename, 'file')
-            create = 1;
+            create = true;
         end
         
         % Write!
-        store2hdf5(filename, stack, labels, create);
+        store2hdf5(filename, stack, joint_labels, create);
     end
     write_time = toc(write_start);
     fprintf('Writing %d examples took %fs\n', length(stacks), write_time);

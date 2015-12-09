@@ -1,8 +1,8 @@
 function rvs = get_stacks(d1, d2, cache_dir, cnn_window, flips, rotations, scales, randtrans)
-%GET_STACK Get the image/flow stacks for a given data pair and set of
+%GET_STACKS Get the image/flow stacks for a given data pair and set of
 %transformations.
 % d1: First datum
-% d2: Second datum. If this is empty, then no flow will be computed.
+% d2: Second datum
 % flips: List of booleans ([0], [1] or 0:1) telling us whether we should
 % includes flips (1) and/or originals (0).
 % rotations: List giving how many degrees to rotate by
@@ -15,24 +15,19 @@ function rvs = get_stacks(d1, d2, cache_dir, cnn_window, flips, rotations, scale
 % Otherwise, the pose will be centered perfectly in the crop.
 % rvs: struct array with .labels (joint locations) and .stack (full input
 % data) attributes.
-
 im1 = readim(d1);
+im2 = readim(d2);
+flow = cached_imflow(d1, d2, cache_dir);
+assert(all(size(im1) == size(im2)));
+assert(size(im1, 1) == size(flow, 1) && size(im1, 2) == size(flow, 2));
+assert(size(flow, 3) == 2);
 assert(size(im1, 3) == 3);
-
-have_snd = ~isempty(d2);
-if have_snd
-    im2 = readim(d2);
-    flow = cached_imflow(d1, d2, cache_dir);
-    assert(all(size(im1) == size(im2)));
-    assert(size(im1, 1) == size(flow, 1) && size(im1, 2) == size(flow, 2));
-    assert(size(flow, 3) == 2);
-    % Concatenate along channels
-    stacked = cat(3, norm_im(im1), ...
-                  norm_im(im2), ...
-                  norm_flow(flow));         
-    % Now join joints
-    all_joints = cat(1, d1.joint_locs, d2.joint_locs);
-end
+% Concatenate along channels
+stacked = cat(3, norm_im(im1), ...
+                 norm_im(im2), ...
+                 norm_flow(flow));
+% Now join joints
+all_joints = cat(1, d1.joint_locs, d2.joint_locs);
 
 % We'll store rvs in a struct array with a "stack" and "joints" attribute
 % for each entry.
@@ -121,7 +116,7 @@ for flip=flips
                 end
 
                 % Return column vector [x1 y1 x2 y2 ... xn yn]'
-                rvs(current_idx).labels = reshape(scale_joints', [numel(scale_joints), 1]);
+                rvs(current_idx).joint_labels = reshape(scale_joints', [numel(scale_joints), 1]);
                 % Return full w * h * c matrix
                 rvs(current_idx).stack = final_stack;
                 
