@@ -22,8 +22,6 @@ function [flic_data, train_pairs, test_pairs] = get_flic(dest_dir, cache_dir, po
 FLIC_URL = 'http://vision.grasp.upenn.edu/video/FLIC-full.zip';
 DEST_PATH = fullfile(dest_dir, 'FLIC-full/');
 CACHE_PATH = fullfile(cache_dir, 'FLIC-full.zip');
-FLIC_PLUS_URL = 'http://cims.nyu.edu/~tompson/data/tr_plus_indices.mat';
-FLIC_PLUS_DEST = fullfile(dest_dir, 'tr_plus_indices.mat');
 % If two samples are within 20 frames of each other, then they can be used
 % for training. Some frames are too far apart to reliably compute flow, so
 % we ignore them.
@@ -37,14 +35,6 @@ if ~exist(DEST_PATH, 'dir')
     fprintf('Extracting FLIC data to %s\n', DEST_PATH);
     unzip(CACHE_PATH, dest_dir);
 end
-
-if ~exist(FLIC_PLUS_DEST, 'file')
-    fprintf('Downloading FLIC+ annotations from %s\n', FLIC_PLUS_URL);
-    websave(FLIC_PLUS_DEST, FLIC_PLUS_URL);
-end
-
-fp_loaded = load(FLIC_PLUS_DEST);
-flic_plus_indices = sort(fp_loaded.tr_plus_indices);
 
 flic_examples_s = load(fullfile(DEST_PATH, 'examples.mat')');
 flic_examples = flic_examples_s.examples;
@@ -68,8 +58,13 @@ end
 test_movies = {...
 'bourne-supremacy', 'goldeneye', 'collateral-disc1', 'daredevil-disc1', ...
 'battle-cry', 'million-dollar-baby'};
-train_inds = intersect(flic_plus_indices, find(~[flic_examples.istest]));
-test_inds = intersect(flic_plus_indices, find([flic_examples.istest]));
+test_mask = zeros(1, length(flic_data));
+for i=1:length(test_movies)
+    movie = test_movies{i};
+    test_mask = test_mask | strcmp({flic_data.movie_name}, movie);
+end
+test_inds = find(test_mask);
+train_inds = find(~test_mask);
 train_pairs = find_pairs(train_inds, flic_data, FRAME_THRESHOLD);
 test_pairs = find_pairs(test_inds, flic_data, FRAME_THRESHOLD);
 end
