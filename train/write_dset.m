@@ -1,4 +1,4 @@
-function write_dset(flic_data, pairs, cache_dir, patch_dir, num_hdf5s, cnn_window, aug)
+function write_dset(flic_data, pairs, cache_dir, patch_dir, num_hdf5s, cnn_window, poselet, aug)
 %WRITE_DSET Write out a data set (e.g. pairs from the train set or pairs
 %from the test set).
 % Just cache the flow. We'll use it later.
@@ -21,7 +21,7 @@ for i=1:size(pairs, 1)
     
     stack_start = tic;
     stacks = get_stacks(...
-        fst, snd, cache_dir, cnn_window, aug.flips, aug.rots, ...
+        fst, snd, poselet, cache_dir, cnn_window, aug.flips, aug.rots, ...
         aug.scales, aug.randtrans);
     stack_time = toc(stack_start);
     fprintf('get_stack() took %fs\n', stack_time);

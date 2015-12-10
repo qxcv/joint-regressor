@@ -18,7 +18,7 @@
 % 17 Nose
 % We probably only want to return a subset of those
 
-function [flic_data, train_pairs, test_pairs] = get_flic(dest_dir, cache_dir, poselet)
+function [flic_data, train_pairs, test_pairs] = get_flic(dest_dir, cache_dir)
 FLIC_URL = 'http://vision.grasp.upenn.edu/video/FLIC-full.zip';
 DEST_PATH = fullfile(dest_dir, 'FLIC-full/');
 CACHE_PATH = fullfile(cache_dir, 'FLIC-full.zip');
@@ -45,7 +45,7 @@ for i=1:length(flic_examples)
     flic_data(i).movie_name = ex.moviename;
     file_name = sprintf('%s-%08i.jpg', flic_data(i).movie_name, flic_data(i).frame_no);
     flic_data(i).image_path = fullfile(DEST_PATH, 'images', file_name);
-    flic_data(i).joint_locs = convert_joints(ex.coords, poselet);
+    flic_data(i).joint_locs = convert_joints(ex.coords);
     flic_data(i).torso_box = ex.torsobox;
     flic_data(i).is_train = ex.istrain;
     flic_data(i).is_test = ex.istest;
@@ -78,8 +78,8 @@ firsts = find(names_eq & fdiffs > 0 & fdiffs <= thresh);
 pairs = cat(2, firsts', firsts'+1);
 end
 
-function locs = convert_joints(orig_locs, poselet)
+function locs = convert_joints(orig_locs)
 % Return head, followed by L shoulder/elbow/wrist, followed by R
 % shoulder/elbow/wrist
-locs = orig_locs(:, poselet)';
+locs = orig_locs(:, :)';
 end

@@ -1,4 +1,4 @@
-function rvs = get_stacks(d1, d2, cache_dir, cnn_window, flips, rotations, scales, randtrans)
+function rvs = get_stacks(d1, d2, poselet, cache_dir, cnn_window, flips, rotations, scales, randtrans)
 %GET_STACKS Get the image/flow stacks for a given data pair and set of
 %transformations.
 % d1: First datum
@@ -28,6 +28,7 @@ stacked = cat(3, norm_im(im1), ...
                  norm_flow(flow));
 % Now join joints
 all_joints = cat(1, d1.joint_locs, d2.joint_locs);
+poselet_indices = [poselet, poselet + length(d1.joint_locs)];
 
 % We'll store rvs in a struct array with a "stack" and "joints" attribute
 % for each entry.
@@ -41,8 +42,8 @@ for flip=flips
         % Reverse joints
         flip_joints(:, 1) = size(im1, 2) - flip_joints(:, 1) + 1;
         % Swap indices 2-4 with indices 5-7 (left side <-> right side)
-        % XXX FIXME: This code will break if I change the joints I'm
-        % selecting from FLIC.
+        % FIXME: This code will break if I use a data set other than
+        % FLIC
         flip_joints = flip_joints([1 5:7 2:4 8 12:14 9:11], :);
         % Reverse images
         flip_stack = flip_stack(:, end:-1:1, :);
@@ -64,9 +65,9 @@ for flip=flips
             rot_stack(:, :, 7:8) = reshape(flat_flow, size(flow));
         end
 
-        %% 3) Get bounding box for joints
-        maxes = max(rot_joints, [], 1);
-        mins = min(rot_joints, [], 1);
+        %% 3) Get bounding box for joint
+        maxes = max(rot_joints(poselet_indices), [], 1);
+        mins = min(rot_joints(poselet_indices), [], 1);
         % Always crop a square patch
         pose_side = max(maxes - mins);
         % box_center is (x, y)
@@ -116,7 +117,8 @@ for flip=flips
                 end
 
                 % Return column vector [x1 y1 x2 y2 ... xn yn]'
-                rvs(current_idx).joint_labels = reshape(scale_joints', [numel(scale_joints), 1]);
+                poselet_joints = scale_joints(poselet_indices);
+                rvs(current_idx).joint_labels = reshape(poselet_joints', [numel(poselet_joints), 1]);
                 % Return full w * h * c matrix
                 rvs(current_idx).stack = final_stack;
                 
