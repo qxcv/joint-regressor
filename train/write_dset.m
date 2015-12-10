@@ -1,6 +1,19 @@
 function write_dset(flic_data, pairs, cache_dir, patch_dir, num_hdf5s, cnn_window, poselet, aug)
 %WRITE_DSET Write out a data set (e.g. pairs from the train set or pairs
 %from the test set).
+
+confirm_path = fullfile(patch_dir, '.written');
+
+if ~exist(patch_dir, 'dir')
+    mkdir(patch_dir);
+else
+    if exist(confirm_path, 'file')
+        % Don't re-write
+        fprintf('Patches in %s already exist; skipping\n', patch_dir);
+        return
+    end
+end
+
 % Just cache the flow. We'll use it later.
 parfor i=1:size(pairs, 1)
     fst_idx = pairs(i, 1);
@@ -8,10 +21,6 @@ parfor i=1:size(pairs, 1)
     fst = flic_data(fst_idx);
     snd = flic_data(snd_idx);
     cached_imflow(fst, snd, cache_dir);
-end
-
-if ~exist(patch_dir, 'dir')
-    mkdir(patch_dir);
 end
     
 for i=1:size(pairs, 1)
@@ -48,5 +57,9 @@ for i=1:size(pairs, 1)
     write_time = toc(write_start);
     fprintf('Writing %d examples took %fs\n', length(stacks), write_time);
 end
+
+fid = fopen(confirm_path, 'w');
+fprintf(fid, '');
+fclose(fid);
 end
 

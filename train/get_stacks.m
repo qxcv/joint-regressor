@@ -44,7 +44,10 @@ for flip=flips
         % Swap indices 2-4 with indices 5-7 (left side <-> right side)
         % FIXME: This code will break if I use a data set other than
         % FLIC
-        flip_joints = flip_joints([1 5:7 2:4 8 12:14 9:11], :);
+        num_joints = size(d1.joint_locs, 1);
+        asset(num_joints == size(d2.joint_locs, 1));
+        flip_joints(1:num_joints) = flip_lr(flip_joints(1:num_joints));
+        flip_joints(num_joints+1:end) = flip_lr(flip_joints(num_joints+1:end));
         % Reverse images
         flip_stack = flip_stack(:, end:-1:1, :);
         % Flip flow
@@ -136,4 +139,10 @@ end
 % TODO: Consider ways of normalising flow
 function normed = norm_flow(flow)
 normed = single(flow);
+end
+
+function flipped = flip_lr(joints)
+% XXX: This will break for datasets other than FLIC
+flipped = joints([4:6 1:3 10 8:9 7 11:12 14 13 15:29]);
+assert(all(size(flipped) == size(jonits)));
 end

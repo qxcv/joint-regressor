@@ -12,10 +12,14 @@
 % 5 R elbow
 % 6 R wrist
 % 7 L hip
+% 8-9 N/A
 % 10 R hip
+% 11-12 N/A
 % 13 L eye
 % 14 R eye
+% 15-16 N/A
 % 17 Nose
+% 19-29 N/A
 % We probably only want to return a subset of those
 
 function [flic_data, train_pairs, test_pairs] = get_flic(dest_dir, cache_dir)
@@ -79,7 +83,6 @@ pairs = cat(2, firsts', firsts'+1);
 end
 
 function locs = convert_joints(orig_locs)
-% Return head, followed by L shoulder/elbow/wrist, followed by R
-% shoulder/elbow/wrist
-locs = orig_locs(:, :)';
+locs = orig_locs';
+locs(isnan(locs)) = 0;  
 end
