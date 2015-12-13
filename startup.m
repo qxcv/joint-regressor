@@ -6,6 +6,7 @@ addpath ./util/;
 addpath ./train/;
 addpath ./visualisation/;
 addpath ./cy/;
+addpath ./tests/;
 
 conf = get_conf();
 if ~exist(conf.cache_dir, 'dir')
