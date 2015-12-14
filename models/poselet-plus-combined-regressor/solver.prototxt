@@ -10,5 +10,5 @@ max_iter: 400000
 momentum: 0.9
 weight_decay: 0.0005
 snapshot: 10000
-snapshot_prefix: "../cache/cnn/caffe-vgg"
+snapshot_prefix: "../../cache/poselet-plus-combined-regressor"
 solver_mode: GPU

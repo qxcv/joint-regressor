@@ -52,7 +52,7 @@ conf.num_val_hdf5s = 4;
 % Fraction of pairs to use for validation
 conf.val_pairs_frac = 0.2;
 % Use only parts with these indices
-conf.poselet = [17 1:3]; % [17 1:6] is head & both left and right sides of body
+conf.poselet = 1:3; % [17 1:6] is head & both left and right sides of body
 % Use K-means to cluster 2 * length(conf.poselet)-dimensional
 % poselet-per-frame vectors, then use the resulting centroids as classes
 % for biposelet prediction.
