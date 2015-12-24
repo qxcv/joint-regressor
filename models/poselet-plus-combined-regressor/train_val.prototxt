@@ -422,6 +422,7 @@ layer {
   bottom: "output-locs"
   bottom: "label"
   top: "regressor-loss"
+  loss_weight: 1
 }
 layer {
   name: "poselet-loss"
@@ -429,4 +430,5 @@ layer {
   bottom: "output-poselet"
   bottom: "poselet"
   top: "poselet-loss"
+  loss_weight: 10
 }

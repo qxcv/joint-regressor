@@ -17,3 +17,6 @@ write_dset(flic_data, train_pairs, conf.cache_dir, train_patch_dir, ...
 
 fprintf('Writing cluster information\n');
 cluster_h5s(conf.biposelet_classes, train_patch_dir, val_patch_dir);
+
+fprintf('Removing mean pixel\n');
+adjust_for_mean_pixel(train_patch_dir, val_patch_dir, conf.cache_dir);
