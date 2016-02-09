@@ -1,4 +1,4 @@
-function write_dset(flic_data, pairs, cache_dir, patch_dir, num_hdf5s, cnn_window, poselet, aug)
+function write_dset(all_data, pairs, cache_dir, patch_dir, num_hdf5s, cnn_window, poselet, aug)
 %WRITE_DSET Write out a data set (e.g. pairs from the train set or pairs
 %from the test set).
 
@@ -18,15 +18,15 @@ end
 parfor i=1:size(pairs, 1)
     fst_idx = pairs(i, 1);
     snd_idx = pairs(i, 2);
-    fst = flic_data(fst_idx);
-    snd = flic_data(snd_idx);
+    fst = all_data(fst_idx);
+    snd = all_data(snd_idx);
     cached_imflow(fst, snd, cache_dir);
 end
     
 for i=1:size(pairs, 1)
     fprintf('Working on pair %d/%d\n', i, size(pairs, 1));
-    fst = flic_data(pairs(i, 1));
-    snd = flic_data(pairs(i, 2));
+    fst = all_data(pairs(i, 1));
+    snd = all_data(pairs(i, 2));
     
     stack_start = tic;
     stacks = get_stacks(...
