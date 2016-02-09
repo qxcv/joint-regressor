@@ -34,7 +34,7 @@ if ~exist(ldof_touch_file, 'file')
     fclose(fopen(ldof_touch_file, 'w'));
 end
 
-addpath(ldof_dir);
+addpath(genpath(ldof_dir));
 
 caffe_matlab_path = fullfile(ext_dir, 'conscaffe', 'matlab');
 if ~exist(fullfile(caffe_matlab_path), 'dir')
