@@ -13,28 +13,33 @@ import numpy as np
 model = Sequential()
 model.add(Convolution2D(32, 3, 3, input_shape=(3, 32, 32)))
 model.add(Activation('relu'))
+model.add(Dropout(0.25))
 model.add(Convolution2D(32, 3, 3))
 model.add(Activation('relu'))
+model.add(Dropout(0.25))
 model.add(Convolution2D(32, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.6))
+model.add(Dropout(0.25))
 
 model.add(Convolution2D(64, 3, 3))
 model.add(Activation('relu'))
+model.add(Dropout(0.25))
 model.add(Convolution2D(64, 3, 3))
 model.add(Activation('relu'))
+model.add(Dropout(0.25))
 model.add(Convolution2D(64, 3, 3))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.6))
+model.add(Dropout(0.25))
 
 model.add(Flatten())
 model.add(Dense(256))
 model.add(Activation('relu'))
+model.add(Dropout(0.5))
 model.add(Dense(256))
 model.add(Activation('relu'))
-model.add(Dropout(0.75))
+model.add(Dropout(0.5))
 
 model.add(Dense(10))
 model.add(Activation('softmax'))
@@ -66,7 +71,7 @@ X_train_scaled = rescale(X_train, mp)
 X_test_scaled = rescale(X_test, mp)
 
 try:
-    model.fit(X_train_scaled, Y_train, batch_size=128, nb_epoch=1000,
+    model.fit(X_train_scaled, Y_train, batch_size=128, nb_epoch=10,
             validation_data=(X_test_scaled, Y_test))
 finally:
     model.save_weights('cifar10_1000_epochs.h5')

@@ -46,9 +46,14 @@ conf.val_aug.flips = 0;
 % How many HDF5 files should we split our data set across? When writing out
 % samples, a HDF5 file will be chosen at random and written to (this will
 % work out in the long run).
-conf.num_hdf5s = 100;
+% NOTE: I changed this down to 1 so that the resultant data would be easier
+% to work with in Keras. This only works because h5py is smart enough to
+% lazily load data from disk; if you try this with Caffe, which naively
+% attempts to load *entire datasets* from disk, you will end up crashing
+% the program.
+conf.num_hdf5s = 1;
 % Number of hdf5s to use for validation
-conf.num_val_hdf5s = 4;
+conf.num_val_hdf5s = 1;
 % Fraction of pairs to use for validation
 conf.val_pairs_frac = 0.2;
 % Use only parts with these indices
