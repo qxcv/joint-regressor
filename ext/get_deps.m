@@ -2,7 +2,14 @@
 function get_deps(ext_dir, cache_dir)
 
 % First, build my little OpenCV CUDA Brox wrapper
-mex -lopencv_core -lopencv_cudaoptflow _broxOpticalFlow.cpp
+this_file = mfilename('fullpath');
+[this_dir, ~, ~] = fileparts(this_file);
+flow_dir = fullfile(this_dir, 'flow');
+old_dir = pwd;
+cd(flow_dir)
+mex('mex_broxOpticalFlow.cpp', '-lopencv_core', '-lopencv_cudaoptflow');
+addpath(flow_dir);
+cd(old_dir);
 
 caffe_matlab_path = fullfile(ext_dir, 'conscaffe', 'matlab');
 if ~exist(fullfile(caffe_matlab_path), 'dir')
