@@ -52,12 +52,17 @@ conf.val_aug.flips = 0;
 % attempts to load *entire datasets* from disk, you will end up crashing
 % the program.
 conf.num_hdf5s = 1;
+
 % Number of hdf5s to use for validation
 conf.num_val_hdf5s = 1;
-% Fraction of pairs to use for validation
+
+% Fraction of pairs to use for validation (XXX is this used?)
 conf.val_pairs_frac = 0.2;
-% Use only parts with these indices
-conf.poselet = 1:3; % [17 1:6] is head & both left and right sides of body
+
+% Use only parts with these indices (FLIC)
+conf.poselet = 1:3;
+% On FLIC, [17 1:6] is head & both left and right sides of body
+
 % Use K-means to cluster 2 * length(conf.poselet)-dimensional
 % poselet-per-frame vectors, then use the resulting centroids as classes
 % for biposelet prediction.

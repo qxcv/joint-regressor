@@ -113,26 +113,30 @@ def h5_read_worker(h5_path, batch_size, out_queue, end_evt):
             """Yields random indices into the dataset. Fetching data this way
             is slow, but it should be okay given that we're running this in a
             background process."""
-            while True:
-                # We re-read the dataset each time to make sure it's fresh
-                label_set = fp['/label']
-                label_size = len(label_set)
-                yield np.random.permutation(label_size)
+            label_set = fp['/label']
+            label_size = len(label_set)
+            yield np.random.permutation(label_size)
 
         indices = index_gen()
 
         while True:
             # First, fetch a batch full of data
-            batch_indices = list(islice(indices, batch_size))
-            batch_data = fp['/data'][batch_indices]
-            batch_labels = fp['/label'][batch_indices]
-            batch = (batch_data, batch_labels)
+            sliced_batch_indices = list(islice(indices, batch_size))
+            if not sliced_batch_indices:
+                # We're at the end of an epoch
+                batch = None
+                indices = index_gen()
+            else:
+                batch_data = fp['/data'][batch_indices]
+                batch_labels = fp['/label'][batch_indices]
+                batch = (batch_data, batch_labels)
 
             # This is the push loop
             while True:
                 if end_evt.is_set():
                     return
                 out_queue.push(batch, timeout=0.05)
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -151,6 +155,11 @@ if __name__ == '__main__':
     # Go!
     train_worker.start()
     val_worker.start()
+
+    # Now we can start the training loop!
+    # TODO
+
+    # Finally, clean everything up
     end_event.set()
     train_worker.join()
     val_worker.join()

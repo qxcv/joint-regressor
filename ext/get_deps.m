@@ -6,8 +6,11 @@ this_file = mfilename('fullpath');
 [this_dir, ~, ~] = fileparts(this_file);
 flow_dir = fullfile(this_dir, 'flow');
 old_dir = pwd;
-cd(flow_dir)
-mex('mex_broxOpticalFlow.cpp', '-lopencv_core', '-lopencv_cudaoptflow');
+cd(flow_dir);
+if ~exist('.built', 'file');
+    mex('mex_broxOpticalFlow.cpp', '-lopencv_core', '-lopencv_cudaoptflow');
+    fclose(fopen('.built', 'w'));
+end
 addpath(flow_dir);
 cd(old_dir);
 

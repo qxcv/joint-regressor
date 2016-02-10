@@ -1,4 +1,4 @@
-function rvs = get_stacks(d1, d2, poselet, cache_dir, cnn_window, flips, rotations, scales, randtrans)
+function rvs = get_stacks(d1, d2, poselet, left_parts, right_parts, cache_dir, cnn_window, flips, rotations, scales, randtrans)
 %GET_STACKS Get the image/flow stacks for a given data pair and set of
 %transformations.
 % d1: First datum
@@ -41,13 +41,13 @@ for flip=flips
     if flip
         % Reverse joints
         flip_joints(:, 1) = size(im1, 2) - flip_joints(:, 1) + 1;
-        % Swap indices 2-4 with indices 5-7 (left side <-> right side)
-        % FIXME: This code will break if I use a data set other than
-        % FLIC
+        % Swap left side for right side
         num_joints = size(d1.joint_locs, 1);
         assert(num_joints == size(d2.joint_locs, 1));
-        flip_joints(1:num_joints, :) = flip_lr(flip_joints(1:num_joints, :));
-        flip_joints(num_joints+1:end, :) = flip_lr(flip_joints(num_joints+1:end, :));
+        flip_joints(1:num_joints, :) = flip_lr(...
+            flip_joints(1:num_joints, :), left_parts, right_parts);
+        flip_joints(num_joints+1:end, :) = flip_lr(...
+            flip_joints(num_joints+1:end, :), left_parts, right_parts);
         % Reverse images
         flip_stack = flip_stack(:, end:-1:1, :);
         % Flip flow
@@ -141,8 +141,9 @@ function normed = norm_flow(flow)
 normed = single(flow);
 end
 
-function flipped = flip_lr(joints)
-% XXX: This will break for datasets other than FLIC
-flipped = joints([4:6 1:3 10 8:9 7 11:12 14 13 15:29], :);
+function flipped = flip_lr(joints, left_side, right_side)
+flipped = joints;
+flipped(left_side) = joints(right_side, :);
+flipped(right_side) = joints(left_side, :);
 assert(all(size(flipped) == size(joints)));
 end
