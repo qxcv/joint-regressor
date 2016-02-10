@@ -143,7 +143,7 @@ end
 
 function flipped = flip_lr(joints, left_side, right_side)
 flipped = joints;
-flipped(left_side) = joints(right_side, :);
-flipped(right_side) = joints(left_side, :);
+flipped(left_side, :) = joints(right_side, :);
+flipped(right_side, :) = joints(left_side, :);
 assert(all(size(flipped) == size(joints)));
 end
