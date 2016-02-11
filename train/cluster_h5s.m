@@ -25,4 +25,3 @@ for i=1:num_fns
     h5write(fn, '/poselet', clusters);
 end
 end
-

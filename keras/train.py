@@ -165,12 +165,12 @@ def h5_read_worker(
                 # np.array's __getitem__ is driving me loopy
                 sorted_indices = list(np.array(batch_indices)[sorted_index_indices])
                 batch_data = fp['/data'][sorted_indices]
+                batch_labels = fp['/label'][sorted_indices]
                 if mean_pixel is not None:
                     # The .reshape() allows Numpy to broadcast it
                     batch_data -= mean_pixel.reshape(
                         (1, len(mean_pixel), 1, 1)
                     )
-                batch_labels = fp['/label'][sorted_indices]
                 batch = (batch_data[inverse_indices], batch_labels[inverse_indices])
 
             # This is the push loop
