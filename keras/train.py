@@ -23,22 +23,18 @@ from keras.utils.generic_utils import Progbar
 
 import numpy as np
 
+from scipy.io import loadmat
+
 INIT = 'glorot_normal'
 INPUT_SHAPE = (8, 224, 224)
 NUM_OUTPUTS = 2 * 3  # Just predict left or right side (3 joints)
 
 
 # TODO:
-# 1) Should fetch far more batches at a time than I'm currently fetching.
-# Fetching 16 or 32 batches might actually be practical given how much memory I
-# have to play with.
-# 2) The validation set can be fetched *in order*, which will no doubt be much
-# faster! Fetching the validation set will also give the training thread time
-# to fill up its queue (at the moment it looks like ~1/3 of time is taken up
-# fetching!).
-# 3) Using uint8 instead of float32 for image data will no doubt speed up
-# fetching greatly, especially given that we're using SSDs, which probably have
-# random access not *that* much slower than sequential.
+# Using uint8 instead of float32 for image data will no doubt speed up fetching
+# greatly, especially given that we're using SSDs, which probably have random
+# access not *that* much slower than sequential (so time taken will be closer
+# to a linear function of read size).
 
 
 def make_conv_triple(model, channels, **extra_args):
@@ -100,42 +96,10 @@ def build_model():
     return model
 
 
-parser = ArgumentParser(description="Train a CNN to regress joints")
-
-# Mandatory arguments
-parser.add_argument(
-    'train_h5', metavar='TRAINDATA', type=str,
-    help='h5 file in which training samples are stored'
-)
-parser.add_argument(
-    'val_h5', metavar='VALDATA', type=str,
-    help='h5 file in which validation samples are stored'
-)
-parser.add_argument(
-    'checkpoint_dir', metavar='CHECKPOINTDIR', type=str,
-    help='directory in which to store checkpoint files'
-)
-
-# Optargs
-parser.add_argument(
-    '--queued-batches', dest='queued_batches', type=int, default=3,
-    help='number of unused batches stored in processing queue (in memory)'
-)
-parser.add_argument(
-    '--batch-size', dest='batch_size', type=int, default=32,
-    help='batch size for both training (backprop) and validation'
-)
-parser.add_argument(
-    '--checkpoint-epochs', dest='checkpoint_epochs', type=int, default=5,
-    help='training intervals to wait before writing a checkpoint file'
-)
-parser.add_argument(
-    '--train-interval-batches', dest='train_interval_batches', type=int,
-    default=1000, help='number of batches to train for between validation'
-)
-
-
-def h5_read_worker(h5_path, batch_size, out_queue, end_evt, mark_epochs):
+def h5_read_worker(
+        h5_path, batch_size, out_queue, end_evt, mark_epochs, shuffle,
+        mean_pixel
+    ):
     """This function is designed to be run in a multiprocessing.Process, and
     communicate using a multiprocessing.Queue. It will just keep reading
     batches and pushing them (complete batches!) to the queue in a tight loop;
@@ -147,6 +111,15 @@ def h5_read_worker(h5_path, batch_size, out_queue, end_evt, mark_epochs):
     queue iff mark_epochs is True. This notifies the training routine that it
     should perform validation or whatever it is training routines do
     nowadays."""
+
+    detail_str = 'Worker started. Details:\n' \
+        'h5_path: {h5_path}\n' \
+        'batch_size: {batch_size}\n' \
+        'mark_epochs: {mark_epochs}\n' \
+        'shuffle: {shuffle}\n' \
+        'mean_pixel: {mean_pixel}'.format(**locals())
+    print(detail_str)
+
     with h5py.File(h5_path, 'r') as fp:
         def index_gen():
             """Yields random indices into the dataset. Fetching data this way
@@ -154,7 +127,11 @@ def h5_read_worker(h5_path, batch_size, out_queue, end_evt, mark_epochs):
             background process."""
             label_set = fp['/label']
             label_size = len(label_set)
-            for idx in np.random.permutation(label_size):
+            if shuffle:
+                elems = np.random.permutation(label_size)
+            else:
+                elems = np.arange(label_size)
+            for idx in elems:
                 yield idx
 
         if mark_epochs:
@@ -188,6 +165,11 @@ def h5_read_worker(h5_path, batch_size, out_queue, end_evt, mark_epochs):
                 # np.array's __getitem__ is driving me loopy
                 sorted_indices = list(np.array(batch_indices)[sorted_index_indices])
                 batch_data = fp['/data'][sorted_indices]
+                if mean_pixel is not None:
+                    # The .reshape() allows Numpy to broadcast it
+                    batch_data -= mean_pixel.reshape(
+                        (1, len(mean_pixel), 1, 1)
+                    )
                 batch_labels = fp['/label'][sorted_indices]
                 batch = (batch_data[inverse_indices], batch_labels[inverse_indices])
 
@@ -195,8 +177,10 @@ def h5_read_worker(h5_path, batch_size, out_queue, end_evt, mark_epochs):
             while True:
                 if end_evt.is_set():
                     return
+
                 try:
                     out_queue.put(batch, timeout=0.05)
+                    break
                 except Full:
                     # Queue.Full (for Queue = the module in stdlib, not the
                     # class) is raised when we time out
@@ -255,7 +239,7 @@ def validate(model, queue):
 
     print(
         'Finished {} batches ({} samples); mean loss-per-sample {}'
-        .format(weighted_loss / max(1, samples))
+        .format(batches, samples, weighted_loss / max(1, samples))
     )
 
 
@@ -271,20 +255,72 @@ def save(model, iteration_no, dest_dir):
     model.save_weights(full_path)
 
 
+def read_mean_pixel(mat_path):
+    if mat_path is None:
+        # No mean pixel
+        return None
+    mat = loadmat(mat_path)
+    return mat['mean_pixel'].flatten()
+
+
+parser = ArgumentParser(description="Train a CNN to regress joints")
+
+# Mandatory arguments
+parser.add_argument(
+    'train_h5', metavar='TRAINDATA', type=str,
+    help='h5 file in which training samples are stored'
+)
+parser.add_argument(
+    'val_h5', metavar='VALDATA', type=str,
+    help='h5 file in which validation samples are stored'
+)
+parser.add_argument(
+    'checkpoint_dir', metavar='CHECKPOINTDIR', type=str,
+    help='directory in which to store checkpoint files'
+)
+
+# Optargs
+parser.add_argument(
+    '--queued-batches', dest='queued_batches', type=int, default=16,
+    help='number of unused batches stored in processing queue (in memory)'
+)
+parser.add_argument(
+    '--batch-size', dest='batch_size', type=int, default=48,
+    help='batch size for both training (backprop) and validation'
+)
+parser.add_argument(
+    '--checkpoint-epochs', dest='checkpoint_epochs', type=int, default=2,
+    help='training intervals to wait before writing a checkpoint file'
+)
+parser.add_argument(
+    '--train-interval-batches', dest='train_interval_batches', type=int,
+    default=256, help='number of batches to train for between validation'
+)
+parser.add_argument(
+    '--mean-pixel-mat', dest='mean_pixel_path', type=str, default=None,
+    help='.mat containing mean pixel'
+)
+
+
 if __name__ == '__main__':
     args = parser.parse_args()
     end_event = Event()
+    mean_pixel = read_mean_pixel(args.mean_pixel_path)
 
     # Training data prefetch
     train_queue = Queue(args.queued_batches)
     train_args = (
-        args.train_h5, args.batch_size, train_queue, end_event, False
+        args.train_h5, args.batch_size, train_queue, end_event, False, True,
+        mean_pixel
     )
     train_worker = Process(target=h5_read_worker, args=train_args)
 
     # Validation data prefetch
     val_queue = Queue(args.queued_batches)
-    val_args = (args.val_h5, args.batch_size, val_queue, end_event, True)
+    val_args = (
+        args.val_h5, args.batch_size, val_queue, end_event, True, False,
+        mean_pixel
+    )
     val_worker = Process(target=h5_read_worker, args=val_args)
 
     # Go!
@@ -300,7 +336,7 @@ if __name__ == '__main__':
         try:
             while True:
                 # Train and validate
-                train(model, train_queue, args.batch_size)
+                train(model, train_queue, args.train_interval_batches)
                 validate(model, val_queue)
 
                 # Update stats
