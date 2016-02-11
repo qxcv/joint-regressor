@@ -7,23 +7,38 @@ from argparse import ArgumentParser
 from itertools import chain, islice, repeat
 from os import path
 from multiprocessing import Process, Queue, Event
+from Queue import Full
 from random import randint
 from sys import stdout
+from time import time
 
 import h5py
 
 from keras.models import Sequential
 from keras.layers.core import Activation, Dense, Dropout, Flatten
 from keras.layers.convolutional import (Convolution2D, MaxPooling2D,
-        ZeroPadding2D)
+                                        ZeroPadding2D)
 from keras.optimizers import SGD
 from keras.utils.generic_utils import Progbar
 
 import numpy as np
 
-INIT='glorot_normal'
-INPUT_SHAPE = (6, 224, 224)
+INIT = 'glorot_normal'
+INPUT_SHAPE = (8, 224, 224)
 NUM_OUTPUTS = 2 * 3  # Just predict left or right side (3 joints)
+
+
+# TODO:
+# 1) Should fetch far more batches at a time than I'm currently fetching.
+# Fetching 16 or 32 batches might actually be practical given how much memory I
+# have to play with.
+# 2) The validation set can be fetched *in order*, which will no doubt be much
+# faster! Fetching the validation set will also give the training thread time
+# to fill up its queue (at the moment it looks like ~1/3 of time is taken up
+# fetching!).
+# 3) Using uint8 instead of float32 for image data will no doubt speed up
+# fetching greatly, especially given that we're using SSDs, which probably have
+# random access not *that* much slower than sequential.
 
 
 def make_conv_triple(model, channels, **extra_args):
@@ -82,6 +97,8 @@ def build_model():
     # easier to interpret (?); I hadn't really considered that.
     model.compile(loss='mae', optimizer=sgd)
 
+    return model
+
 
 parser = ArgumentParser(description="Train a CNN to regress joints")
 
@@ -105,7 +122,7 @@ parser.add_argument(
     help='number of unused batches stored in processing queue (in memory)'
 )
 parser.add_argument(
-    '--batch-size', dest='batch_size', type=int, default=128,
+    '--batch-size', dest='batch_size', type=int, default=32,
     help='batch size for both training (backprop) and validation'
 )
 parser.add_argument(
@@ -178,7 +195,12 @@ def h5_read_worker(h5_path, batch_size, out_queue, end_evt, mark_epochs):
             while True:
                 if end_evt.is_set():
                     return
-                out_queue.put(batch, timeout=0.05)
+                try:
+                    out_queue.put(batch, timeout=0.05)
+                except Full:
+                    # Queue.Full (for Queue = the module in stdlib, not the
+                    # class) is raised when we time out
+                    pass
 
 
 def train(model, queue, iterations):
@@ -196,14 +218,14 @@ def train(model, queue, iterations):
 
         # Next, do some backprop
         start_time = time()
-        loss = model.train_on_batch(X, y)
+        loss, = model.train_on_batch(X, y)
         bp_time = time() - start_time
 
         # Finally, write some debugging output
         extra_info = [
             ('loss', loss),
-            ('fetch', '{}s'.format(fetch_time)),
-            ('backprop', '{}s'.format(bp_time))
+            ('fetchtime', fetch_time),
+            ('bproptime', bp_time)
         ]
         p.update(iteration + 1, extra_info)
 
@@ -221,7 +243,7 @@ def validate(model, queue):
             break
 
         X, y = batch
-        loss = model.test_on_batch(X, y)
+        loss, = model.test_on_batch(X, y)
 
         # Update stats
         batches += 1
@@ -283,20 +305,24 @@ if __name__ == '__main__':
 
                 # Update stats
                 epochs_elapsed += 1
-                batches_used += batch_size
+                batches_used += args.batch_size
                 is_checkpoint_epoch = epochs_elapsed % args.checkpoint_epochs == 0
                 if epochs_elapsed > 0 and is_checkpoint_epoch:
                     save(model, batches_used, args.checkpoint_dir)
         finally:
             # Always save afterwards, even if we get KeyboardInterrupt'd or
             # whatever
+            stdout.write('\n')
             save(model, batches_used, args.checkpoint_dir)
     finally:
         # Make sure workers shut down gracefully
         end_event.set()
+        stdout.write('\n')
         print('Waiting for workers to exit')
         train_worker.join(2.0)
         val_worker.join(2.0)
+        # XXX: My termination scheme (with end_event) is not working, and I
+        # can't tell where the workers are getting stuck.
         print(
             'Train worker alive? {}; Val worker alive? {}; terminating anyway'
             .format(train_worker.is_alive(), val_worker.is_alive())
