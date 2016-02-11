@@ -4,7 +4,6 @@ from keras.models import Graph, Sequential
 from keras.layers.core import Activation, Dense, Dropout, Flatten
 from keras.layers.convolutional import (Convolution2D, MaxPooling2D,
                                         ZeroPadding2D)
-from keras.optimizers import SGD
 
 
 def make_conv_triple(model, channels, **extra_args):
@@ -17,10 +16,6 @@ def make_conv_triple(model, channels, **extra_args):
         layers = layers[1:]
     for layer in layers:
         model.add(layer)
-
-
-def regressor_solver():
-    return SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 
 
 def vggnet16_regressor_model(input_shape, num_outputs, solver, init):

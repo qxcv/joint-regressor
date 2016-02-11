@@ -14,10 +14,6 @@ from time import time
 
 import h5py
 
-from keras.models import Sequential
-from keras.layers.core import Activation, Dense, Dropout, Flatten
-from keras.layers.convolutional import (Convolution2D, MaxPooling2D,
-                                        ZeroPadding2D)
 from keras.optimizers import SGD
 from keras.utils.generic_utils import Progbar
 
@@ -25,7 +21,7 @@ import numpy as np
 
 from scipy.io import loadmat
 
-from models import regressor_solver, vggnet16_regressor_model
+from models import vggnet16_regressor_model
 
 INIT = 'glorot_normal'
 
@@ -256,6 +252,14 @@ parser.add_argument(
     '--mean-pixel-mat', dest='mean_pixel_path', type=str, default=None,
     help='.mat containing mean pixel'
 )
+parser.add_argument(
+    '--learning-rate', dest='learning_rate', type=float, default=0.0001,
+    help='learning rate for SGD'
+)
+parser.add_argument(
+    '--decay', dest='decay', type=float, default=1e-6,
+    help='decay for SGD'
+)
 
 
 if __name__ == '__main__':
@@ -286,7 +290,9 @@ if __name__ == '__main__':
 
         # Model-building
         input_shape, regressor_outputs, biposelet_classes = infer_sizes(args.train_h5)
-        solver = regressor_solver()
+        solver = SGD(
+            lr=args.learning_rate, decay=args.decay, momentum=0.9, nesterov=True
+        )
         model = vggnet16_regressor_model(
             input_shape, regressor_outputs, solver, INIT
         )
