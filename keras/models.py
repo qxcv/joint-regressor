@@ -51,15 +51,15 @@ def vggnet16_regressor_model(input_shape, num_outputs, solver, init):
     model.add(Dropout(0.5))
     model.add(Flatten())
 
-    model.add(Dense(4096, activation='relu'), init=init)
+    model.add(Dense(4096, activation='relu', init=init))
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
 
-    model.add(Dense(4096, activation='relu'), init=init)
+    model.add(Dense(4096, activation='relu', init=init))
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
 
-    model.add(Dense(num_outputs, activation='relu'), init=init)
+    model.add(Dense(num_outputs, init=init))
 
     # MAE is really just L1 loss, except we're averaging it because that might be
     # easier to interpret (?); I hadn't really considered that.

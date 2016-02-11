@@ -25,78 +25,18 @@ import numpy as np
 
 from scipy.io import loadmat
 
-INIT = 'glorot_normal'
-# TODO: Infer the following parameters from the input HDF5s
-INPUT_SHAPE = (8, 224, 224)
-NUM_OUTPUTS = 2 * 3  # Just predict left or right side (3 joints)
-BIPOSELET_CLASSES = 100
+from models import regressor_solver, vggnet16_regressor_model
 
+INIT = 'glorot_normal'
 
 # TODO:
-# 1) Infer constants above from HDF5s, where possible
-# 2) Rewrite Matlab code to use uint8s for image data rather than float32s
-# 3) Factor models out into their own file
-# 4) Create graph model for joint regression and classification
-
-
-def make_conv_triple(model, channels, **extra_args):
-    layers = [
-        ZeroPadding2D(padding=(1, 1), dim_ordering='th'),
-        Convolution2D(channels, 3, 3, init=INIT, **extra_args),
-        Activation('relu')
-    ]
-    if 'input_shape' in extra_args:
-        # Skip the zero-padding in the first layer
-        layers = layers[1:]
-    for layer in layers:
-        model.add(layer)
-
-
-def build_model():
-    """Just build a standard VGGNet16 model"""
-    model = Sequential()
-    make_conv_triple(model, 64, input_shape=INPUT_SHAPE)
-    make_conv_triple(model, 64)
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-
-    make_conv_triple(model, 128)
-    make_conv_triple(model, 128)
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-
-    make_conv_triple(model, 256)
-    make_conv_triple(model, 256)
-    make_conv_triple(model, 256)
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-
-    make_conv_triple(model, 512)
-    make_conv_triple(model, 512)
-    make_conv_triple(model, 512)
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-
-    make_conv_triple(model, 512)
-    make_conv_triple(model, 512)
-    make_conv_triple(model, 512)
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.5))
-    model.add(Flatten())
-
-    model.add(Dense(4096))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.5))
-
-    model.add(Dense(4096))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.5))
-
-    model.add(Dense(NUM_OUTPUTS))
-
-    sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-    # MAE is really just L1 loss, except we're averaging it because that might be
-    # easier to interpret (?); I hadn't really considered that.
-    model.compile(loss='mae', optimizer=sgd)
-
-    return model
-
+# 1) Rewrite Matlab code to use uint8s for image data rather than float32s
+# 2) Add flag to get graph model working
+# 3) Opportunistic refactoring :-)
+# 4) Figuring out why end_evt doesn't work. It looks like my workers are
+# exiting after a few seconds (through a return), yet are still marked alive
+# (?!). I guess there's some sort of cleanup going on there which I'm not privy
+# to.
 
 def h5_read_worker(
         h5_path, batch_size, out_queue, end_evt, mark_epochs, shuffle,
@@ -178,6 +118,7 @@ def h5_read_worker(
             # This is the push loop
             while True:
                 if end_evt.is_set():
+                    out_queue.close()
                     return
 
                 try:
@@ -265,6 +206,19 @@ def read_mean_pixel(mat_path):
     return mat['mean_pixel'].flatten()
 
 
+def infer_sizes(h5_path):
+    """Infer relevant data sizes from a HDF5 file."""
+    with h5py.File(h5_path, 'r') as fp:
+        input_shape = fp['data'].shape[1:]
+        regressor_outputs = fp['label'].shape[1]
+        if 'poselet' in fp.keys():
+            biposelet_classes = max(fp['poselet'])
+        else:
+            biposelet_classes = None
+
+    return (input_shape, regressor_outputs, biposelet_classes)
+
+
 parser = ArgumentParser(description="Train a CNN to regress joints")
 
 # Mandatory arguments
@@ -325,13 +279,19 @@ if __name__ == '__main__':
     )
     val_worker = Process(target=h5_read_worker, args=val_args)
 
-    # Go!
     try:
+        # Protect this in a try: for graceful cleanup of workers
         train_worker.start()
         val_worker.start()
 
-        # Now we can start the training loop!
-        model = build_model()
+        # Model-building
+        input_shape, regressor_outputs, biposelet_classes = infer_sizes(args.train_h5)
+        solver = regressor_solver()
+        model = vggnet16_regressor_model(
+            input_shape, regressor_outputs, solver, INIT
+        )
+
+        # Stats
         epochs_elapsed = 0
         batches_used = 0
 
@@ -357,8 +317,8 @@ if __name__ == '__main__':
         end_event.set()
         stdout.write('\n')
         print('Waiting for workers to exit')
-        train_worker.join(2.0)
-        val_worker.join(2.0)
+        train_worker.join(10.0)
+        val_worker.join(10.0)
         # XXX: My termination scheme (with end_event) is not working, and I
         # can't tell where the workers are getting stuck.
         print(
