@@ -7,6 +7,7 @@ from argparse import ArgumentParser
 from itertools import chain, islice, repeat
 from os import path
 from multiprocessing import Process, Queue, Event
+from random import randint
 from sys import stdout
 
 import h5py
@@ -15,6 +16,7 @@ from keras.models import Sequential
 from keras.layers.core import Activation, Dense, Dropout, Flatten
 from keras.layers.convolutional import (Convolution2D, MaxPooling2D,
         ZeroPadding2D)
+from keras.optimizers import SGD
 from keras.utils.generic_utils import Progbar
 
 import numpy as np
@@ -154,25 +156,29 @@ def h5_read_worker(h5_path, batch_size, out_queue, end_evt, mark_epochs):
                 indices = index_gen()
                 batch = None
             else:
-                # XXX: Since h5py is insane, it wants batch indices to be in
-                # ascending order. I'm not sure whether I should do that and
-                # then shuffle the data afterwards in memory, or fetch in the
-                # order that I actually want the indices (assembling as I go).
-                # Presumably h5py has good performance reasons for wanting
-                # ascending indices, and those performance reasons likely have
-                # something to do with the (very) slow act of reading from
-                # disk, so I might reshuffle in memory. On the other hand,
-                # paloalto only has SSDs, so perhaps whatever performance
-                # consideration h5py was taking into account is not relevant?
-                batch_data = fp['/data'][batch_indices]
-                batch_labels = fp['/label'][batch_indices]
-                batch = (batch_data, batch_labels)
+                # h5py wants its indices sorted (presumably so that each
+                # accessed chunk only has to be loaded once), so we give it
+                # sorted indices and then use a second set of indices to invert
+                # the mapping (so that the actual batch data order is the same
+                # as the one described by batch_indices). Note that I'm
+                # converting to list() because otherwise h5py gives a cryptic
+                # error message saying it only supports "boolean array"
+                # indexing (which means that if the input to the indexing
+                # function is a numpy array, then it must be boolean).
+                sorted_index_indices = np.argsort(batch_indices)
+                inverse_indices = list(np.argsort(sorted_index_indices))
+                # Oh god the difference between list's __getitem__ and
+                # np.array's __getitem__ is driving me loopy
+                sorted_indices = list(np.array(batch_indices)[sorted_index_indices])
+                batch_data = fp['/data'][sorted_indices]
+                batch_labels = fp['/label'][sorted_indices]
+                batch = (batch_data[inverse_indices], batch_labels[inverse_indices])
 
             # This is the push loop
             while True:
                 if end_evt.is_set():
                     return
-                out_queue.push(batch, timeout=0.05)
+                out_queue.put(batch, timeout=0.05)
 
 
 def train(model, queue, iterations):
@@ -278,7 +284,8 @@ if __name__ == '__main__':
                 # Update stats
                 epochs_elapsed += 1
                 batches_used += batch_size
-                if epochs_elapsed % args.checkpoint_epochs == 0:
+                is_checkpoint_epoch = epochs_elapsed % args.checkpoint_epochs == 0
+                if epochs_elapsed > 0 and is_checkpoint_epoch:
                     save(model, batches_used, args.checkpoint_dir)
         finally:
             # Always save afterwards, even if we get KeyboardInterrupt'd or
@@ -288,5 +295,11 @@ if __name__ == '__main__':
         # Make sure workers shut down gracefully
         end_event.set()
         print('Waiting for workers to exit')
-        train_worker.join()
-        val_worker.join()
+        train_worker.join(2.0)
+        val_worker.join(2.0)
+        print(
+            'Train worker alive? {}; Val worker alive? {}; terminating anyway'
+            .format(train_worker.is_alive(), val_worker.is_alive())
+        )
+        train_worker.terminate()
+        val_worker.terminate()
