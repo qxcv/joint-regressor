@@ -26,15 +26,17 @@ import numpy as np
 from scipy.io import loadmat
 
 INIT = 'glorot_normal'
+# TODO: Infer the following parameters from the input HDF5s
 INPUT_SHAPE = (8, 224, 224)
 NUM_OUTPUTS = 2 * 3  # Just predict left or right side (3 joints)
+BIPOSELET_CLASSES = 100
 
 
 # TODO:
-# Using uint8 instead of float32 for image data will no doubt speed up fetching
-# greatly, especially given that we're using SSDs, which probably have random
-# access not *that* much slower than sequential (so time taken will be closer
-# to a linear function of read size).
+# 1) Infer constants above from HDF5s, where possible
+# 2) Rewrite Matlab code to use uint8s for image data rather than float32s
+# 3) Factor models out into their own file
+# 4) Create graph model for joint regression and classification
 
 
 def make_conv_triple(model, channels, **extra_args):
