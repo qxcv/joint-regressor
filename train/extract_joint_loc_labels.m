@@ -3,7 +3,7 @@ function locs = extract_joint_loc_labels(paths)
 locs = []; % This will grow; this is fine.
 for i=1:length(paths)
     path = paths{i};
-    labels = h5read(path, '/label')';
+    labels = h5read(path, '/joints')';
     locs = cat(1, locs, labels);
 end
 % Some other code which I don't want to delete from this file (even though

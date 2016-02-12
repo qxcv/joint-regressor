@@ -1,7 +1,10 @@
-function write_dset(all_data, pairs, cache_dir, patch_dir, num_hdf5s, cnn_window, poselet, left_parts, right_parts, aug)
+function write_dset(all_data, pairs, cache_dir, patch_dir, num_hdf5s, ...
+    cnn_window, poselet, left_parts, right_parts, aug, chunksz)
 %WRITE_DSET Write out a data set (e.g. pairs from the train set or pairs
 %from the test set).
 
+% opts will be used later for writing to hdf5s
+opts.chunksz = chunksz;
 confirm_path = fullfile(patch_dir, '.written');
 
 if ~exist(patch_dir, 'dir')
@@ -32,8 +35,7 @@ semaphore_key = randi(2^15-1);
 fprintf('Creating semaphore with key %i\n', semaphore_key);
 semaphore('create', semaphore_key, 1);
 fprintf('Semaphore created\n');
-    
-% TODO: Change this to parfor once I know the code is working
+
 parfor i=1:size(pairs, 1)
     fprintf('Working on pair %d/%d\n', i, size(pairs, 1), labindex);
     fst = all_data(pairs(i, 1));
@@ -66,9 +68,9 @@ parfor i=1:size(pairs, 1)
         stack_im = stack(:, :, 1:6, :);
         stack_im_bytes = uint8(stack_im * 255);
         semaphore('wait', semaphore_key);
-        store3hdf6(filename, {}, '/flow', stack_flow, ...
-                                 '/images', stack_im_bytes, ...
-                                 '/joints', joint_labels);
+        store3hdf6(filename, opts, '/flow', stack_flow, ...
+                                   '/images', stack_im_bytes, ...
+                                   '/joints', joint_labels);
         semaphore('post', semaphore_key);
     end
     write_time = toc(write_start);

@@ -26,18 +26,15 @@ from models import vggnet16_regressor_model
 INIT = 'glorot_normal'
 
 # TODO:
-# 1) Rewrite Matlab code to use uint8s for image data rather than float32s
-# 2) Add flag to get graph model working
-# 3) Opportunistic refactoring :-)
-# 4) Figuring out why end_evt doesn't work. It looks like my workers are
+#
+# 1) Add flag to get graph model working
+#
+# 2) Opportunistic refactoring :-)
+#
+# 3) Figuring out why end_evt doesn't work. It looks like my workers are
 # exiting after a few seconds (through a return), yet are still marked alive
 # (?!). I guess there's some sort of cleanup going on there which I'm not privy
 # to.
-# 5) Fix my Matlab script so that it stops creating insane crops! I don't know
-# what the problem is at the moment :(
-# 6) Figure out what the deal is with regressor output. Why is it that my
-# script is only writing six values, when I have three joints (each of which
-# requires two values for its coordinate) across *two* frames?
 
 def h5_read_worker(
         h5_path, batch_size, out_queue, end_evt, mark_epochs, shuffle,
@@ -68,7 +65,7 @@ def h5_read_worker(
             """Yields random indices into the dataset. Fetching data this way
             is slow, but it should be okay given that we're running this in a
             background process."""
-            label_set = fp['/label']
+            label_set = fp['/joints']
             label_size = len(label_set)
             if shuffle:
                 elems = np.random.permutation(label_size)
@@ -107,8 +104,10 @@ def h5_read_worker(
                 # Oh god the difference between list's __getitem__ and
                 # np.array's __getitem__ is driving me loopy
                 sorted_indices = list(np.array(batch_indices)[sorted_index_indices])
-                batch_data = fp['/data'][sorted_indices]
-                batch_labels = fp['/label'][sorted_indices]
+                batch_im = fp['/images'][sorted_indices].astype('float32')
+                batch_flow = fp['/flow'][sorted_indices]
+                batch_data = np.stack((batch_im, batch_flow), axis=3)
+                batch_labels = fp['/joints'][sorted_indices]
                 if mean_pixel is not None:
                     # The .reshape() allows Numpy to broadcast it
                     batch_data -= mean_pixel.reshape(
@@ -204,16 +203,21 @@ def read_mean_pixel(mat_path):
         # No mean pixel
         return None
     mat = loadmat(mat_path)
-    return mat['mean_pixel'].flatten()
+    im_mean = mat['image_mean_pixel'].flatten()
+    flow_mean = mat['flow_mean_pixel'].flatten()
+    return np.concatenate(im_mean, flow_mean)
 
 
 def infer_sizes(h5_path):
     """Infer relevant data sizes from a HDF5 file."""
     with h5py.File(h5_path, 'r') as fp:
-        input_shape = fp['data'].shape[1:]
-        regressor_outputs = fp['label'].shape[1]
+        im_shape = fp['/images'].shape[1:]
+        flow_shape = fp['/flow'].shape[1:]
+        assert(im_shape[1:] == flow_shape[1:])
+        input_shape = (im_shape[0] + flow_shape[0], im_shape[1], im_shape[2])
+        regressor_outputs = fp['/joints'].shape[1]
         if 'poselet' in fp.keys():
-            biposelet_classes = max(fp['poselet'])
+            biposelet_classes = max(fp['/poselet'])
         else:
             biposelet_classes = None
 
