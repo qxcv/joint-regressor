@@ -43,7 +43,6 @@ def vggnet16_regressor_model(input_shape, num_outputs, solver, init):
     make_conv_triple(model, 512, init=init)
     make_conv_triple(model, 512, init=init)
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.5))
     model.add(Flatten())
 
     model.add(Dense(4096, activation='relu', init=init))
@@ -122,25 +121,22 @@ def vggnet16_joint_model(
     model.add_node(Convolution2D(512, 3, 3, init=init, activation='relu'), input='pad13', name='conv13')
     # pool5
     model.add_node(MaxPooling2D(pool_size=(2, 2)), input='conv13', name='pool5')
-
-    # drop1
-    model.add_node(Dropout(0.5), input='pool5', name='drop1')
-    model.add_node(Flatten(), input='drop1', name='flat')
+    model.add_node(Flatten(), input='pool5', name='flat')
 
     # fc1
     model.add_node(Dense(4096, init=init, activation='relu'), input='flat', name='fc1')
     # drop2
-    model.add_node(Dropout(0.5), input='fc1', name='drop2')
+    model.add_node(Dropout(0.5), input='fc1', name='drop1')
 
     # fc2
     model.add_node(Dense(4096, init=init, activation='relu'), input='drop2', name='fc2')
     # drop3
-    model.add_node(Dropout(0.5), input='fc2', name='drop3')
+    model.add_node(Dropout(0.5), input='fc2', name='drop2')
 
     # Both come from drop3, and produce outputs which we will pass to different
     # loss layers
-    model.add_node(Dense(regressor_outputs, init=init), input='drop3', name='fc_regr')
-    model.add_node(Dense(biposelet_classes, init=init, activation='softmax'), input='drop3', name='fc_clas')
+    model.add_node(Dense(regressor_outputs, init=init), input='drop2', name='fc_regr')
+    model.add_node(Dense(biposelet_classes, init=init, activation='softmax'), input='drop2', name='fc_clas')
 
     model.add_output(input='fc_regr', name='out_regr')
     model.add_output(input='fc_clas', name='out_clas')
