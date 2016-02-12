@@ -62,4 +62,3 @@ fid = fopen(confirm_path, 'w');
 fprintf(fid, '');
 fclose(fid);
 end
-

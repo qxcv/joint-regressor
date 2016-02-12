@@ -69,8 +69,8 @@ for flip=flips
         end
 
         %% 3) Get bounding box for joint
-        maxes = max(rot_joints(poselet_indices), [], 1);
-        mins = min(rot_joints(poselet_indices), [], 1);
+        maxes = max(rot_joints(poselet_indices, :), [], 1);
+        mins = min(rot_joints(poselet_indices, :), [], 1);
         % Always crop a square patch
         pose_side = max(maxes - mins);
         % box_center is (x, y)
@@ -120,7 +120,7 @@ for flip=flips
                 end
 
                 % Return column vector [x1 y1 x2 y2 ... xn yn]'
-                poselet_joints = scale_joints(poselet_indices);
+                poselet_joints = scale_joints(poselet_indices, :);
                 rvs(current_idx).joint_labels = reshape(poselet_joints', [numel(poselet_joints), 1]);
                 % Return full w * h * c matrix
                 rvs(current_idx).stack = final_stack;
