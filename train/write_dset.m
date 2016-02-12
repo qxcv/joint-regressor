@@ -22,9 +22,20 @@ parfor i=1:size(pairs, 1)
     snd = all_data(snd_idx);
     cached_imflow(fst, snd, cache_dir);
 end
+
+% We use a POSIX semaphore wrapped by an external library to synchronise
+% access to the file, since there's really no more elegant way of doing
+% what I'm about to do. Note that I'm using a random key so that if this
+% code crashes during the parfor and is run again then it will most likely
+% not die or run into undefined behaviour on the 'create' call.
+semaphore_key = randi(2^31-1);
+fprintf('Creating semaphore with key %i\n', semaphore_key);
+semaphore('create', semaphore_key, 1);
+fprintf('Semaphore created\n');
     
+% TODO: Change this to parfor once I know the code is working
 for i=1:size(pairs, 1)
-    fprintf('Working on pair %d/%d\n', i, size(pairs, 1));
+    fprintf('Working on pair %d/%d on lab %i\n', i, size(pairs, 1), labindex);
     fst = all_data(pairs(i, 1));
     snd = all_data(pairs(i, 2));
     
@@ -33,7 +44,7 @@ for i=1:size(pairs, 1)
         fst, snd, poselet, left_parts, right_parts, cache_dir, cnn_window, ...
         aug.flips, aug.rots, aug.scales, aug.randtrans);
     stack_time = toc(stack_start);
-    fprintf('get_stack() took %fs\n', stack_time);
+    fprintf('get_stack() on lab %i took %fs\n', labindex, stack_time);
     
     write_start = tic;
     for j=1:length(stacks)
@@ -46,17 +57,23 @@ for i=1:size(pairs, 1)
         % Choose a file, regardless of whether it exists
         h5_idx = randi(num_hdf5s);
         filename = fullfile(patch_dir, sprintf('samples-%06i.h5', h5_idx));
-        create = false;
-        if ~exist(filename, 'file')
-            create = true;
-        end
         
         % Write!
-        store2hdf5(filename, stack, joint_labels, create);
+        fprintf('Lab %i locking semaphore\n', labindex);
+        semaphore('wait', semaphore_key);
+        fprintf('Lab %i locked semaphore successfully\n', labindex);
+        store3hdf6(filename, {}, '/data', stack, '/label', joint_labels);
+        fprintf('Lab %i releasing semaphore\n', labindex);
+        semaphore('post', semaphore_key);
+        fprintf('Lab %i released semaphore successfully\n', labindex);
     end
     write_time = toc(write_start);
-    fprintf('Writing %d examples took %fs\n', length(stacks), write_time);
+    fprintf('Writing %d on lab %i examples took %fs\n', length(stacks), labindex, write_time);
 end
+
+fprintf('Destroying semaphore\n');
+semaphore('destroy', semaphore_key);
+fprintf('Semaphore destroyed\n');
 
 fid = fopen(confirm_path, 'w');
 fprintf(fid, '');

@@ -1,4 +1,7 @@
-% This is like Caffe's store2hdf5, but better :)
+% This is like Caffe's store2hdf5, but better. Supports a variable number
+% of datasets to write, and has some sensible defaults that only make sense
+% when not using Caffe (e.g. it always uses the type of the data you give
+% it, instead of converting everything to single).
 
 function store3hdf6(filename, opts, varargin)
 % *filename* is the path to the HDF5 file
@@ -47,14 +50,6 @@ for i=1:2:length(varargin)
         data_dims = [data_dims 1];
     end
     
-    if ~exist('last_size', 'var')
-        last_size = length(data_dims);
-    else
-        if length(data_dims) ~= last_size
-            warning('Some inputs to store3hdf6 have different lengths');
-        end
-    end
-    
     if ~hdf5_location_exists(filename, dataset)
         % we'll need to create the file
         % chunk size format is  [width, height, channels, number]
@@ -67,7 +62,7 @@ for i=1:2:length(varargin)
         info = h5info(filename);
         % strip leading slash
         ds_name = dataset(2:end);
-        ds_idx = strcmp(ds_name, {info.Datasets.Name});
+        ds_idx = find(strcmp(ds_name, {info.Datasets.Name}));
         prev_size = info.Datasets(ds_idx(1:1)).Dataspace.Size;
         assert(all(prev_size(1:end-1) == data_dims(1:end-1)), ...
             'Data dimensions must match existing dimensions in dataset');

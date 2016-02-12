@@ -1,4 +1,4 @@
-% SEMAPHORE  Interfaces with POSIX semaphore.
+% SEMAPHORE_README  Interfaces with POSIX semaphore.
 %
 %   This mex file provides an interface with the POSIX semaphore
 %   functionality. For more information, see [1].

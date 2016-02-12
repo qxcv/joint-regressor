@@ -39,7 +39,7 @@ function [curr_dat_sz, curr_lab_sz] = store2hdf5(filename, data, joint_locs, cre
   if create
     %fprintf('Creating dataset with %d samples\n', num_samples);
     if ~exist('chunksz', 'var')
-      chunksz=1000;
+      chunksz=1024;
     end
     if exist(filename, 'file')
       fprintf('Warning: replacing existing file %s \n', filename);
