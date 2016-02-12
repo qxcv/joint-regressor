@@ -28,14 +28,14 @@ end
 % what I'm about to do. Note that I'm using a random key so that if this
 % code crashes during the parfor and is run again then it will most likely
 % not die or run into undefined behaviour on the 'create' call.
-semaphore_key = randi(2^31-1);
+semaphore_key = randi(2^15-1);
 fprintf('Creating semaphore with key %i\n', semaphore_key);
 semaphore('create', semaphore_key, 1);
 fprintf('Semaphore created\n');
     
 % TODO: Change this to parfor once I know the code is working
-for i=1:size(pairs, 1)
-    fprintf('Working on pair %d/%d on lab %i\n', i, size(pairs, 1), labindex);
+parfor i=1:size(pairs, 1)
+    fprintf('Working on pair %d/%d\n', i, size(pairs, 1), labindex);
     fst = all_data(pairs(i, 1));
     snd = all_data(pairs(i, 2));
     
@@ -44,7 +44,7 @@ for i=1:size(pairs, 1)
         fst, snd, poselet, left_parts, right_parts, cache_dir, cnn_window, ...
         aug.flips, aug.rots, aug.scales, aug.randtrans);
     stack_time = toc(stack_start);
-    fprintf('get_stack() on lab %i took %fs\n', labindex, stack_time);
+    fprintf('get_stack() took %fs\n', labindex, stack_time);
     
     write_start = tic;
     for j=1:length(stacks)
@@ -59,16 +59,20 @@ for i=1:size(pairs, 1)
         filename = fullfile(patch_dir, sprintf('samples-%06i.h5', h5_idx));
         
         % Write!
-        fprintf('Lab %i locking semaphore\n', labindex);
+        assert(size(stack, 3) == 8, 'you need to rewrite this to handle flow');
+        % We split the flow out from the images so that we can write the
+        % images as uint8s
+        stack_flow = single(stack(:, :, 7:8, :));
+        stack_im = stack(:, :, 1:6, :);
+        stack_im_bytes = uint8(stack_im * 255);
         semaphore('wait', semaphore_key);
-        fprintf('Lab %i locked semaphore successfully\n', labindex);
-        store3hdf6(filename, {}, '/data', stack, '/label', joint_labels);
-        fprintf('Lab %i releasing semaphore\n', labindex);
+        store3hdf6(filename, {}, '/flow', stack_flow, ...
+                                 '/images', stack_im_bytes, ...
+                                 '/joints', joint_labels);
         semaphore('post', semaphore_key);
-        fprintf('Lab %i released semaphore successfully\n', labindex);
     end
     write_time = toc(write_start);
-    fprintf('Writing %d on lab %i examples took %fs\n', length(stacks), labindex, write_time);
+    fprintf('Writing %d examples took %fs\n', length(stacks), labindex, write_time);
 end
 
 fprintf('Destroying semaphore\n');
