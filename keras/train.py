@@ -33,6 +33,11 @@ INIT = 'glorot_normal'
 # exiting after a few seconds (through a return), yet are still marked alive
 # (?!). I guess there's some sort of cleanup going on there which I'm not privy
 # to.
+# 5) Fix my Matlab script so that it stops creating insane crops! I don't know
+# what the problem is at the moment :(
+# 6) Figure out what the deal is with regressor output. Why is it that my
+# script is only writing six values, when I have three joints (each of which
+# requires two values for its coordinate) across *two* frames?
 
 def h5_read_worker(
         h5_path, batch_size, out_queue, end_evt, mark_epochs, shuffle,
