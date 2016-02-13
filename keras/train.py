@@ -105,9 +105,9 @@ def h5_read_worker(
                 # np.array's __getitem__ is driving me loopy
                 sorted_indices = list(np.array(batch_indices)[sorted_index_indices])
                 batch_im = fp['/images'][sorted_indices].astype('float32')
-                batch_flow = fp['/flow'][sorted_indices]
-                batch_data = np.stack((batch_im, batch_flow), axis=3)
-                batch_labels = fp['/joints'][sorted_indices]
+                batch_flow = fp['/flow'][sorted_indices].astype('float32')
+                batch_data = np.concatenate((batch_im, batch_flow), axis=1)
+                batch_labels = fp['/joints'][sorted_indices].astype('float32')
                 if mean_pixel is not None:
                     # The .reshape() allows Numpy to broadcast it
                     batch_data -= mean_pixel.reshape(
@@ -205,7 +205,7 @@ def read_mean_pixel(mat_path):
     mat = loadmat(mat_path)
     im_mean = mat['image_mean_pixel'].flatten()
     flow_mean = mat['flow_mean_pixel'].flatten()
-    return np.concatenate(im_mean, flow_mean)
+    return np.concatenate((im_mean, flow_mean))
 
 
 def infer_sizes(h5_path):
