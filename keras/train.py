@@ -269,6 +269,10 @@ parser.add_argument(
     '--decay', dest='decay', type=float, default=1e-6,
     help='decay for SGD'
 )
+parser.add_argument(
+    '--finetune', dest='finetune_path', type=str, default=None,
+    help='finetune from these weights instead of starting again'
+)
 
 
 if __name__ == '__main__':
@@ -305,6 +309,9 @@ if __name__ == '__main__':
         model = vggnet16_regressor_model(
             input_shape, regressor_outputs, solver, INIT
         )
+        if args.finetune_path is not None:
+            print("Loading weights from '{}'".format(args.finetune_path))
+            model.load_weights(args.finetune_path)
 
         # Stats
         epochs_elapsed = 0

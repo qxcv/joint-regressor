@@ -6,14 +6,14 @@ from keras.layers.convolutional import (Convolution2D, MaxPooling2D,
                                         ZeroPadding2D)
 
 
-def make_conv_triple(model, channels, **extra_args):
+def make_conv_triple(model, channels, input_shape=None, **extra_args):
+    zp_args = {}
+    if input_shape is not None:
+        zp_args['input_shape'] = input_shape
     layers = [
-        ZeroPadding2D(padding=(1, 1), dim_ordering='th'),
+        ZeroPadding2D(padding=(1, 1), dim_ordering='th', **zp_args),
         Convolution2D(channels, 3, 3, activation='relu', **extra_args)
     ]
-    if 'input_shape' in extra_args:
-        # Skip the zero-padding in the first layer
-        layers = layers[1:]
     for layer in layers:
         model.add(layer)
 
@@ -46,11 +46,9 @@ def vggnet16_regressor_model(input_shape, num_outputs, solver, init):
     model.add(Flatten())
 
     model.add(Dense(4096, activation='relu', init=init))
-    model.add(Activation('relu'))
     model.add(Dropout(0.5))
 
     model.add(Dense(4096, activation='relu', init=init))
-    model.add(Activation('relu'))
     model.add(Dropout(0.5))
 
     model.add(Dense(num_outputs, init=init))
