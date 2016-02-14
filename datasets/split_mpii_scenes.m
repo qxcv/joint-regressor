@@ -16,11 +16,16 @@ parfor i=1:length(mpii_rshift)
     end
 end
 
+% dumb_splits is filled by just checking discontinuities in track index
+dumb_splits = [[mpii_data(1:end-1).action_track_index]+1 ~= [mpii_rshift.action_track_index], false];
+
 scene_num = 1;
 
+% NOTE: I can just use cumsum to do this. However, I want to do it this way
+% so that it tells me what the splits are with fprintf as it goes
 for i=1:length(mpii_data)
     mpii_data(i).scene_num = scene_num;
-    if splits(i)
+    if splits(i) || dumb_splits(i)
         % Note that splits(end) will always be false, so the following
         % should be safe
         fprintf(...

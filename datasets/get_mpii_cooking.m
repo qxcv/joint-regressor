@@ -74,7 +74,7 @@ if ~exist(data_path, 'file')
     mpii_data = mpii_data(sorted_indices);
     
     % Now we need to make sure we have scene numbers
-    mpii_data = split_mpii_scenes(mpii_data, 0.1);
+    mpii_data = split_mpii_scenes(mpii_data, 0.2);
     
     save(data_path, 'mpii_data');
     regen_pairs = true;
