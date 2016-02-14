@@ -23,7 +23,7 @@
 %      pose(11,:)-> head upper point
 %      pose(12,:)-> head lower point
 
-function [mpii_data, train_pairs, test_pairs] = get_mpii_cooking(dest_dir, cache_dir)
+function [mpii_data, train_pairs, val_pairs] = get_mpii_cooking(dest_dir, cache_dir)
 %GET_MPII_COOKING Fetches continuous pose estimation data from MPII
 % To be honest, I have no idea where I got this dataset from, so it just
 % does some mystery symlinking.
@@ -58,12 +58,24 @@ if ~exist(data_path, 'file')
     for i=1:length(pose_fns)
         data_fn = pose_fns(i).name;
         [track_index, index] = parse_fn(data_fn);
-        mpii_data(i).frame_no = track_index;
+        % "track_index" is the index within the dataset for the action
+        % track. "index" is the index within the dataset. They really could
+        % have picked a more optimal name :/
+        mpii_data(i).frame_no = index;
+        mpii_data(i).action_track_index = track_index;
         file_name = sprintf('img_%06i_%06i.jpg', track_index, index);
         mpii_data(i).image_path = fullfile(DEST_PATH, 'data', 'images', file_name);
         loaded = load(fullfile(pose_dir, data_fn), 'pose');
         mpii_data(i).joint_locs = loaded.pose;
     end
+    
+    % Sort by frame number *within this dataset*
+    [~, sorted_indices] = sort([mpii_data.frame_no]);
+    mpii_data = mpii_data(sorted_indices);
+    
+    % Now we need to make sure we have scene numbers
+    mpii_data = split_mpii_scenes(mpii_data, 0.1);
+    
     save(data_path, 'mpii_data');
     regen_pairs = true;
 else
@@ -79,21 +91,35 @@ end
 pair_path = fullfile(cache_dir, 'mpii_pairs.mat');
 if ~exist(pair_path, 'file') || regen_pairs
     fprintf('Generating pairs\n');
-    all_pairs = find_pairs(mpii_data, FRAME_SKIP);
-    rand_indices = randperm(length(all_pairs));
-    num_train = floor(length(all_pairs) * 0.7);
-    train_indices = rand_indices(1:num_train);
-    test_indices = rand_indices(num_train+1:end);
+    [all_pairs, pair_scenes] = find_pairs(mpii_data, FRAME_SKIP);
+    
+    % Choose which scenes to use for training and which to use for
+    % validation
+    all_scenes = unique(pair_scenes);
+    all_scenes = all_scenes(randperm(length(all_scenes)));
+    num_train_scenes = floor(length(all_scenes) * 0.7);
+    train_scenes = all_scenes(1:num_train_scenes);
+    val_scenes = all_scenes(num_train_scenes+1:end);
+    disp(train_scenes);
+    disp(val_scenes);
+    
+    % Find the pair indices corresponding to the chosen scenes
+    train_indices = ismember(pair_scenes, train_scenes);
+    val_indices = ismember(pair_scenes, val_scenes);
+    fprintf('Have %i training pairs and %i validation pairs\n', ...
+        sum(train_indices), sum(val_indices));
+    
+    % Now save!
     train_pairs = all_pairs(train_indices, :);
-    test_pairs = all_pairs(test_indices, :);
-    save(pair_path, 'train_pairs', 'test_pairs');
+    val_pairs = all_pairs(val_indices, :);
+    save(pair_path, 'train_pairs', 'val_pairs');
 else
     fprintf('Loading pairs from file\n');
     loaded = load(pair_path);
     % Yes, I know I could just load() without assigning anything, but I
     % like this way better.
     train_pairs = loaded.train_pairs;
-    test_pairs = loaded.test_pairs;
+    val_pairs = loaded.val_pairs;
 end
 end
 
@@ -106,11 +132,14 @@ track_index = str2double(tokens{1}{1});
 index = str2double(tokens{1}{2});
 end
 
-function pairs = find_pairs(mpii_data, frame_skip)
+function [pairs, scenes] = find_pairs(mpii_data, frame_skip)
 % Find pairs with frame_skip frames between them
-frame_nos = [mpii_data.frame_no];
+frame_nums = [mpii_data.frame_no];
+scene_nums = [mpii_data.scene_num];
 fst_inds = 1:(length(mpii_data)-frame_skip-1);
 snd_inds = fst_inds + frame_skip + 1;
-good_inds = frame_nos(snd_inds) - frame_nos(fst_inds) == frame_skip + 1;
+good_inds = (frame_nums(snd_inds) - frame_nums(fst_inds) == frame_skip + 1) ...
+    & (scene_nums(fst_inds) == scene_nums(snd_inds));
 pairs = cat(2, fst_inds(good_inds)', snd_inds(good_inds)');
+scenes = scene_nums(fst_inds(good_inds));
 end
