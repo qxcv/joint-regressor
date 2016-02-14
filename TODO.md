@@ -1,9 +1,8 @@
-1. Check that I've subtracted mean pixel from current train/val patches.
-2. Make sure that mean pixel subtraction is part of the automated pipeline.
-3. Put centroid calculation into automated pipeline.
-4. Increase loss_weight of poselet classification to 10-100 range (100 for
+1. Increase loss_weight of poselet classification to 10-100 range (100 for
    parity with regressor loss; that may not be a good idea).
-5. Cache centroids.
-6. Get Keras up and running; need equivalent to current VGGNet.
-7. Rewrite output code to write to space-saving Keras-compatible format (i.e.
-   half-precision floats for flow & 24BPP for images).
+2. Cache centroids.
+3. Rewrite code so that it looks at the SECOND number in the continuous pose
+   dataset. At the moment it is looking at the first number, which is actually
+   the index of the image /in the activity track/ (which includes a superset of
+   the images in the continuous pose estimation track). I have no idea why that
+   is listed first, but it is.
