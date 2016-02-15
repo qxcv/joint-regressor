@@ -17,7 +17,12 @@ parfor i=1:length(mpii_rshift)
 end
 
 % dumb_splits is filled by just checking discontinuities in track index
-dumb_splits = [[mpii_data(1:end-1).action_track_index]+1 ~= [mpii_rshift.action_track_index], false];
+if hasfield(mpii_data, 'action_track_index')
+    dumb_splits = [[mpii_data(1:end-1).action_track_index]+1 ...
+        ~= [mpii_rshift.action_track_index], false];
+else
+    dumb_splits = false([1 length(mpii_data)]);
+end
 
 scene_num = 1;
 

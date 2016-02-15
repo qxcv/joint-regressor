@@ -26,60 +26,65 @@ parfor i=1:size(pairs, 1)
     cached_imflow(fst, snd, cache_dir);
 end
 
-% We use a POSIX semaphore wrapped by an external library to synchronise
-% access to the file, since there's really no more elegant way of doing
-% what I'm about to do. Note that I'm using a random key so that if this
-% code crashes during the parfor and is run again then it will most likely
-% not die or run into undefined behaviour on the 'create' call.
-semaphore_key = randi(2^15-1);
-fprintf('Creating semaphore with key %i\n', semaphore_key);
-semaphore('create', semaphore_key, 1);
-fprintf('Semaphore created\n');
+% I'm using a nested for/parfor like Anoop suggested to parallelise
+% augmentation calculation. This lets me write to a single file in without
+% making everything sequential or resorting to locking hacks. The implicit
+% barrier is annoying, but shouldn't matter too much given that
+% augmentations are the same each time.
+pool = gcp;
+batch_size = pool.NumWorkers;
 
-parfor i=1:size(pairs, 1)
-    fprintf('Working on pair %d/%d\n', i, size(pairs, 1), labindex);
-    fst = all_data(pairs(i, 1));
-    snd = all_data(pairs(i, 2));
-    
-    stack_start = tic;
-    stacks = get_stacks(...
-        fst, snd, poselet, left_parts, right_parts, cache_dir, cnn_window, ...
-        aug.flips, aug.rots, aug.scales, aug.randtrans);
-    stack_time = toc(stack_start);
-    fprintf('get_stack() took %fs\n', labindex, stack_time);
-    
-    write_start = tic;
-    for j=1:length(stacks)
-        % Get stack and labels; we don't add in dummy dimensions because
-        % apparently Matlab can't tell the difference between a
-        % j*k*l*1*1*1*1... matrix and a j*k*l matrix.
-        stack = stacks(j).stack;
-        joint_labels = stacks(j).joint_labels;
+for start_index = 1:batch_size:size(pairs, 1)
+    true_batch_size = min(batch_size, size(pairs, 1) - start_index + 1);
+    results = {};
+    % Calculate in parallel
+    fprintf('Augmenting samples %i to %i\n', ...
+        start_index, start_index + true_batch_size - 1);
+    parfor result_index=1:true_batch_size
+        mpii_index = start_index + result_index - 1;
+        fst = all_data(pairs(mpii_index, 1));
+        snd = all_data(pairs(mpii_index, 2));
         
-        % Choose a file, regardless of whether it exists
-        h5_idx = randi(num_hdf5s);
-        filename = fullfile(patch_dir, sprintf('samples-%06i.h5', h5_idx));
-        
-        % Write!
-        assert(size(stack, 3) == 8, 'you need to rewrite this to handle flow');
-        % We split the flow out from the images so that we can write the
-        % images as uint8s
-        stack_flow = single(stack(:, :, 7:8, :));
-        stack_im = stack(:, :, 1:6, :);
-        stack_im_bytes = uint8(stack_im * 255);
-        semaphore('wait', semaphore_key);
-        store3hdf6(filename, opts, '/flow', stack_flow, ...
-                                   '/images', stack_im_bytes, ...
-                                   '/joints', joint_labels);
-        semaphore('post', semaphore_key);
+        stack_start = tic;
+        results{result_index} = get_stacks(...
+            fst, snd, poselet, left_parts, right_parts, cache_dir, cnn_window, ...
+            aug.flips, aug.rots, aug.scales, aug.randtrans);
+        stack_time = toc(stack_start);
+        fprintf('get_stack() took %fs\n', stack_time);
     end
-    write_time = toc(write_start);
-    fprintf('Writing %d examples took %fs\n', length(stacks), labindex, write_time);
+    
+    fprintf('Got %i stacks\n', length(results));
+    
+    % Write sequentially
+    for i=1:length(results)
+        write_start = tic;
+        stacks = results{i};
+        for j=1:length(stacks)
+            % Get stack and labels; we don't add in dummy dimensions because
+            % apparently Matlab can't tell the difference between a
+            % j*k*l*1*1*1*1... matrix and a j*k*l matrix.
+            stack = stacks(j).stack;
+            joint_labels = stacks(j).joint_labels;
+            
+            % Choose a file, regardless of whether it exists
+            h5_idx = randi(num_hdf5s);
+            filename = fullfile(patch_dir, sprintf('samples-%06i.h5', h5_idx));
+            
+            % Write!
+            assert(size(stack, 3) == 8, 'you need to rewrite this to handle flow');
+            % We split the flow out from the images so that we can write the
+            % images as uint8s
+            stack_flow = single(stack(:, :, 7:8, :));
+            stack_im = stack(:, :, 1:6, :);
+            stack_im_bytes = uint8(stack_im * 255);
+            store3hdf6(filename, opts, '/flow', stack_flow, ...
+                '/images', stack_im_bytes, ...
+                '/joints', joint_labels);
+        end
+        write_time = toc(write_start);
+        fprintf('Writing %d examples took %fs\n', length(stacks), labindex, write_time);
+    end
 end
-
-fprintf('Destroying semaphore\n');
-semaphore('destroy', semaphore_key);
-fprintf('Semaphore destroyed\n');
 
 fid = fopen(confirm_path, 'w');
 fprintf(fid, '');

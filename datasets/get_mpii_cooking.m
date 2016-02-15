@@ -23,7 +23,7 @@
 %      pose(11,:)-> head upper point
 %      pose(12,:)-> head lower point
 
-function [mpii_data, train_pairs, val_pairs] = get_mpii_cooking(dest_dir, cache_dir)
+function [train_data, val_data, train_pairs, val_pairs] = get_mpii_cooking(dest_dir, cache_dir)
 %GET_MPII_COOKING Fetches continuous pose estimation data from MPII
 MPII_POSE_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallenge-1.1.zip';
 MPII_CONTINUOUS_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallengeContinuous-1.0.zip';
@@ -33,7 +33,10 @@ CONTINUOUS_CACHE_PATH = fullfile(cache_dir, 'poseChallengeContinuous-1.0.zip');
 POSE_CACHE_PATH = fullfile(cache_dir, 'poseChallenge-1.1.zip');
 % We only care about images with two frames in between them (so every third
 % frame)
-FRAME_SKIP = 2;
+TRAIN_FRAME_SKIP = 2;
+% Yeah, don't skip anything on the validation set because it's much lower
+% frequency
+VAL_FRAME_SKIP = 0;
 
 % First we get the (much larger) continuous pose estimation dataset
 if ~exist(CONTINUOUS_DEST_PATH, 'dir')
@@ -65,46 +68,27 @@ data_path = fullfile(cache_dir, 'mpii_data.mat');
 regen_pairs = false;
 if ~exist(data_path, 'file')
     fprintf('Regenerating data\n');
-    mpii_cont_data = load_files_continuous(CONTINUOUS_DEST_PATH);
-    mpii_basic_data = load_files_basic(POSE_DEST_PATH);
+    train_data = load_files_continuous(CONTINUOUS_DEST_PATH);
+    val_data = load_files_basic(POSE_DEST_PATH);
     
-    % TODO: Make sure I handle the two data sets correctly
-    % Now we need to make sure we have scene numbers
-    mpii_data = split_mpii_scenes(mpii_data, 0.2);
+    train_data = split_mpii_scenes(train_data, 0.2);
+    val_data = split_mpii_scenes(val_data, 0.1);
     
-    save(data_path, 'mpii_data');
+    save(data_path, 'train_data', 'val_data');
     regen_pairs = true;
 else
     fprintf('Loading data from file\n');
     loaded = load(data_path);
-    mpii_data = loaded.mpii_data;
+    train_data = loaded.train_data;
+    val_data = loaded.val_data;
 end
 
 % Now split into training and validation sets TODO
 pair_path = fullfile(cache_dir, 'mpii_pairs.mat');
 if ~exist(pair_path, 'file') || regen_pairs
     fprintf('Generating pairs\n');
-    [all_pairs, pair_scenes] = find_pairs(mpii_data, FRAME_SKIP);
-    
-    % Choose which scenes to use for training and which to use for
-    % validation
-    all_scenes = unique(pair_scenes);
-    all_scenes = all_scenes(randperm(length(all_scenes)));
-    num_train_scenes = floor(length(all_scenes) * 0.7);
-    train_scenes = all_scenes(1:num_train_scenes);
-    val_scenes = all_scenes(num_train_scenes+1:end);
-    disp(train_scenes);
-    disp(val_scenes);
-    
-    % Find the pair indices corresponding to the chosen scenes
-    train_indices = ismember(pair_scenes, train_scenes);
-    val_indices = ismember(pair_scenes, val_scenes);
-    fprintf('Have %i training pairs and %i validation pairs\n', ...
-        sum(train_indices), sum(val_indices));
-    
-    % Now save!
-    train_pairs = all_pairs(train_indices, :);
-    val_pairs = all_pairs(val_indices, :);
+    train_pairs = find_pairs(train_data, TRAIN_FRAME_SKIP);
+    val_pairs = find_pairs(val_data, VAL_FRAME_SKIP);
     save(pair_path, 'train_pairs', 'val_pairs');
 else
     fprintf('Loading pairs from file\n');
@@ -116,6 +100,7 @@ else
 end
 end
 
+% XXX: This is ugly. I can probably combine load_files_{continuous,basic}.
 function cont_data = load_files_continuous(dest_path)
 pose_dir = fullfile(dest_path, 'data', 'gt_poses');
 pose_fns = dir(pose_dir);
@@ -138,14 +123,14 @@ end
 cont_data = sort_by_frame(cont_data);
 end
 
-function basic_data = load_files_basic()
+function basic_data = load_files_basic(dest_path)
 pose_dir = fullfile(dest_path, 'data', 'train_data', 'gt_poses');
 pose_fns = dir(pose_dir);
 pose_fns = pose_fns(3:end);
 basic_data = struct(); % Silences Matlab warnings about growing arrays
 for i=1:length(pose_fns)
     data_fn = pose_fns(i).name;
-    frame_no = parse_continuous_fn(data_fn);
+    frame_no = parse_basic_fn(data_fn);
     basic_data(i).frame_no = frame_no;
     file_name = sprintf('img_%06i.jpg', frame_no);
     basic_data(i).image_path = fullfile(dest_path, 'data', 'train_data', 'images', file_name);
@@ -177,14 +162,13 @@ assert(length(tokens{1}) == 1);
 index = str2double(tokens{1}{1});
 end
 
-function [pairs, scenes] = find_pairs(mpii_data, frame_skip)
+function pairs = find_pairs(data, frame_skip)
 % Find pairs with frame_skip frames between them
-frame_nums = [mpii_data.frame_no];
-scene_nums = [mpii_data.scene_num];
-fst_inds = 1:(length(mpii_data)-frame_skip-1);
+frame_nums = [data.frame_no];
+scene_nums = [data.scene_num];
+fst_inds = 1:(length(data)-frame_skip-1);
 snd_inds = fst_inds + frame_skip + 1;
 good_inds = (frame_nums(snd_inds) - frame_nums(fst_inds) == frame_skip + 1) ...
     & (scene_nums(fst_inds) == scene_nums(snd_inds));
 pairs = cat(2, fst_inds(good_inds)', snd_inds(good_inds)');
-scenes = scene_nums(fst_inds(good_inds));
 end

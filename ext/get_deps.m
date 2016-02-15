@@ -14,16 +14,6 @@ end
 addpath(flow_dir);
 cd(old_dir);
 
-% Now build the semaphore thing
-sem_dir = fullfile(this_dir, 'semaphore');
-cd(sem_dir);
-if ~exist('.built', 'file');
-    mex('semaphore.c');
-    fclose(fopen('.built', 'w'));
-end
-addpath(sem_dir);
-cd(old_dir);
-
 caffe_matlab_path = fullfile(ext_dir, 'conscaffe', 'matlab');
 if ~exist(fullfile(caffe_matlab_path), 'dir')
     error(['Please download https://github.com/qxcv/conscaffe, build ' ...
