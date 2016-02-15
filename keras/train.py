@@ -25,7 +25,7 @@ from models import vggnet16_regressor_model
 
 INIT = 'glorot_normal'
 
-# TODO:
+# TODO (also look in TODO.md):
 #
 # 1) Add flag to get graph model working
 #
@@ -37,13 +37,10 @@ INIT = 'glorot_normal'
 # to.
 #
 # 4) Make sure that the --no-rgb flag works
-#
-# 5) Add an option to use only a subset of regressor outputs (some sort of
-# regressor mask).
 
 def h5_read_worker(
         h5_path, batch_size, out_queue, end_evt, mark_epochs, shuffle,
-        mean_pixel, use_flow, use_rgb
+        mean_pixel, use_flow, use_rgb, h5_paths
     ):
     """This function is designed to be run in a multiprocessing.Process, and
     communicate using a multiprocessing.Queue. It will just keep reading
@@ -71,7 +68,7 @@ def h5_read_worker(
             """Yields random indices into the dataset. Fetching data this way
             is slow, but it should be okay given that we're running this in a
             background process."""
-            label_set = fp['/joints']
+            label_set = fp[h5_paths['joints']]
             label_size = len(label_set)
             if shuffle:
                 elems = np.random.permutation(label_size)
@@ -111,14 +108,14 @@ def h5_read_worker(
                 # np.array's __getitem__ is driving me loopy
                 sorted_indices = list(np.array(batch_indices)[sorted_index_indices])
                 if use_rgb:
-                    batch_data = fp['/images'][sorted_indices].astype('float32')
+                    batch_data = fp[h5_paths['images']][sorted_indices].astype('float32')
                 if use_flow:
-                    batch_flow = fp['/flow'][sorted_indices].astype('float32')
+                    batch_flow = fp[h5_paths['flow']][sorted_indices].astype('float32')
                     if use_rgb:
                         batch_data = np.concatenate((batch_data, batch_flow), axis=1)
                     else:
                         batch_data = batch_flow
-                batch_labels = fp['/joints'][sorted_indices].astype('float32')
+                batch_labels = fp[h5_paths['joints']][sorted_indices].astype('float32')
                 if mean_pixel is not None:
                     # The .reshape() allows Numpy to broadcast it
                     batch_data -= mean_pixel.reshape(
@@ -224,24 +221,24 @@ def read_mean_pixel(mat_path, use_flow, use_rgb):
     return mean_pixel
 
 
-def infer_sizes(h5_path, use_flow, use_rgb):
+def infer_sizes(h5_path, use_flow, use_rgb, h5_paths):
     """Infer relevant data sizes from a HDF5 file."""
     assert use_flow or use_rgb
     with h5py.File(h5_path, 'r') as fp:
         # Inferring shape is tricky, since we may or may not use flow and may
         # or may not use RGB (but have to use at least one!)
         if use_rgb:
-            input_shape = fp['/images'].shape[1:]
+            input_shape = fp[h5_paths['images']].shape[1:]
         if use_flow:
-            flow_shape = fp['/flow'].shape[1:]
+            flow_shape = fp[h5_paths['flow']].shape[1:]
             if use_rgb:
                 assert(input_shape[1:] == flow_shape[1:])
                 input_shape = (input_shape[0] + flow_shape[0], input_shape[1], input_shape[2])
             else:
                 input_shape = flow_shape
-        regressor_outputs = fp['/joints'].shape[1]
+        regressor_outputs = fp[h5_paths['joints']].shape[1]
         if 'poselet' in fp.keys():
-            biposelet_classes = max(fp['/poselet'])
+            biposelet_classes = max(fp[h5_paths['poselet']])
         else:
             biposelet_classes = None
 
@@ -306,12 +303,40 @@ parser.add_argument(
     help='disable RGB data from entering the network'
 )
 
+def override_parser(overrides):
+    rv = {}
+    for pair in overrides.split(','):
+        k, v = pair.split('=', 1)
+        rv[k] = v
+    return rv
+
+parser.add_argument(
+    '--override-h5-paths', type=override_parser, dest='override_paths',
+    help='override the HDF5 search paths (e.g. "flow=/f2,images=/baz/imgs")',
+    default=None
+)
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
 
     # We have to use something as network input
     assert args.use_flow or args.use_rgb
+
+    # Now get paths for data in the HDF5
+    h5_paths = {
+        'flow': '/flow',
+        'images': '/images',
+        'joints': '/joints',
+        'poselet': '/poselet'
+    }
+    if args.override_paths is not None:
+        # Make sure we're only overriding defined paths
+        assert not (args.override_paths.viewkeys() - h5_paths.viewkeys())
+        h5_paths.update(args.override_paths)
+    print('HDF5 path lookup table:')
+    for k, v in h5_paths.iteritems():
+        print("'{}' ~> '{}'".format(k, v))
 
     # Prefetching stuff
     end_event = Event()
@@ -320,19 +345,24 @@ if __name__ == '__main__':
     )
     # Training data prefetch
     train_queue = Queue(args.queued_batches)
-    train_args = (
-        args.train_h5, args.batch_size, train_queue, end_event, False, True,
-        mean_pixel, args.use_flow, args.use_rgb
+    # We supply everything as kwargs so that I know what I'm passing in
+    train_kwargs = dict(
+        h5_path=args.train_h5, batch_size=args.batch_size,
+        out_queue=train_queue, end_evt=end_event, mark_epochs=False,
+        shuffle=True, mean_pixel=mean_pixel, use_flow=args.use_flow,
+        use_rgb=args.use_rgb, h5_paths=h5_paths
     )
-    train_worker = Process(target=h5_read_worker, args=train_args)
+    train_worker = Process(target=h5_read_worker, kwargs=train_kwargs)
 
     # Validation data prefetch
     val_queue = Queue(args.queued_batches)
-    val_args = (
-        args.val_h5, args.batch_size, val_queue, end_event, True, False,
-        mean_pixel, args.use_flow, args.use_rgb
+    val_kwargs = dict(
+        h5_path=args.val_h5, batch_size=args.batch_size, out_queue=val_queue,
+        end_evt=end_event, mark_epochs=True, shuffle=False,
+        mean_pixel=mean_pixel, use_flow=args.use_flow, use_rgb=args.use_rgb,
+        h5_paths=h5_paths
     )
-    val_worker = Process(target=h5_read_worker, args=val_args)
+    val_worker = Process(target=h5_read_worker, kwargs=val_kwargs)
 
     try:
         # Protect this in a try: for graceful cleanup of workers
@@ -341,7 +371,7 @@ if __name__ == '__main__':
 
         # Model-building
         input_shape, regressor_outputs, biposelet_classes = infer_sizes(
-            args.train_h5, args.use_flow, args.use_rgb
+            args.train_h5, args.use_flow, args.use_rgb, h5_paths
         )
         print('Input size is {}. use_flow is {}, use_rgb is {}'.format(
             input_shape, args.use_flow, args.use_rgb
