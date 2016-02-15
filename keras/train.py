@@ -23,7 +23,6 @@ from scipy.io import loadmat
 
 from models import vggnet16_regressor_model
 
-INIT = 'glorot_normal'
 
 # TODO (also look in TODO.md):
 #
@@ -35,8 +34,26 @@ INIT = 'glorot_normal'
 # exiting after a few seconds (through a return), yet are still marked alive
 # (?!). I guess there's some sort of cleanup going on there which I'm not privy
 # to.
-#
-# 4) Make sure that the --no-rgb flag works
+
+
+INIT = 'glorot_normal'
+DEFAULT_H5_PATHS = {
+    'flow': '/flow',
+    'images': '/images',
+    'joints': '/joints',
+    'poselet': '/poselet'
+}
+
+
+def get_ds(h5_file, name, h5_paths=None):
+    """This looks up a dataset/group/whatever in a h5py.File using the layer of
+    path indirection I've introduced so that I can load alternate datasets if I
+    want to (e.g. loading /wrists instead of /joints when the program wants
+    jonits)."""
+    if h5_paths is not None and name in h5_paths:
+        return h5_file[h5_paths[name]]
+    return h5_file[DEFAULT_H5_PATHS[name]]
+
 
 def h5_read_worker(
         h5_path, batch_size, out_queue, end_evt, mark_epochs, shuffle,
@@ -68,7 +85,7 @@ def h5_read_worker(
             """Yields random indices into the dataset. Fetching data this way
             is slow, but it should be okay given that we're running this in a
             background process."""
-            label_set = fp[h5_paths['joints']]
+            label_set = get_ds(fp, 'joints', h5_paths)
             label_size = len(label_set)
             if shuffle:
                 elems = np.random.permutation(label_size)
@@ -108,14 +125,14 @@ def h5_read_worker(
                 # np.array's __getitem__ is driving me loopy
                 sorted_indices = list(np.array(batch_indices)[sorted_index_indices])
                 if use_rgb:
-                    batch_data = fp[h5_paths['images']][sorted_indices].astype('float32')
+                    batch_data = get_ds(fp, 'images', h5_paths)[sorted_indices].astype('float32')
                 if use_flow:
-                    batch_flow = fp[h5_paths['flow']][sorted_indices].astype('float32')
+                    batch_flow = get_ds(fp, 'flow', h5_paths)[sorted_indices].astype('float32')
                     if use_rgb:
                         batch_data = np.concatenate((batch_data, batch_flow), axis=1)
                     else:
                         batch_data = batch_flow
-                batch_labels = fp[h5_paths['joints']][sorted_indices].astype('float32')
+                batch_labels = get_ds(fp, 'joints', h5_paths)[sorted_indices].astype('float32')
                 if mean_pixel is not None:
                     # The .reshape() allows Numpy to broadcast it
                     batch_data -= mean_pixel.reshape(
@@ -221,24 +238,24 @@ def read_mean_pixel(mat_path, use_flow, use_rgb):
     return mean_pixel
 
 
-def infer_sizes(h5_path, use_flow, use_rgb, h5_paths):
+def infer_sizes(h5_path, use_flow, use_rgb, h5_paths=None):
     """Infer relevant data sizes from a HDF5 file."""
     assert use_flow or use_rgb
     with h5py.File(h5_path, 'r') as fp:
         # Inferring shape is tricky, since we may or may not use flow and may
         # or may not use RGB (but have to use at least one!)
         if use_rgb:
-            input_shape = fp[h5_paths['images']].shape[1:]
+            input_shape = get_ds(fp, 'images', h5_paths).shape[1:]
         if use_flow:
-            flow_shape = fp[h5_paths['flow']].shape[1:]
+            flow_shape = get_ds(fp, 'flow', h5_paths).shape[1:]
             if use_rgb:
                 assert(input_shape[1:] == flow_shape[1:])
                 input_shape = (input_shape[0] + flow_shape[0], input_shape[1], input_shape[2])
             else:
                 input_shape = flow_shape
-        regressor_outputs = fp[h5_paths['joints']].shape[1]
+        regressor_outputs = get_ds(fp, 'joints', h5_paths).shape[1]
         if 'poselet' in fp.keys():
-            biposelet_classes = max(fp[h5_paths['poselet']])
+            biposelet_classes = max(get_ds(fp, 'poselet', h5_paths))
         else:
             biposelet_classes = None
 
