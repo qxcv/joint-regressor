@@ -35,10 +35,15 @@ INIT = 'glorot_normal'
 # exiting after a few seconds (through a return), yet are still marked alive
 # (?!). I guess there's some sort of cleanup going on there which I'm not privy
 # to.
+#
+# 4) Make sure that the --no-rgb flag works
+#
+# 5) Add an option to use only a subset of regressor outputs (some sort of
+# regressor mask).
 
 def h5_read_worker(
         h5_path, batch_size, out_queue, end_evt, mark_epochs, shuffle,
-        mean_pixel
+        mean_pixel, use_flow, use_rgb
     ):
     """This function is designed to be run in a multiprocessing.Process, and
     communicate using a multiprocessing.Queue. It will just keep reading
@@ -51,6 +56,7 @@ def h5_read_worker(
     queue iff mark_epochs is True. This notifies the training routine that it
     should perform validation or whatever it is training routines do
     nowadays."""
+    assert use_flow or use_rgb
 
     detail_str = 'Worker started. Details:\n' \
         'h5_path: {h5_path}\n' \
@@ -104,9 +110,14 @@ def h5_read_worker(
                 # Oh god the difference between list's __getitem__ and
                 # np.array's __getitem__ is driving me loopy
                 sorted_indices = list(np.array(batch_indices)[sorted_index_indices])
-                batch_im = fp['/images'][sorted_indices].astype('float32')
-                batch_flow = fp['/flow'][sorted_indices].astype('float32')
-                batch_data = np.concatenate((batch_im, batch_flow), axis=1)
+                if use_rgb:
+                    batch_data = fp['/images'][sorted_indices].astype('float32')
+                if use_flow:
+                    batch_flow = fp['/flow'][sorted_indices].astype('float32')
+                    if use_rgb:
+                        batch_data = np.concatenate((batch_data, batch_flow), axis=1)
+                    else:
+                        batch_data = batch_flow
                 batch_labels = fp['/joints'][sorted_indices].astype('float32')
                 if mean_pixel is not None:
                     # The .reshape() allows Numpy to broadcast it
@@ -198,23 +209,36 @@ def save(model, iteration_no, dest_dir):
     model.save_weights(full_path)
 
 
-def read_mean_pixel(mat_path):
+def read_mean_pixel(mat_path, use_flow, use_rgb):
+    assert use_flow or use_rgb
     if mat_path is None:
         # No mean pixel
         return None
     mat = loadmat(mat_path)
-    im_mean = mat['image_mean_pixel'].flatten()
-    flow_mean = mat['flow_mean_pixel'].flatten()
-    return np.concatenate((im_mean, flow_mean))
+    mean_pixel = np.array([])
+    if use_rgb:
+        mean_pixel = mat['image_mean_pixel'].flatten()
+    if use_flow:
+        flow_mean = mat['flow_mean_pixel'].flatten()
+        mean_pixel = np.concatenate((mean_pixel, flow_mean))
+    return mean_pixel
 
 
-def infer_sizes(h5_path):
+def infer_sizes(h5_path, use_flow, use_rgb):
     """Infer relevant data sizes from a HDF5 file."""
+    assert use_flow or use_rgb
     with h5py.File(h5_path, 'r') as fp:
-        im_shape = fp['/images'].shape[1:]
-        flow_shape = fp['/flow'].shape[1:]
-        assert(im_shape[1:] == flow_shape[1:])
-        input_shape = (im_shape[0] + flow_shape[0], im_shape[1], im_shape[2])
+        # Inferring shape is tricky, since we may or may not use flow and may
+        # or may not use RGB (but have to use at least one!)
+        if use_rgb:
+            input_shape = fp['/images'].shape[1:]
+        if use_flow:
+            flow_shape = fp['/flow'].shape[1:]
+            if use_rgb:
+                assert(input_shape[1:] == flow_shape[1:])
+                input_shape = (input_shape[0] + flow_shape[0], input_shape[1], input_shape[2])
+            else:
+                input_shape = flow_shape
         regressor_outputs = fp['/joints'].shape[1]
         if 'poselet' in fp.keys():
             biposelet_classes = max(fp['/poselet'])
@@ -273,18 +297,32 @@ parser.add_argument(
     '--finetune', dest='finetune_path', type=str, default=None,
     help='finetune from these weights instead of starting again'
 )
+parser.add_argument(
+    '--no-flow', dest='use_flow', action='store_false', default=True,
+    help='disable flow from entering the network'
+)
+parser.add_argument(
+    '--no-rgb', dest='use_rgb', action='store_false', default=True,
+    help='disable RGB data from entering the network'
+)
 
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    end_event = Event()
-    mean_pixel = read_mean_pixel(args.mean_pixel_path)
 
+    # We have to use something as network input
+    assert args.use_flow or args.use_rgb
+
+    # Prefetching stuff
+    end_event = Event()
+    mean_pixel = read_mean_pixel(
+        args.mean_pixel_path, args.use_flow, args.use_rgb
+    )
     # Training data prefetch
     train_queue = Queue(args.queued_batches)
     train_args = (
         args.train_h5, args.batch_size, train_queue, end_event, False, True,
-        mean_pixel
+        mean_pixel, args.use_flow, args.use_rgb
     )
     train_worker = Process(target=h5_read_worker, args=train_args)
 
@@ -292,7 +330,7 @@ if __name__ == '__main__':
     val_queue = Queue(args.queued_batches)
     val_args = (
         args.val_h5, args.batch_size, val_queue, end_event, True, False,
-        mean_pixel
+        mean_pixel, args.use_flow, args.use_rgb
     )
     val_worker = Process(target=h5_read_worker, args=val_args)
 
@@ -302,7 +340,12 @@ if __name__ == '__main__':
         val_worker.start()
 
         # Model-building
-        input_shape, regressor_outputs, biposelet_classes = infer_sizes(args.train_h5)
+        input_shape, regressor_outputs, biposelet_classes = infer_sizes(
+            args.train_h5, args.use_flow, args.use_rgb
+        )
+        print('Input size is {}. use_flow is {}, use_rgb is {}'.format(
+            input_shape, args.use_flow, args.use_rgb
+        ))
         solver = SGD(
             lr=args.learning_rate, decay=args.decay, momentum=0.9, nesterov=True
         )

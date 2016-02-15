@@ -17,7 +17,7 @@
 %      pose(5,:) -> right elbow
 %      pose(6,:) -> left elbow
 %      pose(7,:) -> right wrist
-%      pose(8,:) -> left wrist     
+%      pose(8,:) -> left wrist
 %      pose(9,:) -> right hand
 %      pose(10,:)-> left hand
 %      pose(11,:)-> head upper point
@@ -25,24 +25,38 @@
 
 function [mpii_data, train_pairs, val_pairs] = get_mpii_cooking(dest_dir, cache_dir)
 %GET_MPII_COOKING Fetches continuous pose estimation data from MPII
-% To be honest, I have no idea where I got this dataset from, so it just
-% does some mystery symlinking.
-MPII_URL = 'XXX';
-DEST_PATH = fullfile(dest_dir, 'mpii-cooking-pose-challenge-continuous');
-% CACHE_PATH = fullfile(cache_dir, 'poseChallengeContinuous-1.0.zip');
-CACHE_PATH = '/home/sam/etc/mpii-cooking-activities/poseChallengeContinuous-1.0.zip';
+MPII_POSE_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallenge-1.1.zip';
+MPII_CONTINUOUS_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallengeContinuous-1.0.zip';
+CONTINUOUS_DEST_PATH = fullfile(dest_dir, 'mpii-cooking-pose-challenge-continuous');
+POSE_DEST_PATH = fullfile(dest_dir, 'mpii-cooking-pose-challenge');
+CONTINUOUS_CACHE_PATH = fullfile(cache_dir, 'poseChallengeContinuous-1.0.zip');
+POSE_CACHE_PATH = fullfile(cache_dir, 'poseChallenge-1.1.zip');
 % We only care about images with two frames in between them (so every third
 % frame)
 FRAME_SKIP = 2;
 
-if ~exist(DEST_PATH, 'dir')
-    assert(~~exist(CACHE_PATH, 'file'));  % We can't download this since I don't know where it is :P
-    if ~exist(CACHE_PATH, 'file')
-        fprintf('Downloading MPII cooking from %s\n', MPII_URL);
-        websave(CACHE_PATH, MPII_URL);
+% First we get the (much larger) continuous pose estimation dataset
+if ~exist(CONTINUOUS_DEST_PATH, 'dir')
+    assert(~~exist(CONTINUOUS_CACHE_PATH, 'file'));  % We can't download this since I don't know where it is :P
+    if ~exist(CONTINUOUS_CACHE_PATH, 'file')
+        fprintf('Downloading MPII continuous pose challenge from %s\n', MPII_CONTINUOUS_URL);
+        websave(CONTINUOUS_CACHE_PATH, MPII_CONTINUOUS_URL);
     end
-    fprintf('Extracting MPII cooking data to %s\n', DEST_PATH);
-    unzip(CACHE_PATH, DEST_PATH);
+    fprintf('Extracting continuous MPII pose challenge data to %s\n', CONTINUOUS_DEST_PATH);
+    unzip(CONTINUOUS_CACHE_PATH, CONTINUOUS_DEST_PATH);
+end
+
+% Next we grab the smaller original pose estimation dataset, which has a
+% continuous (but low-FPS) training set but discontinuous testing set.
+% We'll use the training set from that as our validation set.
+if ~exist(POSE_DEST_PATH, 'dir')
+    assert(~~exist(POSE_CACHE_PATH, 'file'));  % We can't download this since I don't know where it is :P
+    if ~exist(POSE_CACHE_PATH, 'file')
+        fprintf('Downloading MPII pose challenge from %s\n', MPII_POSE_URL);
+        websave(POSE_CACHE_PATH, MPII_POSE_URL);
+    end
+    fprintf('Extracting basic MPII pose challenge data to %s\n', POSE_DEST_PATH);
+    unzip(POSE_CACHE_PATH, POSE_DEST_PATH);
 end
 
 data_path = fullfile(cache_dir, 'mpii_data.mat');
@@ -51,28 +65,10 @@ data_path = fullfile(cache_dir, 'mpii_data.mat');
 regen_pairs = false;
 if ~exist(data_path, 'file')
     fprintf('Regenerating data\n');
-    pose_dir = fullfile(DEST_PATH, 'data', 'gt_poses');
-    pose_fns = dir(pose_dir);
-    pose_fns = pose_fns(3:end); % Remove . and ..
-    mpii_data = struct(); % Silences Matlab warnings about growing arrays
-    for i=1:length(pose_fns)
-        data_fn = pose_fns(i).name;
-        [track_index, index] = parse_fn(data_fn);
-        % "track_index" is the index within the dataset for the action
-        % track. "index" is the index within the dataset. They really could
-        % have picked a more optimal name :/
-        mpii_data(i).frame_no = index;
-        mpii_data(i).action_track_index = track_index;
-        file_name = sprintf('img_%06i_%06i.jpg', track_index, index);
-        mpii_data(i).image_path = fullfile(DEST_PATH, 'data', 'images', file_name);
-        loaded = load(fullfile(pose_dir, data_fn), 'pose');
-        mpii_data(i).joint_locs = loaded.pose;
-    end
+    mpii_cont_data = load_files_continuous(CONTINUOUS_DEST_PATH);
+    mpii_basic_data = load_files_basic(POSE_DEST_PATH);
     
-    % Sort by frame number *within this dataset*
-    [~, sorted_indices] = sort([mpii_data.frame_no]);
-    mpii_data = mpii_data(sorted_indices);
-    
+    % TODO: Make sure I handle the two data sets correctly
     % Now we need to make sure we have scene numbers
     mpii_data = split_mpii_scenes(mpii_data, 0.2);
     
@@ -84,10 +80,7 @@ else
     mpii_data = loaded.mpii_data;
 end
 
-% Now split it into train and tests. This is a poor method of doing that
-% because some actors will be in both the train and test sets, but whatever
-% (doesn't matter that much for this PoC; when this is no longer a PoC I
-% should be more careful).
+% Now split into training and validation sets TODO
 pair_path = fullfile(cache_dir, 'mpii_pairs.mat');
 if ~exist(pair_path, 'file') || regen_pairs
     fprintf('Generating pairs\n');
@@ -123,13 +116,65 @@ else
 end
 end
 
-function [track_index, index] = parse_fn(fn)
+function cont_data = load_files_continuous(dest_path)
+pose_dir = fullfile(dest_path, 'data', 'gt_poses');
+pose_fns = dir(pose_dir);
+pose_fns = pose_fns(3:end); % Remove . and ..
+cont_data = struct(); % Silences Matlab warnings about growing arrays
+for i=1:length(pose_fns)
+    data_fn = pose_fns(i).name;
+    [track_index, index] = parse_continuous_fn(data_fn);
+    % "track_index" is the index within the dataset for the action
+    % track. "index" is the index within the dataset. They really could
+    % have picked a more optimal name :/
+    cont_data(i).frame_no = index;
+    cont_data(i).action_track_index = track_index;
+    file_name = sprintf('img_%06i_%06i.jpg', track_index, index);
+    cont_data(i).image_path = fullfile(dest_path, 'data', 'images', file_name);
+    loaded = load(fullfile(pose_dir, data_fn), 'pose');
+    cont_data(i).joint_locs = loaded.pose;
+    cont_data(i).is_val = false;
+end
+cont_data = sort_by_frame(cont_data);
+end
+
+function basic_data = load_files_basic()
+pose_dir = fullfile(dest_path, 'data', 'train_data', 'gt_poses');
+pose_fns = dir(pose_dir);
+pose_fns = pose_fns(3:end);
+basic_data = struct(); % Silences Matlab warnings about growing arrays
+for i=1:length(pose_fns)
+    data_fn = pose_fns(i).name;
+    frame_no = parse_continuous_fn(data_fn);
+    basic_data(i).frame_no = frame_no;
+    file_name = sprintf('img_%06i.jpg', frame_no);
+    basic_data(i).image_path = fullfile(dest_path, 'data', 'train_data', 'images', file_name);
+    loaded = load(fullfile(pose_dir, data_fn), 'pose');
+    basic_data(i).joint_locs = loaded.pose;
+    basic_data(i).is_val = true;
+end
+basic_data = sort_by_frame(basic_data);
+end
+
+function sorted = sort_by_frame(data)
+[~, sorted_indices] = sort([data.frame_no]);
+sorted = data(sorted_indices);
+end
+
+function [track_index, index] = parse_continuous_fn(fn)
 % Parse a filename like pose_<TrackIndex>_<Index>.mat
 tokens = regexp(fn, '[^\d]*(\d+)_(\d+)', 'tokens');
 assert(length(tokens) >= 1);
 assert(length(tokens{1}) == 2);
 track_index = str2double(tokens{1}{1});
 index = str2double(tokens{1}{2});
+end
+
+function index = parse_basic_fn(fn)
+tokens = regexp(fn, '[^\d]*(\d+)', 'tokens');
+assert(length(tokens) >= 1);
+assert(length(tokens{1}) == 1);
+index = str2double(tokens{1}{1});
 end
 
 function [pairs, scenes] = find_pairs(mpii_data, frame_skip)
