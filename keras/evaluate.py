@@ -32,8 +32,8 @@ def get_predictions(model, mean_pixel_path, images=None, flows=None,
                        network. This is very helpful when you have a
                        ``h5py.Dataset`` to evaluate on.
     :return: a ``n*k*2`` array of ``(x, y)`` joint coordinates."""
-    use_flow = flow is not None
-    use_rgb = image is not None
+    use_flow = flows is not None
+    use_rgb = images is not None
     assert use_flow or use_rgb
 
     if use_flow:
@@ -44,16 +44,18 @@ def get_predictions(model, mean_pixel_path, images=None, flows=None,
     mp = read_mean_pixel(mean_pixel_path, use_flow=use_flow, use_rgb=use_rgb)
     num_outputs = model.layers[-1].output_dim
     rv = np.zeros((num_samples, num_outputs / 2, 2))
+    num_batches = -(-num_samples // batch_size)
 
-    for batch_num in xrange(-(-num-samples // batch_size)):
-        slice_start = batch_num * num_samples
-        slice_end = slice_start + num_samples
+    for batch_num in xrange(num_batches):
+        print('Doing batch {}/{}'.format(batch_num+1, num_batches))
+        slice_start = batch_num * batch_size
+        slice_end = slice_start + batch_size
 
         if use_flow:
             flow_data = flows[slice_start:slice_end].astype('float32')
 
         if use_rgb:
-            image_data = images[slice_start:slice_end]
+            image_data = images[slice_start:slice_end].astype('float32')
 
         if use_flow and use_rgb:
             stacked = np.concatenate((image_data, flow_data), axis=1)
@@ -63,10 +65,9 @@ def get_predictions(model, mean_pixel_path, images=None, flows=None,
             stacked = image_data
 
         stacked -= mp.reshape((len(mp), 1, 1))
-        # predict_on_batch returns a one-element list, where the first element
-        # is an n*o ndarray
-        results = model.predict_on_batch(stacked)[0]
-        rv[start_index:end_index] = label_to_coords(results)
+        results = model.predict(stacked)
+        assert results.ndim == 2
+        rv[slice_start:slice_end] = label_to_coords(results)
 
     return rv
 
