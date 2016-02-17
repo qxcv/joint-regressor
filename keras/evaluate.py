@@ -88,19 +88,37 @@ def score_predictions_acc(gt_joints, predictions, thresholds):
     total_joints = float(len(distances))
     rv = []
     for threshold in thresholds:
-        num_matches = np.sum(distances < threshold)
+        num_matches = np.sum(distances < threshold, axis=0)
         rv.append(num_matches / total_joints)
     return rv
 
 
-def score_predictions_pcp(gt_joints, predictions, limbs):
-    """Calculate PCP for each of the supplied limbs.
 
-    :param gt_joints: ``k*2`` array of ground-truth joints.
-    :param predictions: ``k*2`` array of predictions.
+
+def score_predictions_pcp(gt_joints, predictions, limbs):
+    """Calculate strict PCP for each of the supplied limbs.
+
+    :param gt_joints: ``n*k*2`` array of ground-truth joints.
+    :param predictions: ``n*k*2`` array of predictions.
     :param limbs: list of ``(idx1, idx2)`` tuples giving indices the joints and
                   predictions arrays denoting limbs.
     :return: list or array of PCPs in ``[0, 1]``, with a PCP corresponding to
              each limb."""
     assert gt_joints.shape == predictions.shape
     assert gt_joints.ndim == 3
+    rv = []
+    for limb in limbs:
+        gts = gt_joints[:, limb, :]
+        preds = predictions[:, limb, :]
+        assert gts.shape == preds.shape and gts.ndim == 3
+        first_limb, second_limb = gts.transpose((1, 0, 2))
+        lengths = np.linalg.norm(first_limb - second_limb, axis=1)
+        assert lengths.shape == (len(gts),)
+        gt_dists = np.linalg.norm(preds - gts, axis=2)
+        assert gt_dists.shape == (len(gts), 2)
+        # reshape just to broadcast
+        valid = gt_dists < 0.5 * lengths.reshape((len(lengths), 1))
+        first_valid, second_valid = valid.T
+        all_valid = np.logical_and(first_valid, second_valid)
+        rv.append(np.mean(all_valid))
+    return rv
