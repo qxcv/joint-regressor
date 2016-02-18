@@ -43,7 +43,7 @@ for i=1:2:length(varargin)
     dataset = varargin{i};
     data = varargin{i+1};
     data_dims = size(data);
-    if length(data_dims) == 3
+    if ndims(data) == 3
         % If we don't do this, then we can't write out samples one at a
         % time, since Matlab won't let us have a trailing dimension of size
         % 1 :(

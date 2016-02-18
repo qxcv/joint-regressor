@@ -18,13 +18,7 @@ else
 end
 
 % Just cache the flow. We'll use it later.
-parfor i=1:size(pairs, 1)
-    fst_idx = pairs(i, 1);
-    snd_idx = pairs(i, 2);
-    fst = all_data(fst_idx);
-    snd = all_data(snd_idx);
-    cached_imflow(fst, snd, cache_dir);
-end
+cache_all_flow(all_data, pairs, cache_dir);
 
 % I'm using a nested for/parfor like Anoop suggested to parallelise
 % augmentation calculation. This lets me write to a single file in without
@@ -77,12 +71,14 @@ for start_index = 1:batch_size:size(pairs, 1)
             stack_flow = single(stack(:, :, 7:8, :));
             stack_im = stack(:, :, 1:6, :);
             stack_im_bytes = uint8(stack_im * 255);
+            class_labels = np.ones([length(joint_labels) 1]);
             store3hdf6(filename, opts, '/flow', stack_flow, ...
                 '/images', stack_im_bytes, ...
-                '/joints', joint_labels);
+                '/joints', single(joint_labels), ...
+                '/class', uint8(class_labels));
         end
         write_time = toc(write_start);
-        fprintf('Writing %d examples took %fs\n', length(stacks), labindex, write_time);
+        fprintf('Writing %d examples took %fs\n', length(stacks), write_time);
     end
 end
 

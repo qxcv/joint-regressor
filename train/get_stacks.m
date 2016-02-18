@@ -15,13 +15,7 @@ function rvs = get_stacks(d1, d2, poselet, left_parts, right_parts, cache_dir, c
 % Otherwise, the pose will be centered perfectly in the crop.
 % rvs: struct array with .labels (joint locations) and .stack (full input
 % data) attributes.
-im1 = readim(d1);
-im2 = readim(d2);
-flow = cached_imflow(d1, d2, cache_dir);
-assert(all(size(im1) == size(im2)));
-assert(size(im1, 1) == size(flow, 1) && size(im1, 2) == size(flow, 2));
-assert(size(flow, 3) == 2);
-assert(size(im1, 3) == 3);
+[im1, im2, flow] = get_pair_data(d1, d2, cache_dir);
 % Concatenate along channels
 stacked = cat(3, norm_im(im1), ...
                  norm_im(im2), ...
@@ -106,14 +100,13 @@ for flip=flips
                 % caffe wants (IIRC Caffe uses width * height * channels * num).
                 final_stack = permute(imresize(cropped, cnn_window), [2 1 3]);
 
-                % Scale factors for flow and joints
+                % Scaling flow
+                final_stack(:, :, 7:8) = rescale_flow_mags(...
+                    final_stack(:, :, 7:8), size(final_stack), size(cropped));
+                
+                % Scale factors for joints
                 scale_factors = size(final_stack) ./ size(cropped);
                 scale_factors = scale_factors(2:-1:1);
-
-                % Scaling flow
-                final_stack(:, :, 7:8) = bsxfun(@times, final_stack(:, :, 7:8), reshape(scale_factors, [1 1 2]));
-
-                % Scaling joints
                 scale_joints = rot_joints;
                 for i=1:size(scale_joints, 1)
                     scale_joints(i, :) = (scale_joints(i, :) - box(1:2)) .* scale_factors;
