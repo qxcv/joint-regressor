@@ -14,6 +14,8 @@ function store3hdf6(filename, opts, varargin)
 % creating HDF5 files with unbounded maximum size - TLDR; higher chunk
 % sizes allow faster read-write operations
 %
+% *opts.deflate* is the compression level
+%
 % *varargin* should contain a series of pairs of arguments consisting of
 % a dataset name (e.g. '/label') and some data to write. If the given
 % dataset exists, the data to write will be appended to the existing data
@@ -39,6 +41,12 @@ else
     chunksz = 1024;
 end
 
+if isstruct(opts) && hasfield(opts, 'deflate')
+    deflate = opts.deflate;
+else
+    deflate = false;
+end
+
 for i=1:2:length(varargin)
     dataset = varargin{i};
     data = varargin{i+1};
@@ -53,9 +61,18 @@ for i=1:2:length(varargin)
     if ~hdf5_location_exists(filename, dataset)
         % we'll need to create the file
         % chunk size format is  [width, height, channels, number]
-        h5create(filename, dataset, [data_dims(1:end-1) Inf], ...
+        create_args = {filename, dataset, [data_dims(1:end-1) Inf], ...
             'Datatype', class(data), ...
-            'ChunkSize', [data_dims(1:end-1) chunksz]);
+            'ChunkSize', [data_dims(1:end-1) chunksz]};
+        if deflate
+            create_args{length(create_args)+1} = 'Deflate';
+            create_args{length(create_args)+1} = deflate;
+            % Shuffle=true really should be the default when Deflate>0,
+            % but it looks like Matlab needs you to specify it yourself.
+            create_args{length(create_args)+1} = 'Shuffle';
+            create_args{length(create_args)+1} = true;
+        end
+        h5create(create_args{:});
         startloc = [ones(1, length(data_dims)-1), 1];
     else
         % otherwise, we can just write to the file

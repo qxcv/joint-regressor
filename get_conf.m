@@ -34,15 +34,15 @@ conf.aug.scales = [0.7, 0.775, 0.85];
 conf.aug.randtrans = 3;
 % Normal orientation plus one flip
 conf.aug.flips = [0, 1];
-% Include 50 randomly cropped negative samples for each datum
-conf.aug.negs = 50;
+% Include 30 randomly cropped negative samples for each datum
+conf.aug.negs = 30;
 
 % Validation augmentations are less aggressive (24x instead)
 conf.val_aug.rots = -15:15:15;
 conf.val_aug.scales = [0.75 0.8];
 conf.val_aug.randtrans = 2;
 conf.val_aug.flips = [0 1];
-conf.val_aug.negs = 10;
+conf.val_aug.negs = 8;
 
 %% Other training junk
 % How many HDF5 files should we split our data set across? When writing out

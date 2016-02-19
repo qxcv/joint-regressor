@@ -24,6 +24,11 @@ end
 
 % opts will be used later for writing to hdf5s
 opts.chunksz = chunksz;
+% beyond level 5, text data doesn't compress much; I assume it's the same
+% for scientific data
+% Edit: commented this out because for some reason enabling compression
+% resulted in HUGE amounts of unaccounted space.
+% opts.deflate = 5;
 
 % Fill flow cache (probably not really necessary here)
 % cache_all_flow(all_data, pairs, cache_dir);
