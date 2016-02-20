@@ -3,8 +3,10 @@
 """Trains a CNN using Keras. Includes a bunch of fancy stuff so that you don't
 lose your work when you Ctrl + C."""
 
-from argparse import ArgumentParser
-from itertools import chain, islice, repeat
+from argparse import ArgumentParser, ArgumentTypeError
+from itertools import groupby
+import logging
+from logging import info, warn
 from os import path
 from multiprocessing import Process, Queue, Event
 from Queue import Full
@@ -21,143 +23,203 @@ import numpy as np
 
 from scipy.io import loadmat
 
-from models import vggnet16_regressor_model
-
-
-# TODO (also look in TODO.md):
-#
-# 1) Add flag to get graph model working
-#
-# 2) Opportunistic refactoring :-)
-#
-# 3) Figuring out why end_evt doesn't work. It looks like my workers are
-# exiting after a few seconds (through a return), yet are still marked alive
-# (?!). I guess there's some sort of cleanup going on there which I'm not privy
-# to.
+from models import vggnet16_joint_reg_class
 
 
 INIT = 'glorot_normal'
-DEFAULT_H5_PATHS = {
-    'flow': '/flow',
-    'images': '/images',
-    'joints': '/joints',
-    'poselet': '/poselet'
-}
 
 
-def get_ds(h5_file, name, h5_paths=None):
-    """This looks up a dataset/group/whatever in a h5py.File using the layer of
-    path indirection I've introduced so that I can load alternate datasets if I
-    want to (e.g. loading /wrists instead of /joints when the program wants
-    jonits)."""
-    if h5_paths is not None and name in h5_paths:
-        return h5_file[h5_paths[name]]
-    return h5_file[DEFAULT_H5_PATHS[name]]
+def group_sort_indices(indices):
+    """Takes a list of the form `[(major_index, minor_index)]` and returns a
+    list of the form `[(major_index, [minor_indices])]`, where major indices
+    and minor indices are still grouped as before, but both major and minor
+    indices are sorted."""
+    sorted_ins = sorted(indices)
+    keyfun = lambda indices: indices[0]
+    rv = []
+    for k, g in groupby(sorted_ins, keyfun):
+        rv.append((k, [t[1] for t in g]))
+    return rv
+
+
+class BatchReader(object):
+    def __init__(self, h5_paths, inputs, outputs, batch_size, mark_epochs,
+                 shuffle, mean_pixels):
+        """Initialise the worker.
+
+        :param list h5_paths: List of paths to HDF5 files to read.
+        :param list inputs: List of input names, corresponding to HDF5
+            datasets.
+        :param list outputs: List of output names, again corresponding to HDF5
+            datasets.
+        :param int batch_size: Number of datums in batches to return.
+        :param bool mark_epochs: Whether to push None to the queue at the end
+            of an epoch.
+        :param bool shuffle: Should data be shuffled?
+        :param dict mean_pixels: Dictionary giving mean pixels for each
+            channel."""
+        # TODO: What are the pros and cons of having a manual way of destroying
+        # these open files? Originally I tried to re-open files regularly to
+        # refresh the metadata in case more data had been written, but writing
+        # while reading only works when SWMR is on (in which case it may not be
+        # necessary to re-open the file!)
+        self.h5_files = [h5py.File(path, 'r') for path in h5_paths]
+        self.inputs = inputs
+        self.outputs = outputs
+        for filename in inputs + outputs:
+            assert not filename.startswith('/')
+        assert len(inputs) > 0, "Need at least one input"
+        assert len(outputs) > 0, "Need at least one output"
+        self.batch_size = batch_size
+        self.mark_epochs = mark_epochs
+        self.shuffle = shuffle
+        self.mean_pixels = mean_pixels
+        self._index_pool = []
+
+    def _refresh_index_pool(self):
+        self._index_pool = []
+
+        for idx, fp in enumerate(self.h5_files):
+            some_output = self.outputs[0]
+            label_set = fp[some_output]
+            data_size = len(label_set)
+            self._index_pool.extend(
+                (idx, datum_idx) for datum_idx in xrange(data_size)
+            )
+
+        if self.shuffle:
+            np.random.shuffle(self._index_pool)
+
+    def _pop_n_indices(self, n):
+        rv = self._index_pool[:n]
+        del self._index_pool[:n]
+
+        return rv
+
+    def _get_batch_indices(self):
+        if self.mark_epochs and not self._index_pool:
+            # The index pool has been exhausted, so we need to return [] and
+            # refresh the index pool
+            self._refresh_index_pool()
+
+        indices = self._pop_n_indices(self.batch_size)
+
+        while len(indices) < self.batch_size:
+            start_len = len(indices)
+            self._refresh_index_pool()
+            indices.extend(self._pop_n_indices(self.batch_size - start_len))
+            # Just check that the number of indices we have is actually
+            # increasing
+            assert len(indices) - start_len > 0, \
+                "Looks like we ran out of indices :/"
+
+        return group_sort_indices(indices)
+
+    def _get_ds(self, ds_name, indices):
+        sub_batch = None
+        for fp_idx, data_indices in indices:
+            fp = self.h5_files[fp_idx]
+            fp_data = fp[ds_name][data_indices].astype('float32')
+            if sub_batch is None:
+                sub_batch = fp_data
+            else:
+                assert fp_data.shape[1:] == sub_batch.shape[1:]
+                sub_batch = np.concatenate((sub_batch, fp_data), axis=0)
+        assert sub_batch is not None
+        mean_pixel = self.mean_pixels.get(ds_name)
+
+        if mean_pixel is not None:
+            # The .reshape() allows Numpy to broadcast it
+            assert sub_batch.ndim == 4, "Can only mean-subtract images"
+            sub_batch -= mean_pixel.reshape(
+                (1, sub_batch.shape[1], 1, 1)
+            )
+        elif sub_batch.ndim > 2:
+            warn("There's no mean pixel for dataset %s" % ds_name)
+
+        return sub_batch
+
+    def _get_sub_batches(self, ds_fields, indices):
+        sub_batch = {}
+
+        for ds_name in ds_fields:
+            sub_batch[ds_name] = self._get_ds(ds_name, indices)
+
+        return sub_batch
+
+    def get_batch(self):
+        # First, fetch a batch full of data
+        batch_indices = self._get_batch_indices()
+
+        assert(batch_indices or self.mark_epochs)
+
+        if self.mark_epochs and not batch_indices:
+            return None
+
+        inputs = self._get_sub_batches(self.inputs, batch_indices)
+        outputs = self._get_sub_batches(self.outputs, batch_indices)
+        assert inputs.viewkeys() != outputs.viewkeys(), \
+            "Can't mix inputs and outputs"
+        # 'inputs' is just going to be our batch now
+        inputs.update(outputs)
+        return inputs
 
 
 def h5_read_worker(
-        h5_path, batch_size, out_queue, end_evt, mark_epochs, shuffle,
-        mean_pixel, use_flow, use_rgb, h5_paths
+        out_queue, end_evt, h5_paths, inputs, outputs, mean_pixels,
+        batch_size, mark_epochs, shuffle
     ):
     """This function is designed to be run in a multiprocessing.Process, and
-    communicate using a multiprocessing.Queue. It will just keep reading
+    communicate using a ``multiprocessing.Queue``. It will just keep reading
     batches and pushing them (complete batches!) to the queue in a tight loop;
     obviously this will block as soon as the queue is full, at which point this
     process will wait until it can read again. Note that ``end_evt`` is an
     Event which should be set once the main thread wants to exit.
 
-    Note that at the end of each epoch, ``None`` will be pushed to the output
-    queue iff mark_epochs is True. This notifies the training routine that it
-    should perform validation or whatever it is training routines do
-    nowadays."""
-    assert use_flow or use_rgb
-
-    detail_str = 'Worker started. Details:\n' \
-        'h5_path: {h5_path}\n' \
-        'batch_size: {batch_size}\n' \
-        'mark_epochs: {mark_epochs}\n' \
-        'shuffle: {shuffle}\n' \
-        'mean_pixel: {mean_pixel}'.format(**locals())
-    print(detail_str)
-
-    with h5py.File(h5_path, 'r') as fp:
-        def index_gen():
-            """Yields random indices into the dataset. Fetching data this way
-            is slow, but it should be okay given that we're running this in a
-            background process."""
-            label_set = get_ds(fp, 'joints', h5_paths)
-            label_size = len(label_set)
-            if shuffle:
-                elems = np.random.permutation(label_size)
-            else:
-                elems = np.arange(label_size)
-            for idx in elems:
-                yield idx
-
-        if mark_epochs:
-            # If mark_epochs is True, then we'll have to push None to the queue
-            # at the end of each epoch (so infinite chaining is not helpful)
-            indices = index_gen()
-        else:
-            # Otherwise, we can just keep fetching indices forever
-            indices = chain.from_iterable(gen() for gen in repeat(index_gen))
-
+    At the end of each epoch, ``None`` will be pushed to the output queue iff
+    ``mark_epochs`` is True. This notifies the training routine that it should
+    perform validation or whatever it is training routines do nowadays."""
+    reader = BatchReader(
+        h5_paths=h5_paths, inputs=inputs, outputs=outputs,
+        batch_size=batch_size, mark_epochs=mark_epochs, shuffle=shuffle,
+        mean_pixels=mean_pixels
+    )
+    # Outer loop is to keep pushing forever, inner loop just polls end_event
+    # periodically if we're waiting to push to the queue
+    while True:
+        batch = reader.get_batch()
         while True:
-            # First, fetch a batch full of data
-            batch_indices = list(islice(indices, batch_size))
-            assert(batch_indices or mark_epochs)
-            if mark_epochs and not batch_indices:
-                indices = index_gen()
-                batch = None
-            else:
-                # h5py wants its indices sorted (presumably so that each
-                # accessed chunk only has to be loaded once), so we give it
-                # sorted indices and then use a second set of indices to invert
-                # the mapping (so that the actual batch data order is the same
-                # as the one described by batch_indices). Note that I'm
-                # converting to list() because otherwise h5py gives a cryptic
-                # error message saying it only supports "boolean array"
-                # indexing (which means that if the input to the indexing
-                # function is a numpy array, then it must be boolean).
-                sorted_index_indices = np.argsort(batch_indices)
-                inverse_indices = list(np.argsort(sorted_index_indices))
-                # Oh god the difference between list's __getitem__ and
-                # np.array's __getitem__ is driving me loopy
-                sorted_indices = list(np.array(batch_indices)[sorted_index_indices])
-                if use_rgb:
-                    batch_data = get_ds(fp, 'images', h5_paths)[sorted_indices].astype('float32')
-                if use_flow:
-                    batch_flow = get_ds(fp, 'flow', h5_paths)[sorted_indices].astype('float32')
-                    if use_rgb:
-                        batch_data = np.concatenate((batch_data, batch_flow), axis=1)
-                    else:
-                        batch_data = batch_flow
-                batch_labels = get_ds(fp, 'joints', h5_paths)[sorted_indices].astype('float32')
-                if mean_pixel is not None:
-                    # The .reshape() allows Numpy to broadcast it
-                    batch_data -= mean_pixel.reshape(
-                        (1, len(mean_pixel), 1, 1)
-                    )
-                batch = (batch_data[inverse_indices], batch_labels[inverse_indices])
+            if end_evt.is_set():
+                out_queue.close()
+                return
 
-            # This is the push loop
-            while True:
-                if end_evt.is_set():
-                    out_queue.close()
-                    return
+            try:
+                out_queue.put(batch, timeout=0.05)
+                break
+            except Full:
+                # Queue.Full (for Queue = the module in stdlib, not the
+                # class) is raised when we time out
+                pass
 
-                try:
-                    out_queue.put(batch, timeout=0.05)
-                    break
-                except Full:
-                    # Queue.Full (for Queue = the module in stdlib, not the
-                    # class) is raised when we time out
-                    pass
+
+def get_sample_weight(data):
+    # XXX: This is a horrible hack to implement masking of the regressor
+    # loss when the class (not pose = 0, is pose = 1) is not zero! This
+    # mechanism should be controlled by a command-line argument, with a warning
+    # when the expected mask (to joints/class) is not applied.
+    sample_weight = {}
+    assert 'joints' in data, 'Yes, you need to implement better masking :)'
+    assert 'class' in data
+    if 'class' in data and 'joints' in data:
+        classes = data['class']
+        assert classes.ndim == 2 and classes.shape[1] == 1
+        sample_weight['joints'] = classes.flatten().astype('bool')
+    return sample_weight
 
 
 def train(model, queue, iterations):
     """Perform a fixed number of training iterations."""
-    print('Training for {} iterations'.format(iterations))
+    info('Training for %i iterations', iterations)
     p = Progbar(iterations)
     loss = 0.0
     p.update(0)
@@ -165,12 +227,14 @@ def train(model, queue, iterations):
     for iteration in xrange(iterations):
         # First, get some data from the queue
         start_time = time()
-        (X, y) = queue.get()
+        data = queue.get()
         fetch_time = time() - start_time
+
+        sample_weight = get_sample_weight(data)
 
         # Next, do some backprop
         start_time = time()
-        loss, = model.train_on_batch(X, y)
+        loss, = model.train_on_batch(data, sample_weight=sample_weight)
         bp_time = time() - start_time
 
         # Finally, write some debugging output
@@ -184,30 +248,32 @@ def train(model, queue, iterations):
 
 def validate(model, queue):
     """Perform one epoch of validation."""
-    print('Testing on validation set')
+    info('Testing on validation set')
     batches = 0
     samples = 0
     weighted_loss = 0.0
 
     while True:
-        batch = queue.get()
-        if batch is None:
+        data = queue.get()
+        if data is None:
             break
 
-        X, y = batch
-        loss, = model.test_on_batch(X, y)
+        sample_weight = get_sample_weight(data)
+
+        loss, = model.test_on_batch(data, sample_weight=sample_weight)
 
         # Update stats
         batches += 1
-        samples += len(X)
-        weighted_loss += samples * loss
+        sample_size = len(data[data.keys()[0]])
+        samples += sample_size
+        weighted_loss += sample_size * loss
 
         if (batches % 100) == 0:
-            print('{} validation batches tested'.format(batches))
+            info('%i validation batches tested', batches)
 
-    print(
-        'Finished {} batches ({} samples); mean loss-per-sample {}'
-        .format(batches, samples, weighted_loss / max(1, samples))
+    info(
+        'Finished %i batches (%i samples); mean loss-per-sample %f',
+        batches, samples, weighted_loss / max(1, samples)
     )
 
 
@@ -219,59 +285,52 @@ def save(model, iteration_no, dest_dir):
     # why I've added a small random number to the end; hopefully this will
     # allow unattended optimisation runs to complete even when Keras decides
     # that it doesn't want to play nicely.
-    print("Saving model to {}".format(full_path))
+    info("Saving model to %s", full_path)
     model.save_weights(full_path)
 
 
-def read_mean_pixel(mat_path, use_flow, use_rgb):
-    assert use_flow or use_rgb
+def read_mean_pixels(mat_path):
     if mat_path is None:
         # No mean pixel
-        return None
+        return {}
     mat = loadmat(mat_path)
-    mean_pixel = np.array([])
-    if use_rgb:
-        mean_pixel = mat['image_mean_pixel'].flatten()
-    if use_flow:
-        flow_mean = mat['flow_mean_pixel'].flatten()
-        mean_pixel = np.concatenate((mean_pixel, flow_mean))
-    return mean_pixel
+    mean_pixels = {
+        k: v.flatten() for k, v in mat.iteritems() if not k.startswith('_')
+    }
+    return mean_pixels
 
 
-def infer_sizes(h5_path, use_flow, use_rgb, h5_paths=None):
-    """Infer relevant data sizes from a HDF5 file."""
-    assert use_flow or use_rgb
+def infer_sizes(h5_path):
+    """Just return shapes of all datasets, assuming that different samples are
+    indexed along the first dimension."""
+    rv = {}
+
     with h5py.File(h5_path, 'r') as fp:
-        # Inferring shape is tricky, since we may or may not use flow and may
-        # or may not use RGB (but have to use at least one!)
-        if use_rgb:
-            input_shape = get_ds(fp, 'images', h5_paths).shape[1:]
-        if use_flow:
-            flow_shape = get_ds(fp, 'flow', h5_paths).shape[1:]
-            if use_rgb:
-                assert(input_shape[1:] == flow_shape[1:])
-                input_shape = (input_shape[0] + flow_shape[0], input_shape[1], input_shape[2])
-            else:
-                input_shape = flow_shape
-        regressor_outputs = get_ds(fp, 'joints', h5_paths).shape[1]
-        if 'poselet' in fp.keys():
-            biposelet_classes = max(get_ds(fp, 'poselet', h5_paths))
-        else:
-            biposelet_classes = None
+        for key in fp.keys():
+            rv[key] = fp[key].shape[1:]
 
-    return (input_shape, regressor_outputs, biposelet_classes)
+    return rv
 
 
 parser = ArgumentParser(description="Train a CNN to regress joints")
 
+
+def h5_parser(h5_string):
+    # parse strings,like,this without worrying about ,,stuff,like,,this,
+    rv = [p for p in h5_string.split(',') if p]
+    if not rv:
+        raise ArgumentTypeError('Expected at least one path')
+    return rv
+
+
 # Mandatory arguments
 parser.add_argument(
-    'train_h5', metavar='TRAINDATA', type=str,
-    help='h5 file in which training samples are stored'
+    'train_h5s', metavar='TRAINDATA', type=h5_parser,
+    help='h5 files in which training samples are stored (comma separated)'
 )
 parser.add_argument(
-    'val_h5', metavar='VALDATA', type=str,
-    help='h5 file in which validation samples are stored'
+    'val_h5s', metavar='VALDATA', type=h5_parser,
+    help='h5 file in which validation samples are stored (comma separated)'
 )
 parser.add_argument(
     'checkpoint_dir', metavar='CHECKPOINTDIR', type=str,
@@ -312,72 +371,60 @@ parser.add_argument(
     help='finetune from these weights instead of starting again'
 )
 parser.add_argument(
-    '--no-flow', dest='use_flow', action='store_false', default=True,
-    help='disable flow from entering the network'
-)
-parser.add_argument(
-    '--no-rgb', dest='use_rgb', action='store_false', default=True,
-    help='disable RGB data from entering the network'
-)
-
-def override_parser(overrides):
-    rv = {}
-    for pair in overrides.split(','):
-        k, v = pair.split('=', 1)
-        rv[k] = v
-    return rv
-
-parser.add_argument(
-    '--override-h5-paths', type=override_parser, dest='override_paths',
-    help='override the HDF5 search paths (e.g. "flow=/f2,images=/baz/imgs")',
-    default=None
+    '--logfile', dest='log_file', type=str, default=None,
+    help='path to log messages to (in addition to std{err,out})'
 )
 
 
 if __name__ == '__main__':
+    # Start by parsing arguments and setting up logger
+    logging.basicConfig(level=logging.DEBUG)
     args = parser.parse_args()
+    if args.log_file is not None:
+        file_handler = logging.FileHandler(args.log_file, mode='a')
+        logging.getLogger().addHandler(file_handler)
+    info('Logging started')
 
-    # We have to use something as network input
-    assert args.use_flow or args.use_rgb
+    # Model-building
+    ds_shape = infer_sizes(args.train_h5s[0])
+    # TODO: I need to figure out a more elegant way of doing this than sticking
+    # it in train.py. Eventually I want to do it like Caffe does, where input
+    # and loss layer names each correspond to HDF5 dataset names.
+    input_shape = ds_shape['images']
+    regressor_outputs = ds_shape['joints'][0]
+    solver = SGD(
+        lr=args.learning_rate, decay=args.decay, momentum=0.9, nesterov=True
+    )
+    model = vggnet16_joint_reg_class(
+        input_shape, regressor_outputs, solver, INIT
+    )
+    if args.finetune_path is not None:
+        info("Loading weights from '%s'", args.finetune_path)
+        model.load_weights(args.finetune_path)
 
-    # Now get paths for data in the HDF5
-    h5_paths = {
-        'flow': '/flow',
-        'images': '/images',
-        'joints': '/joints',
-        'poselet': '/poselet'
-    }
-    if args.override_paths is not None:
-        # Make sure we're only overriding defined paths
-        assert not (args.override_paths.viewkeys() - h5_paths.viewkeys())
-        h5_paths.update(args.override_paths)
-    print('HDF5 path lookup table:')
-    for k, v in h5_paths.iteritems():
-        print("'{}' ~> '{}'".format(k, v))
+    inputs = [i['name'] for i in model.input_config]
+    outputs = [o['name'] for o in model.output_config]
+
 
     # Prefetching stuff
     end_event = Event()
-    mean_pixel = read_mean_pixel(
-        args.mean_pixel_path, args.use_flow, args.use_rgb
-    )
+    mean_pixels = read_mean_pixels(args.mean_pixel_path)
     # Training data prefetch
     train_queue = Queue(args.queued_batches)
     # We supply everything as kwargs so that I know what I'm passing in
     train_kwargs = dict(
-        h5_path=args.train_h5, batch_size=args.batch_size,
+        h5_paths=args.train_h5s, batch_size=args.batch_size,
         out_queue=train_queue, end_evt=end_event, mark_epochs=False,
-        shuffle=True, mean_pixel=mean_pixel, use_flow=args.use_flow,
-        use_rgb=args.use_rgb, h5_paths=h5_paths
+        shuffle=True, mean_pixels=mean_pixels, inputs=inputs, outputs=outputs
     )
     train_worker = Process(target=h5_read_worker, kwargs=train_kwargs)
 
     # Validation data prefetch
     val_queue = Queue(args.queued_batches)
     val_kwargs = dict(
-        h5_path=args.val_h5, batch_size=args.batch_size, out_queue=val_queue,
+        h5_paths=args.val_h5s, batch_size=args.batch_size, out_queue=val_queue,
         end_evt=end_event, mark_epochs=True, shuffle=False,
-        mean_pixel=mean_pixel, use_flow=args.use_flow, use_rgb=args.use_rgb,
-        h5_paths=h5_paths
+        mean_pixels=mean_pixels, inputs=inputs, outputs=outputs
     )
     val_worker = Process(target=h5_read_worker, kwargs=val_kwargs)
 
@@ -385,23 +432,6 @@ if __name__ == '__main__':
         # Protect this in a try: for graceful cleanup of workers
         train_worker.start()
         val_worker.start()
-
-        # Model-building
-        input_shape, regressor_outputs, biposelet_classes = infer_sizes(
-            args.train_h5, args.use_flow, args.use_rgb, h5_paths
-        )
-        print('Input size is {}. use_flow is {}, use_rgb is {}'.format(
-            input_shape, args.use_flow, args.use_rgb
-        ))
-        solver = SGD(
-            lr=args.learning_rate, decay=args.decay, momentum=0.9, nesterov=True
-        )
-        model = vggnet16_regressor_model(
-            input_shape, regressor_outputs, solver, INIT
-        )
-        if args.finetune_path is not None:
-            print("Loading weights from '{}'".format(args.finetune_path))
-            model.load_weights(args.finetune_path)
 
         # Stats
         epochs_elapsed = 0
@@ -428,14 +458,14 @@ if __name__ == '__main__':
         # Make sure workers shut down gracefully
         end_event.set()
         stdout.write('\n')
-        print('Waiting for workers to exit')
+        info('Waiting for workers to exit')
         train_worker.join(10.0)
         val_worker.join(10.0)
         # XXX: My termination scheme (with end_event) is not working, and I
         # can't tell where the workers are getting stuck.
-        print(
-            'Train worker alive? {}; Val worker alive? {}; terminating anyway'
-            .format(train_worker.is_alive(), val_worker.is_alive())
+        info(
+            'Train worker alive? %s; Val worker alive? %s; terminating anyway',
+            train_worker.is_alive(), val_worker.is_alive()
         )
         train_worker.terminate()
         val_worker.terminate()

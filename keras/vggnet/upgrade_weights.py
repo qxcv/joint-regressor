@@ -15,9 +15,6 @@ from vgg16_keras import VGG_16
 def upgrade_weights(new_model, old_weights_path):
     old_model = VGG_16(old_weights_path)
 
-    # First, make sure that layers are all of the same type
-    assert len(new_model.layers) == len(old_model.layers)
-
     # Now some safety checks on the first two layers
     for l0, l1 in [new_model.layers[:2], old_model.layers[:2]]:
         assert l0.get_config()['name'] == 'ZeroPadding2D'
@@ -41,7 +38,7 @@ def upgrade_weights(new_model, old_weights_path):
 
     # Check compatibility of layers 2-(-2) (so skip last layer and first two
     # because we know they are different), then copy across
-    zipped = zip(new_model.layers[2:-1], old_model.layers[2:-1])
+    zipped = zip(new_model.layers[2:-1], old_model.layers[2:])
     for new_layer, old_layer in zipped:
         new_cfg = new_layer.get_config()
         old_cfg = old_layer.get_config()

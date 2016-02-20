@@ -3,8 +3,16 @@ function locs = extract_joint_loc_labels(paths)
 locs = []; % This will grow; this is fine.
 for i=1:length(paths)
     path = paths{i};
+    % Remember the transpose!
     labels = h5read(path, '/joints')';
-    locs = cat(1, locs, labels);
+    classes = boolean(h5read(path, '/class'));
+    fprintf('[extracting labels] Label size: %i, classes size: %i, valid classes: %i\n', ...
+        size(labels, 1), size(classes, 2), sum(classes));
+    assert(ismatrix(labels));
+    assert(isvector(classes));
+    assert(size(labels, 1) == length(classes));
+    % Only use locations with a person visible (so class=1)
+    locs = cat(1, locs, labels(classes, :));
 end
 % Some other code which I don't want to delete from this file (even though
 % it would be easy to find with git...). This code converts a set of labels

@@ -7,14 +7,10 @@
    chosen so that the largest crop we consider is still 224x224. At the moment,
    I suspect that everything is taking a huge amount of time because I'm trying
    to rotate/rescale/whatever colossal images.
-4. `train.py` is becoming unwieldy as I introduce more features (first
-   configurable RGB/flow data, then on-the-fly mean pixel subtraction, and so
-   on). I think I could significantly reduce this complexity if I followed a
-   Caffe-style approach of reading inputs and mean pixels straight from
-   correspondingly named datasets in an HDF5 file, which means that the
-   complexity of whether to merge flow and RGB data, how to do mean
-   subtraction, etc. can be moved into configuration rather than having to
-   update the actual DS fetching code each time something needs to be updated
-   :/
-5. Figure out why `end_evt` doesn't work in `train.py`. It seems like the
+4. Figure out why `end_evt` doesn't work in `train.py`. It seems like the
    workers are just ignoring it and thundering on anyway.
+5. Consider changing the training process so that each run gets its own
+   directory containing a complete model definition (in JSON) *and* a bunch of
+   checkpointed weights. This would allow me to mess with `models.py` even
+   while training, and not have to be confused when my net starts screwing up
+   because I changed something subtle like the dropout probability.
