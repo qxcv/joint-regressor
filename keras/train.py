@@ -246,30 +246,27 @@ def train(model, queue, iterations):
         p.update(iteration + 1, extra_info)
 
 
-def validate(model, queue):
+def validate(model, queue, batches):
     """Perform one epoch of validation."""
     info('Testing on validation set')
-    batches = 0
     samples = 0
     weighted_loss = 0.0
 
-    while True:
+    for batch_num in xrange(batches):
         data = queue.get()
-        if data is None:
-            break
+        assert data is not None
 
         sample_weight = get_sample_weight(data)
 
         loss, = model.test_on_batch(data, sample_weight=sample_weight)
 
         # Update stats
-        batches += 1
         sample_size = len(data[data.keys()[0]])
         samples += sample_size
         weighted_loss += sample_size * loss
 
-        if (batches % 100) == 0:
-            info('%i validation batches tested', batches)
+        if (batch_num % 10) == 0:
+            info('%i validation batches tested', batch_num)
 
     info(
         'Finished %i batches (%i samples); mean loss-per-sample %f',
@@ -374,6 +371,13 @@ parser.add_argument(
     '--logfile', dest='log_file', type=str, default=None,
     help='path to log messages to (in addition to std{err,out})'
 )
+# TODO: Add configuration option to just run through the entire validation set
+# like I was doing before. That's a lot faster than using randomly sampled
+# stuff.
+parser.add_argument(
+    '--val-batches', dest='val_batches', type=int, default=5,
+    help='number of batches to run during each validation step'
+)
 
 
 if __name__ == '__main__':
@@ -423,7 +427,7 @@ if __name__ == '__main__':
     val_queue = Queue(args.queued_batches)
     val_kwargs = dict(
         h5_paths=args.val_h5s, batch_size=args.batch_size, out_queue=val_queue,
-        end_evt=end_event, mark_epochs=True, shuffle=False,
+        end_evt=end_event, mark_epochs=False, shuffle=True,
         mean_pixels=mean_pixels, inputs=inputs, outputs=outputs
     )
     val_worker = Process(target=h5_read_worker, kwargs=val_kwargs)
@@ -441,7 +445,7 @@ if __name__ == '__main__':
             while True:
                 # Train and validate
                 train(model, train_queue, args.train_interval_batches)
-                validate(model, val_queue)
+                validate(model, val_queue, args.val_batches)
 
                 # Update stats
                 epochs_elapsed += 1
