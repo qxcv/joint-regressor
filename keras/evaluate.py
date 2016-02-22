@@ -3,7 +3,7 @@ IPython notebook so that I can visualise the result easily."""
 
 import numpy as np
 
-from train import read_mean_pixel
+from train import read_mean_pixels, get_model_io
 
 
 def label_to_coords(label):
@@ -19,31 +19,25 @@ def label_to_coords(label):
         raise ValueError("label should be output for single sample or a batch")
 
 
-def get_predictions(model, mean_pixel_path, images=None, flows=None,
-                    batch_size=32):
+def get_predictions(model, mean_pixel_path, data, batch_size=32,
+                    coord_sets=('joints',)):
     """Evaluate model on given images and flows in order to produce
     predictions.
 
     :param model: a ``keras.models.Model``
     :param mean_pixel_path: string pointing to a meat pixel to subtract
-    :param images: an ``n*c*h*w`` arrray of image data
-    :param flows: an ``n*2*h*w`` set of flows
+    :param data: dictionary mapping input names to ``n*c*h*w`` arrrays of image
+                 data
     :param batch_size: size of batches which will be pushed through the
                        network. This is very helpful when you have a
                        ``h5py.Dataset`` to evaluate on.
     :return: a ``n*k*2`` array of ``(x, y)`` joint coordinates."""
-    use_flow = flows is not None
-    use_rgb = images is not None
-    assert use_flow or use_rgb
-
-    if use_flow:
-        num_samples = flows.shape[0]
-    else:
-        num_samples = images.shape[0]
-
-    mp = read_mean_pixel(mean_pixel_path, use_flow=use_flow, use_rgb=use_rgb)
+    mean_pixels = read_mean_pixels(mean_pixel_path)
     num_outputs = model.layers[-1].output_dim
-    rv = np.zeros((num_samples, num_outputs / 2, 2))
+    inputs, outputs = get_model_io(model)
+    rv = {
+        np.zeros((num_samples, num_outputs / 2, 2))
+    }
     num_batches = -(-num_samples // batch_size)
 
     for batch_num in xrange(num_batches):
@@ -51,22 +45,14 @@ def get_predictions(model, mean_pixel_path, images=None, flows=None,
         slice_start = batch_num * batch_size
         slice_end = slice_start + batch_size
 
-        if use_flow:
-            flow_data = flows[slice_start:slice_end].astype('float32')
+        batch_data = {}
 
-        if use_rgb:
-            image_data = images[slice_start:slice_end].astype('float32')
+        for input_name in inputs:
+            bd = data[batch_name][slice_start:slice_end].astype('float32')
+            mp = mean_pixels[input_name]
 
-        if use_flow and use_rgb:
-            stacked = np.concatenate((image_data, flow_data), axis=1)
-        elif use_flow:
-            stacked = flow_data
-        elif use_rgb:
-            stacked = image_data
-
-        stacked -= mp.reshape((len(mp), 1, 1))
-        results = model.predict(stacked)
-        assert results.ndim == 2
+        subbed_batch_data = sub_mean_pixels(mean_pixels, batch_data)
+        results = model.predict(subbed_batch_data)
         rv[slice_start:slice_end] = label_to_coords(results)
 
     return rv

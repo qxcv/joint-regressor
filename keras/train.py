@@ -16,6 +16,7 @@ from time import time
 
 import h5py
 
+from keras.models import Graph
 from keras.optimizers import SGD
 from keras.utils.generic_utils import Progbar
 
@@ -297,6 +298,24 @@ def read_mean_pixels(mat_path):
     return mean_pixels
 
 
+def sub_mean_pixels(mean_pixels, all_data):
+    rv = {}
+
+    for name, data in all_data.iteritems():
+        mean_pixel = mean_pixels.get(name)
+
+        if mean_pixel is not None:
+            assert data.ndim == 4, "Can only mean-subtract images"
+            rv[name] = data - mean_pixel.reshape(
+                (1, data.shape[1], 1, 1)
+            )
+        elif data.ndim > 2:
+            # Only warn about image-like things
+            warn("There's no mean pixel for dataset %s" % name)
+
+    return rv
+
+
 def infer_sizes(h5_path):
     """Just return shapes of all datasets, assuming that different samples are
     indexed along the first dimension."""
@@ -307,6 +326,19 @@ def infer_sizes(h5_path):
             rv[key] = fp[key].shape[1:]
 
     return rv
+
+
+def _model_io_map(config):
+    return {
+        cfg['name']: cfg for cfg in config
+    }
+
+
+def get_model_io(model):
+    assert isinstance(model, Graph)
+    inputs = _model_io_map(model.input_config)
+    outputs = _model_io_map(model.output_config)
+    return (inputs, outputs)
 
 
 parser = ArgumentParser(description="Train a CNN to regress joints")
@@ -406,9 +438,7 @@ if __name__ == '__main__':
         info("Loading weights from '%s'", args.finetune_path)
         model.load_weights(args.finetune_path)
 
-    inputs = [i['name'] for i in model.input_config]
-    outputs = [o['name'] for o in model.output_config]
-
+    inputs, outputs = [d.keys() for d in get_model_io(model)]
 
     # Prefetching stuff
     end_event = Event()
