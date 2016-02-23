@@ -1,5 +1,5 @@
 function write_negatives(all_data, pairs, cache_dir, patch_dir, ...
-    cnn_window, crops_per_pair, joint_label_size, chunksz)
+    cnn_window, crops_per_pair, chunksz, poselets)
 %WRITE_NEGATIVES Analogue of write_dset for negative patches.
 %Note that unlike write_dset, this function will intentionally avoid
 %whatever poses are present in the images it is given (this functionality
@@ -27,7 +27,8 @@ opts.chunksz = chunksz;
 % beyond level 5, text data doesn't compress much; I assume it's the same
 % for scientific data
 % Edit: commented this out because for some reason enabling compression
-% resulted in HUGE amounts of unaccounted space.
+% resulted in HUGE amounts of unaccounted space (like 30GiB unaccounted
+% space for 500MiB data).
 % opts.deflate = 5;
 
 % Fill flow cache (probably not really necessary here)
@@ -76,12 +77,24 @@ for pair_idx=1:length(pairs)
         final_flow(:, :, :, crop_num) = permute(correct_flow, pmask);
     end
 
-    fake_joint_labels = -1e30 * ones([joint_label_size lcr]);
     class_labels = zeros([1 lcr]);
     assert(isa(final_images, 'uint8'));
+    
+    % Produce fake joints for each part of the poselet
+    joint_args = {};
+    for i=1:length(poselets)
+        poselet_name = poselets(i).name;
+        poselet_idxs = poselets(i).poselet;
+        num_vals = 4 * poselet_idxs;
+        ds_name = sprintf('/%s', poselet_name);
+        fake_data = zeros([num_vals size(final_images, 4)]);
+        joint_args{length(joint_args)+1} = ds_name; %#ok<AGROW>
+        joint_args{length(joint_args)+1} = fake_data; %#ok<AGROW>
+    end
+    
     store3hdf6(dest_path, opts, '/flow', single(final_flow), ...
         '/images', uint8(final_images), ...
-        '/joints', single(fake_joint_labels), ...
-        '/class', uint8(class_labels));
+        '/class', uint8(class_labels), ...
+        joint_args{:});
 end
 end

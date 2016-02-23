@@ -16,7 +16,6 @@ conf.cnn.deploy_prototxt = 'models/deploy.prototxt';
 conf.cnn.model = fullfile(conf.cache_dir, 'regressor.caffemodel');
 % GPU ID for testing (negative to disable)
 conf.cnn.gpu_id = 0;
-
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 
 % Total number of augmentations is given by
@@ -28,14 +27,14 @@ conf.cnn.gpu_id = 0;
 % Rotations for data augmentation (degrees from non-rotated)
 conf.aug.rots = -45:22.5:45;
 % Scales for data augmentation (2.0 = one quarter of a skeleton per frame, 0.5 = four skeletons per frame)
-conf.aug.scales = [0.7, 0.775, 0.85];
+conf.aug.scales = [0.7, 0.85];
 % 3 random translations at each scale where it's possible to translate
 % whilst keeping the pose in-frame.
-conf.aug.randtrans = 3;
+conf.aug.randtrans = 2;
 % Normal orientation plus one flip
 conf.aug.flips = [0, 1];
 % Include 30 randomly cropped negative samples for each datum
-conf.aug.negs = 30;
+conf.aug.negs = 20;
 
 % Validation augmentations are less aggressive (24x instead)
 conf.val_aug.rots = -15:15:15;

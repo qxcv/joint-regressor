@@ -1,5 +1,5 @@
 function write_dset(all_data, pairs, cache_dir, patch_dir, num_hdf5s, ...
-    cnn_window, poselet, left_parts, right_parts, aug, chunksz)
+    cnn_window, poselets, left_parts, right_parts, aug, chunksz)
 %WRITE_DSET Write out a data set (e.g. pairs from the train set or pairs
 %from the test set).
 
@@ -36,13 +36,13 @@ for start_index = 1:batch_size:size(pairs, 1)
         start_index, start_index + true_batch_size - 1);
     parfor result_index=1:true_batch_size
         mpii_index = start_index + result_index - 1;
-        fst = all_data(pairs(mpii_index, 1));
+        fst = all_data(pairs(mpii_index, 1)); %#ok<PFBNS>
         snd = all_data(pairs(mpii_index, 2));
         
         stack_start = tic;
         results{result_index} = get_stacks(...
-            fst, snd, poselet, left_parts, right_parts, cache_dir, cnn_window, ...
-            aug.flips, aug.rots, aug.scales, aug.randtrans);
+            fst, snd, poselets, left_parts, right_parts, cache_dir, cnn_window, ...
+            aug.flips, aug.rots, aug.scales, aug.randtrans); %#ok<PFBNS>
         stack_time = toc(stack_start);
         fprintf('get_stack() took %fs\n', stack_time);
     end
@@ -54,11 +54,10 @@ for start_index = 1:batch_size:size(pairs, 1)
         write_start = tic;
         stacks = results{i};
         for j=1:length(stacks)
-            % Get stack and labels; we don't add in dummy dimensions because
-            % apparently Matlab can't tell the difference between a
+            % Get stack and labels; we don't add in dummy dimensions
+            % because apparently Matlab can't tell the difference between a
             % j*k*l*1*1*1*1... matrix and a j*k*l matrix.
             stack = stacks(j).stack;
-            joint_labels = stacks(j).joint_labels;
             
             % Choose a file, regardless of whether it exists
             h5_idx = randi(num_hdf5s);
@@ -71,11 +70,28 @@ for start_index = 1:batch_size:size(pairs, 1)
             stack_flow = single(stack(:, :, 7:8, :));
             stack_im = stack(:, :, 1:6, :);
             stack_im_bytes = uint8(stack_im * 255);
-            class_labels = np.ones([length(joint_labels) 1]);
+            % 1-of-K array of class labels. Ends up having dimension K*N,
+            % where N is the unmber of samples and K is the number of
+            % classes (i.e. number of poselets plus one for background
+            % class).
+            class_labels = one_of_k(stacks(j).poselet_num + 1, length(poselets) + 1)';
+            joint_args = {};
+            for poselet_idx=1:length(poselets)
+                name = poselets(poselet_idx).name;
+                joint_args{length(joint_args)+1} = sprintf('/%s', name); %#ok<AGROW>
+                if poselet_idx == stacks(j).poselet_num
+                    num_values = 4 * length(poselets(poselet_idx).poselet);
+                    poselet_data = zeros([num_values, 1]);
+                else
+                    poselet_data = stacks(j).joint_labels;
+                end
+                joint_args{length(joint_args)+1} = single(poselet_data); %#ok<AGROW>
+                assert(size(poselet_data, 2) == 1);
+            end
             store3hdf6(filename, opts, '/flow', stack_flow, ...
                 '/images', stack_im_bytes, ...
-                '/joints', single(joint_labels), ...
-                '/class', uint8(class_labels));
+                '/class', uint8(class_labels), ...
+                joint_args{:});
         end
         write_time = toc(write_start);
         fprintf('Writing %d examples took %fs\n', length(stacks), write_time);

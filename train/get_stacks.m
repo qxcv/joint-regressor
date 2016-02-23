@@ -1,4 +1,4 @@
-function rvs = get_stacks(d1, d2, poselet, left_parts, right_parts, cache_dir, cnn_window, flips, rotations, scales, randtrans)
+function rvs = get_stacks(d1, d2, poselets, left_parts, right_parts, cache_dir, cnn_window, flips, rotations, scales, randtrans)
 %GET_STACKS Get the image/flow stacks for a given data pair and set of
 %transformations.
 % d1: First datum
@@ -22,7 +22,6 @@ stacked = cat(3, norm_im(im1), ...
                  norm_flow(flow));
 % Now join joints
 all_joints = cat(1, d1.joint_locs, d2.joint_locs);
-poselet_indices = [poselet, poselet + length(d1.joint_locs)];
 
 % We'll store rvs in a struct array with a "stack" and "joints" attribute
 % for each entry.
@@ -61,64 +60,71 @@ for flip=flips
             flat_flow = (rot_mat * flat_flow.').';
             rot_stack(:, :, 7:8) = reshape(flat_flow, size(flow));
         end
-
-        %% 3) Get bounding box for joint
-        maxes = max(rot_joints(poselet_indices, :), [], 1);
-        mins = min(rot_joints(poselet_indices, :), [], 1);
-        % Always crop a square patch
-        pose_side = max(maxes - mins);
-        % box_center is (x, y)
-        box_center = mins + (maxes - mins) ./ 2;
-
-        for scale=scales
-            %% 4) Scale box
-            side = round(pose_side / scale);
-
-            % We repeat this translation process for each random
-            % translation
-            total_trans = max(randtrans, 1);
-            wiggle_room = side - pose_side;
-            if wiggle_room <= 1
-                % Don't translate at scale 1 or below (effectively)
-                total_trans = 1;
-            end;
+        
+        %% 3) Choose a poslet
+        for poselet_num=1:length(poselets)
+            this_poselet = poselets(poslet_num).poselet;
+            poselet_indices = [this_poselet, this_poselet + length(d1.joint_locs)];
             
-            for unused=1:total_trans
-                %% 5) Translate box
-                trans_box_center = box_center;
-                if randtrans > 0 && wiggle_room > 1
-                    trans_amount = wiggle_room * rand(1, 2) - wiggle_room / 2;
-                    trans_box_center = trans_box_center + trans_amount;
-                end
-                box = round(cat(2, trans_box_center - side / 2, [side side]));
-
-                %% 6) Get the crop!
-                cropped = impcrop(rot_stack, box);
-
-                %% 8) Rescale crop to CNN and rescale joints/flow to be in image coordinates
-                % permute(x, [2 1 3]) puts the width dimension first in x, which is what
-                % caffe wants (IIRC Caffe uses width * height * channels * num).
-                final_stack = permute(imresize(cropped, cnn_window), [2 1 3]);
-
-                % Scaling flow
-                final_stack(:, :, 7:8) = rescale_flow_mags(...
-                    final_stack(:, :, 7:8), size(final_stack), size(cropped));
+            %% 4) Get bounding box for joint
+            maxes = max(rot_joints(poselet_indices, :), [], 1);
+            mins = min(rot_joints(poselet_indices, :), [], 1);
+            % Always crop a square patch
+            pose_side = max(maxes - mins);
+            % box_center is (x, y)
+            box_center = mins + (maxes - mins) ./ 2;
+            
+            for scale=scales
+                %% 5) Scale box
+                side = round(pose_side / scale);
                 
-                % Scale factors for joints
-                scale_factors = size(final_stack) ./ size(cropped);
-                scale_factors = scale_factors(2:-1:1);
-                scale_joints = rot_joints;
-                for i=1:size(scale_joints, 1)
-                    scale_joints(i, :) = (scale_joints(i, :) - box(1:2)) .* scale_factors;
-                end
-
-                % Return column vector [x1 y1 x2 y2 ... xn yn]'
-                poselet_joints = scale_joints(poselet_indices, :);
-                rvs(current_idx).joint_labels = reshape(poselet_joints', [numel(poselet_joints), 1]);
-                % Return full w * h * c matrix
-                rvs(current_idx).stack = final_stack;
+                % We repeat this translation process for each random
+                % translation
+                total_trans = max(randtrans, 1);
+                wiggle_room = side - pose_side;
+                if wiggle_room <= 1
+                    % Don't translate at scale 1 or below (effectively)
+                    total_trans = 1;
+                end;
                 
-                current_idx = current_idx + 1;
+                for unused=1:total_trans
+                    %% 6) Translate box
+                    trans_box_center = box_center;
+                    if randtrans > 0 && wiggle_room > 1
+                        trans_amount = wiggle_room * rand(1, 2) - wiggle_room / 2;
+                        trans_box_center = trans_box_center + trans_amount;
+                    end
+                    box = round(cat(2, trans_box_center - side / 2, [side side]));
+                    
+                    %% 7) Get the crop!
+                    cropped = impcrop(rot_stack, box);
+                    
+                    %% 8) Rescale crop to CNN and rescale joints/flow to be in image coordinates
+                    % permute(x, [2 1 3]) puts the width dimension first in x, which is what
+                    % caffe wants (IIRC Caffe uses width * height * channels * num).
+                    final_stack = permute(imresize(cropped, cnn_window), [2 1 3]);
+                    
+                    % Scaling flow
+                    final_stack(:, :, 7:8) = rescale_flow_mags(...
+                        final_stack(:, :, 7:8), size(final_stack), size(cropped));
+                    
+                    % Scale factors for joints
+                    scale_factors = size(final_stack) ./ size(cropped);
+                    scale_factors = scale_factors(2:-1:1);
+                    scale_joints = rot_joints;
+                    for i=1:size(scale_joints, 1)
+                        scale_joints(i, :) = (scale_joints(i, :) - box(1:2)) .* scale_factors;
+                    end
+                    
+                    % Return column vector [x1 y1 x2 y2 ... xn yn]'
+                    poselet_joints = scale_joints(poselet_indices, :);
+                    rvs(current_idx).joint_labels = reshape(poselet_joints', [numel(poselet_joints), 1]);
+                    % Return full w * h * c matrix
+                    rvs(current_idx).stack = final_stack;
+                    rvs(current_idx).poselet_num = poselet_num;
+                    
+                    current_idx = current_idx + 1;
+                end
             end
         end
     end
