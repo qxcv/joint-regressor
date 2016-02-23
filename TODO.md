@@ -14,3 +14,7 @@
    checkpointed weights. This would allow me to mess with `models.py` even
    while training, and not have to be confused when my net starts screwing up
    because I changed something subtle like the dropout probability.
+6. Uh, the training code's batch count is totally broken. It seems to be adding
+   the batch size to the running total after each epoch (so +48 each time, by
+   default), when it really should be adding the number of batches in the epoch
+   instead (+256, by default).

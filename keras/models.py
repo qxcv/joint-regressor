@@ -84,3 +84,89 @@ def vggnet16_joint_reg_class(input_shape, regressor_outputs, solver, init):
         }
     )
     return model
+
+
+def vgg16_twin_base(input_shape, init):
+    """There will be two instances of this model created: one for flow and one
+    for RGB data."""
+    model = Sequential()
+    make_conv_triple(model, 64, input_shape=input_shape, init=init)
+    make_conv_triple(model, 64, init=init)
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+
+    make_conv_triple(model, 128, init=init)
+    make_conv_triple(model, 128, init=init)
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+
+    make_conv_triple(model, 256, init=init)
+    make_conv_triple(model, 256, init=init)
+    make_conv_triple(model, 256, init=init)
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+
+    return model
+
+
+def vgg16_twin_final(input_shape, init):
+    """This is the second stage, after the two first stages have been joined
+    together."""
+    model = Sequential()
+    make_conv_triple(model, 512, input_shape=input_shape, init=init)
+    make_conv_triple(model, 512, init=init)
+    make_conv_triple(model, 512, init=init)
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+
+    make_conv_triple(model, 512, init=init)
+    make_conv_triple(model, 512, init=init)
+    make_conv_triple(model, 512, init=init)
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Flatten())
+
+    model.add(Dense(4096, activation='relu', init=init))
+    model.add(Dropout(0.5))
+
+    model.add(Dense(4096, activation='relu', init=init))
+    model.add(Dropout(0.5))
+
+    return model
+
+
+def vggnet16_joint_reg_class_flow(rgb_shape, flow_shape, regressor_outputs, solver, init):
+    """Extension of above model to include a parallel network for processing
+    flow."""
+    model = Graph()
+
+    # RGB travels through a bunch of conv layers first
+    model.add_input(input_shape=rgb_shape, name='images')
+    rgb_base = vgg16_twin_base(rgb_shape, init)
+    model.add_node(rgb_base, name='rgb_conv', input='images')
+
+    # Flow travels through a parallel set of layers with the same architecture
+    # but different weights
+    model.add_input(input_shape=flow_shape, name='flow')
+    flow_base = vgg16_twin_base(flow_shape, init)
+    model.add_node(flow_base, name='flow_conv', input='flow')
+
+    # The two streams are merged before the first 512-channel conv layer (after
+    # max-pooling in the 256 node layer)
+    rgb_out_shape = rgb_base.output_shape
+    flow_out_shape = flow_base.output_shape
+    assert rgb_out_shape == flow_out_shape
+    assert len(rgb_out_shape) == 4 and rgb_out_shape[0] == None
+    in_channels = rgb_out_shape[1] + flow_out_shape[1]
+    shared_shape = (in_channels,) + rgb_out_shape[2:]
+    shared_final = vgg16_twin_final(shared_shape, init)
+    model.add_node(
+        shared_final, inputs=['rgb_conv', 'flow_conv'],
+        merge_mode='concat', concat_axis=1, name='shared_layers'
+    )
+    model.add_node(Dense(regressor_outputs, init=init), input='shared_layers', name='fc_regr')
+    model.add_node(Dense(1, init=init, activation='sigmoid'), input='shared_layers', name='fc_clas')
+    model.add_output(input='fc_regr', name='joints')
+    model.add_output(input='fc_clas', name='class')
+    model.compile(
+        optimizer=solver, loss={
+            'joints': 'mae',
+            'class': 'binary_crossentropy'
+        }
+    )
+    return model

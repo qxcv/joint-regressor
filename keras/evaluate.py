@@ -79,8 +79,6 @@ def score_predictions_acc(gt_joints, predictions, thresholds):
     return rv
 
 
-
-
 def score_predictions_pcp(gt_joints, predictions, limbs):
     """Calculate strict PCP for each of the supplied limbs.
 
