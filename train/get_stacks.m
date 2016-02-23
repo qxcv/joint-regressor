@@ -61,9 +61,9 @@ for flip=flips
             rot_stack(:, :, 7:8) = reshape(flat_flow, size(flow));
         end
         
-        %% 3) Choose a poslet
+        %% 3) Choose a poselet
         for poselet_num=1:length(poselets)
-            this_poselet = poselets(poslet_num).poselet;
+            this_poselet = poselets(poselet_num).poselet;
             poselet_indices = [this_poselet, this_poselet + length(d1.joint_locs)];
             
             %% 4) Get bounding box for joint
