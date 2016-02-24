@@ -77,7 +77,10 @@ for pair_idx=1:length(pairs)
         final_flow(:, :, :, crop_num) = permute(correct_flow, pmask);
     end
 
-    class_labels = zeros([1 lcr]);
+    % All negatives are "class 1" in Matlab, which translates into class 0
+    % in Python (and other languages with zero-based indexing); the
+    % conversion is implicit in the one-of-k representation.
+    class_labels = one_of_k(ones([1, lcr]), length(poselets)+1);
     assert(isa(final_images, 'uint8'));
     
     % Produce fake joints for each part of the poselet
@@ -85,7 +88,7 @@ for pair_idx=1:length(pairs)
     for i=1:length(poselets)
         poselet_name = poselets(i).name;
         poselet_idxs = poselets(i).poselet;
-        num_vals = 4 * poselet_idxs;
+        num_vals = 4 * length(poselet_idxs);
         ds_name = sprintf('/%s', poselet_name);
         fake_data = zeros([num_vals size(final_images, 4)]);
         joint_args{length(joint_args)+1} = ds_name; %#ok<AGROW>

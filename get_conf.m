@@ -58,7 +58,7 @@ conf.num_hdf5s = 1;
 % is accessed randomly, so smaller is better. Validation data, on the other
 % hand, is accessed sequentially, so long chunks are advantageous.
 conf.train_chunksz = 4;
-conf.val_chunksz = 1024;
+conf.val_chunksz = 4;
 
 % Number of hdf5s to use for validation
 conf.num_val_hdf5s = 1;

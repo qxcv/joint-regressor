@@ -79,7 +79,7 @@ for start_index = 1:batch_size:size(pairs, 1)
             for poselet_idx=1:length(poselets)
                 name = poselets(poselet_idx).name;
                 joint_args{length(joint_args)+1} = sprintf('/%s', name); %#ok<AGROW>
-                if poselet_idx == stacks(j).poselet_num
+                if poselet_idx ~= stacks(j).poselet_num
                     num_values = 4 * length(poselets(poselet_idx).poselet);
                     poselet_data = zeros([num_values, 1]);
                 else
