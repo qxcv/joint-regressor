@@ -3,7 +3,7 @@ IPython notebook so that I can visualise the result easily."""
 
 import numpy as np
 
-from train import read_mean_pixels, get_model_io
+from train import read_mean_pixels, get_model_io, sub_mean_pixels
 
 
 def label_to_coords(label):
@@ -31,13 +31,32 @@ def get_predictions(model, mean_pixel_path, data, batch_size=32,
     :param batch_size: size of batches which will be pushed through the
                        network. This is very helpful when you have a
                        ``h5py.Dataset`` to evaluate on.
-    :return: a ``n*k*2`` array of ``(x, y)`` joint coordinates."""
+    :param coord_sets: an iterable of output names. The corresponding names
+                       will be treated as flattened coordinate arrays, and
+                       reshaped so that they are of size `n*k*2` (where `k` is
+                       the half the number of outputs associated with that
+                       label).
+    :return: a dictionary mapping output names to actual predictions, where
+             each prediction is an `np.ndarray` with zeroth axis of size
+             `n`."""
     mean_pixels = read_mean_pixels(mean_pixel_path)
-    num_outputs = model.layers[-1].output_dim
     inputs, outputs = get_model_io(model)
-    rv = {
-        np.zeros((num_samples, num_outputs / 2, 2))
-    }
+
+    # Make sure that our output shapes are right (we will add to the output as
+    # we go along)
+    rv = {}
+    for output_name in outputs:
+        shape = model.output_shape[output_name]
+        rv_shape = (shape[0],)
+        if output_name in coord_sets:
+            assert len(shape) == 2
+            assert shape[1] % 2 == 0
+            rv_shape += (shape[1] // 2, 2)
+        else:
+            rv_shape += rv_shape[1:]
+        rv[output_name] = np.zeros(rv_shape)
+
+    num_samples = len(data[inputs[0]])
     num_batches = -(-num_samples // batch_size)
 
     for batch_num in xrange(num_batches):
@@ -48,12 +67,15 @@ def get_predictions(model, mean_pixel_path, data, batch_size=32,
         batch_data = {}
 
         for input_name in inputs:
-            bd = data[batch_name][slice_start:slice_end].astype('float32')
-            mp = mean_pixels[input_name]
+            bd = data[input_name][slice_start:slice_end]
+            batch_data[input_name] = bd.astype('float32')
 
         subbed_batch_data = sub_mean_pixels(mean_pixels, batch_data)
-        results = model.predict(subbed_batch_data)
-        rv[slice_start:slice_end] = label_to_coords(results)
+        results_dict = model.predict(subbed_batch_data)
+        for out_name, out_val in results_dict.iteritems():
+            if out_name in coord_sets:
+                out_val = label_to_coords(out_val)
+            rv[out_name][slice_start:slice_end] = out_val
 
     return rv
 
