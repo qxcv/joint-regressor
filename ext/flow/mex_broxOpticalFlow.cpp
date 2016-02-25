@@ -6,8 +6,8 @@
 #include "opencv2/cudaarithm.hpp"
 #include "mex.h"
 
-/* This is a mex wrapper for Matlab's CUDA implementation of Brox et al.'s
- * optical flow implementation[0], which is apparently insanely fast.
+/* This is a mex wrapper for OpenCV's CUDA implementation of Brox et al.'s
+ * optical flow method[0], since that implementation is insanely fast.
  *
  * Usage:
  *
