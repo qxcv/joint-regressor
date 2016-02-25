@@ -203,22 +203,48 @@ def h5_read_worker(
                 pass
 
 
-def get_sample_weight(data):
-    # XXX: This is a horrible hack to implement masking of the regressor
-    # loss when the class (not pose = 0, is pose = 1) is not zero! This
-    # mechanism should be controlled by a command-line argument, with a warning
-    # when the expected mask (to joints/class) is not applied.
+def get_sample_weight(data, classname, masks):
+    # Oh got this function has a lot of assertions. Guess I'm really worried
+    # about screwing this up, since that would definitely make training
+    # useless.
+
+    # [:] is for benefit of h5py
+    class_data = data[classname][:].astype('int')
+    assert class_data.ndim == 2
+    # Quick checks to ensure it's valid one-hot data
+    assert class_data.shape[1] > 1
+    assert (np.sum(class_data, axis=1) == 1).all()
+    assert np.logical_or(class_data == 1, class_data == 0).all()
+    # The data is one-hot, so we need to change it to be just integer class
+    # labels
+    classes = np.argmax(class_data, axis=1)
+    assert classes.ndim == 1
+    num_classes = class_data.shape[1]
+    # Make sure that the number of masks is the number of classes or the number
+    # of classes + 1
+    mask_names = {name for name, val in masks}
+    assert len(mask_names) == len(masks)
+    assert num_classes - 1 <= len(mask_names) <= num_classes
+    mask_vals = {val for name, val in masks}
+    assert(len(mask_vals) == len(mask_names))
+    # Masks are in [0, num_classes); assert that this is the case
+    # Note that if the number of classes is one fewer than the number of input
+    # masks, then we assume that the zeroth class does not control any external
+    # loss.
+    assert max(mask_vals) == num_classes - 1
+    assert len(mask_names) < num_classes or min(mask_vals) == 0
+
     sample_weight = {}
-    assert 'joints' in data, 'Yes, you need to implement better masking :)'
-    assert 'class' in data
-    if 'class' in data and 'joints' in data:
-        classes = data['class']
-        assert classes.ndim == 2 and classes.shape[1] == 1
-        sample_weight['joints'] = classes.flatten().astype('bool')
+
+    for mask_name, mask_val in masks:
+        sample_weight[mask_name] = (classes == mask_val).astype('float32')
+
+    assert len(sample_weight) == len(mask_names)
+
     return sample_weight
 
 
-def train(model, queue, iterations):
+def train(model, queue, iterations, mask_class_name, masks):
     """Perform a fixed number of training iterations."""
     info('Training for %i iterations', iterations)
     p = Progbar(iterations)
@@ -231,7 +257,7 @@ def train(model, queue, iterations):
         data = queue.get()
         fetch_time = time() - start_time
 
-        sample_weight = get_sample_weight(data)
+        sample_weight = get_sample_weight(data, mask_class_name, masks)
 
         # Next, do some backprop
         start_time = time()
@@ -247,7 +273,7 @@ def train(model, queue, iterations):
         p.update(iteration + 1, extra_info)
 
 
-def validate(model, queue, batches):
+def validate(model, queue, batches, mask_class_name, masks):
     """Perform one epoch of validation."""
     info('Testing on validation set')
     samples = 0
@@ -257,7 +283,7 @@ def validate(model, queue, batches):
         data = queue.get()
         assert data is not None
 
-        sample_weight = get_sample_weight(data)
+        sample_weight = get_sample_weight(data, mask_class_name, masks)
 
         loss, = model.test_on_batch(data, sample_weight=sample_weight)
 
@@ -405,10 +431,27 @@ parser.add_argument(
 )
 # TODO: Add configuration option to just run through the entire validation set
 # like I was doing before. That's a lot faster than using randomly sampled
-# stuff.
+# stuff. Edit: I think I pushed down the validaiton block size, so now random
+# selection should be relatively fast.
 parser.add_argument(
     '--val-batches', dest='val_batches', type=int, default=5,
     help='number of batches to run during each validation step'
+)
+
+def loss_mask_parser(arg):
+    classname, rest = arg.split(':', 1)
+    nosep = rest.split(',')
+    pairs = [s.split('=', 1) for s in nosep if '=' in s]
+    return classname, [(label, int(clas)) for label, clas in pairs]
+
+parser.add_argument(
+    # Syntax proposal: 'class:out1=1,out2=2,out3=3', where 'class' is the name
+    # of the class output (we only look at the ground truth) and out1,out2,out3
+    # are names of outputs to be masked. In this case, out1's loss is only
+    # enabled when the GT class is 1 (or [0 1 0 0 ...] in one-hot notation),
+    # out2's loss is only enabled whne the GT class is 2 ([0 0 1 0 ...]), etc.
+    '--cond-losses', dest='loss_mask', type=loss_mask_parser, default=None,
+    help="use given GT class to selectively enable losses"
 )
 
 
@@ -462,6 +505,12 @@ if __name__ == '__main__':
     )
     val_worker = Process(target=h5_read_worker, kwargs=val_kwargs)
 
+    if args.loss_mask is not None:
+        mask_class_name, masks = args.loss_mask
+    else:
+        warn('No masks supplied for conditional regression!')
+        mask_class_name, masks = None, None
+
     try:
         # Protect this in a try: for graceful cleanup of workers
         train_worker.start()
@@ -474,8 +523,13 @@ if __name__ == '__main__':
         try:
             while True:
                 # Train and validate
-                train(model, train_queue, args.train_interval_batches)
-                validate(model, val_queue, args.val_batches)
+                train(
+                    model, train_queue, args.train_interval_batches,
+                    mask_class_name, masks
+                )
+                validate(
+                    model, val_queue, args.val_batches, mask_class_name, masks
+                )
 
                 # Update stats
                 epochs_elapsed += 1
