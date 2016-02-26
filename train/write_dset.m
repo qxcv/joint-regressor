@@ -28,16 +28,37 @@ cache_all_flow(all_data, pairs, cache_dir);
 pool = gcp;
 batch_size = pool.NumWorkers;
 
-for start_index = 1:batch_size:size(pairs, 1)
-    true_batch_size = min(batch_size, size(pairs, 1) - start_index + 1);
+rem_pairs_path = fullfile(patch_dir, 'rem_pairs.mat');
+
+try
+    % XXX: This is suboptimal. Should have a unique name for pair cache.
+    loaded = load(rem_pairs_path);
+    rem_pairs = loaded.rem_pairs_trimmed;
+    fprintf('Loaded remaining pairs from cache\n');
+    fprintf('%i pairs left\n', length(rem_pairs));
+catch ex
+    if ~any(strcmp(ex.identifier, {'MATLAB:load:couldNotReadFile', 'MATLAB:nonExistentField'}))
+        ex.rethrow();
+    end
+    rem_pairs = pairs;
+    fprintf('No cached pairs; starting anew\n');
+end
+
+if isempty(rem_pairs)
+    fprintf('No pairs to write; exiting');
+    return;
+end
+
+for start_index = 1:batch_size:size(rem_pairs, 1)
+    true_batch_size = min(batch_size, size(rem_pairs, 1) - start_index + 1);
     results = {};
     % Calculate in parallel
     fprintf('Augmenting samples %i to %i\n', ...
         start_index, start_index + true_batch_size - 1);
     parfor result_index=1:true_batch_size
         mpii_index = start_index + result_index - 1;
-        fst = all_data(pairs(mpii_index, 1)); %#ok<PFBNS>
-        snd = all_data(pairs(mpii_index, 2));
+        fst = all_data(rem_pairs(mpii_index, 1)); %#ok<PFBNS>
+        snd = all_data(rem_pairs(mpii_index, 2));
         
         stack_start = tic;
         results{result_index} = get_stacks(...
@@ -93,6 +114,11 @@ for start_index = 1:batch_size:size(pairs, 1)
                 '/class', uint8(class_labels), ...
                 joint_args{:});
         end
+        
+        % Write out the remaining pairs for resumable training
+        rem_pairs_trimmed = rem_pairs(start_index+true_batch_size:end, :); %#ok
+        save(rem_pairs_path, 'rem_pairs_trimmed');
+        
         write_time = toc(write_start);
         fprintf('Writing %d examples took %fs\n', length(stacks), write_time);
     end

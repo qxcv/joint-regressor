@@ -80,7 +80,7 @@ for pair_idx=1:length(pairs)
     % All negatives are "class 1" in Matlab, which translates into class 0
     % in Python (and other languages with zero-based indexing); the
     % conversion is implicit in the one-of-k representation.
-    class_labels = one_of_k(ones([1, lcr]), length(poselets)+1);
+    class_labels = one_of_k(ones([1, lcr]), length(poselets)+1)';
     assert(isa(final_images, 'uint8'));
     
     % Produce fake joints for each part of the poselet
@@ -94,7 +94,7 @@ for pair_idx=1:length(pairs)
         joint_args{length(joint_args)+1} = ds_name; %#ok<AGROW>
         joint_args{length(joint_args)+1} = fake_data; %#ok<AGROW>
     end
-    
+
     store3hdf6(dest_path, opts, '/flow', single(final_flow), ...
         '/images', uint8(final_images), ...
         '/class', uint8(class_labels), ...
