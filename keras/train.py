@@ -24,7 +24,7 @@ import numpy as np
 
 from scipy.io import loadmat
 
-from models import vggnet16_joint_reg_class
+from models import vggnet16_joint_reg_class_flow
 
 
 INIT = 'glorot_normal'
@@ -474,8 +474,8 @@ if __name__ == '__main__':
     solver = SGD(
         lr=args.learning_rate, decay=args.decay, momentum=0.9, nesterov=True
     )
-    model = vggnet16_joint_reg_class(
-        input_shape, regressor_outputs, solver, INIT
+    model = vggnet16_joint_reg_class_flow(
+        ds_shape, solver, INIT
     )
     if args.finetune_path is not None:
         info("Loading weights from '%s'", args.finetune_path)

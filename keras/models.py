@@ -130,18 +130,29 @@ def vgg16_twin_final(input_shape, init):
     return model
 
 
-def vggnet16_joint_reg_class_flow(rgb_shape, flow_shape, regressor_outputs, solver, init):
+def vggnet16_joint_reg_class_flow(shapes, solver, init):
     """Extension of above model to include a parallel network for processing
-    flow."""
+    flow.
+
+    :param shapes: Dictionary mapping input or output names to their sizes.
+                   Should not include batch size or leading dimension in HDF5
+                   file (e.g. shape of RGB data might be ``(3, 224, 224)``
+                   rather than ``(None, 3, 224, 224)`` or ``(12091, 3, 224,
+                   224)``).
+    :param solver: Keras solver (e.g. SGD) instance.
+    :param init: String describing weight initialiser (e.g. 'glorot_uniform')
+    :return: Initialised ``keras.models.Graph``"""
     model = Graph()
 
     # RGB travels through a bunch of conv layers first
+    rgb_shape = shapes['images']
     model.add_input(input_shape=rgb_shape, name='images')
     rgb_base = vgg16_twin_base(rgb_shape, init)
     model.add_node(rgb_base, name='rgb_conv', input='images')
 
     # Flow travels through a parallel set of layers with the same architecture
     # but different weights
+    flow_shape = shapes['flow']
     model.add_input(input_shape=flow_shape, name='flow')
     flow_base = vgg16_twin_base(flow_shape, init)
     model.add_node(flow_base, name='flow_conv', input='flow')
@@ -159,14 +170,27 @@ def vggnet16_joint_reg_class_flow(rgb_shape, flow_shape, regressor_outputs, solv
         shared_final, inputs=['rgb_conv', 'flow_conv'],
         merge_mode='concat', concat_axis=1, name='shared_layers'
     )
-    model.add_node(Dense(regressor_outputs, init=init), input='shared_layers', name='fc_regr')
-    model.add_node(Dense(1, init=init, activation='sigmoid'), input='shared_layers', name='fc_clas')
-    model.add_output(input='fc_regr', name='joints')
+
+    # Add regressor outputs
+    reg_out_names = ['left', 'right', 'head']
+    for name in reg_out_names:
+        reg_outs, = shapes[name]
+        rname = 'fc_regr_' + name
+        model.add_node(Dense(reg_outs, init=init), input='shared_layers', name=rname)
+        model.add_output(input=rname, name=name)
+
+    # Add classifier outputs
+    num_classes = 1+len(reg_out_names)
+    assert len(shapes['class']) == 1 and shapes['class'][0] == num_classes
+    model.add_node(Dense(num_classes, init=init, activation='softmax'), input='shared_layers', name='fc_clas')
     model.add_output(input='fc_clas', name='class')
+
+    # Done!
+    losses = {'class': 'categorical_crossentropy'}
+    for name in reg_out_names:
+        losses[name] = 'mae'
+
     model.compile(
-        optimizer=solver, loss={
-            'joints': 'mae',
-            'class': 'binary_crossentropy'
-        }
+        optimizer=solver, loss=losses
     )
     return model
