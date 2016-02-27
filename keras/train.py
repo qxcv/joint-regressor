@@ -246,6 +246,8 @@ def get_sample_weight(data, classname, masks):
 
 def train(model, queue, iterations, mask_class_name, masks):
     """Perform a fixed number of training iterations."""
+    assert (mask_class_name is None) == (masks is None)
+
     info('Training for %i iterations', iterations)
     p = Progbar(iterations)
     loss = 0.0
@@ -257,7 +259,10 @@ def train(model, queue, iterations, mask_class_name, masks):
         data = queue.get()
         fetch_time = time() - start_time
 
-        sample_weight = get_sample_weight(data, mask_class_name, masks)
+        if mask_class_name is not None:
+            sample_weight = get_sample_weight(data, mask_class_name, masks)
+        else:
+            sample_weight = {}
 
         # Next, do some backprop
         start_time = time()
@@ -398,7 +403,7 @@ parser.add_argument(
     help='number of unused batches stored in processing queue (in memory)'
 )
 parser.add_argument(
-    '--batch-size', dest='batch_size', type=int, default=48,
+    '--batch-size', dest='batch_size', type=int, default=32,
     help='batch size for both training (backprop) and validation'
 )
 parser.add_argument(
@@ -466,11 +471,6 @@ if __name__ == '__main__':
 
     # Model-building
     ds_shape = infer_sizes(args.train_h5s[0])
-    # TODO: I need to figure out a more elegant way of doing this than sticking
-    # it in train.py. Eventually I want to do it like Caffe does, where input
-    # and loss layer names each correspond to HDF5 dataset names.
-    input_shape = ds_shape['images']
-    regressor_outputs = ds_shape['joints'][0]
     solver = SGD(
         lr=args.learning_rate, decay=args.decay, momentum=0.9, nesterov=True
     )
@@ -533,7 +533,7 @@ if __name__ == '__main__':
 
                 # Update stats
                 epochs_elapsed += 1
-                batches_used += args.batch_size
+                batches_used += args.train_interval_batches
                 is_checkpoint_epoch = epochs_elapsed % args.checkpoint_epochs == 0
                 if epochs_elapsed > 0 and is_checkpoint_epoch:
                     save(model, batches_used, args.checkpoint_dir)
