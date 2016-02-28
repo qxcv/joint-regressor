@@ -372,9 +372,6 @@ def get_model_io(model):
     return (inputs, outputs)
 
 
-parser = ArgumentParser(description="Train a CNN to regress joints")
-
-
 def h5_parser(h5_string):
     # parse strings,like,this without worrying about ,,stuff,like,,this,
     rv = [p for p in h5_string.split(',') if p]
@@ -382,87 +379,98 @@ def h5_parser(h5_string):
         raise ArgumentTypeError('Expected at least one path')
     return rv
 
-
-# Mandatory arguments
-parser.add_argument(
-    'train_h5s', metavar='TRAINDATA', type=h5_parser,
-    help='h5 files in which training samples are stored (comma separated)'
-)
-parser.add_argument(
-    'val_h5s', metavar='VALDATA', type=h5_parser,
-    help='h5 file in which validation samples are stored (comma separated)'
-)
-parser.add_argument(
-    'checkpoint_dir', metavar='CHECKPOINTDIR', type=str,
-    help='directory in which to store checkpoint files'
-)
-
-# Optargs
-parser.add_argument(
-    '--queued-batches', dest='queued_batches', type=int, default=16,
-    help='number of unused batches stored in processing queue (in memory)'
-)
-parser.add_argument(
-    '--batch-size', dest='batch_size', type=int, default=32,
-    help='batch size for both training (backprop) and validation'
-)
-parser.add_argument(
-    '--checkpoint-epochs', dest='checkpoint_epochs', type=int, default=2,
-    help='training intervals to wait before writing a checkpoint file'
-)
-parser.add_argument(
-    '--train-interval-batches', dest='train_interval_batches', type=int,
-    default=256, help='number of batches to train for between validation'
-)
-parser.add_argument(
-    '--mean-pixel-mat', dest='mean_pixel_path', type=str, default=None,
-    help='.mat containing mean pixel'
-)
-parser.add_argument(
-    '--learning-rate', dest='learning_rate', type=float, default=0.0001,
-    help='learning rate for SGD'
-)
-parser.add_argument(
-    '--decay', dest='decay', type=float, default=1e-6,
-    help='decay for SGD'
-)
-parser.add_argument(
-    '--finetune', dest='finetune_path', type=str, default=None,
-    help='finetune from these weights instead of starting again'
-)
-parser.add_argument(
-    '--logfile', dest='log_file', type=str, default=None,
-    help='path to log messages to (in addition to std{err,out})'
-)
-# TODO: Add configuration option to just run through the entire validation set
-# like I was doing before. That's a lot faster than using randomly sampled
-# stuff. Edit: I think I pushed down the validaiton block size, so now random
-# selection should be relatively fast.
-parser.add_argument(
-    '--val-batches', dest='val_batches', type=int, default=5,
-    help='number of batches to run during each validation step'
-)
-
 def loss_mask_parser(arg):
     classname, rest = arg.split(':', 1)
     nosep = rest.split(',')
     pairs = [s.split('=', 1) for s in nosep if '=' in s]
     return classname, [(label, int(clas)) for label, clas in pairs]
 
-parser.add_argument(
-    # Syntax proposal: 'class:out1=1,out2=2,out3=3', where 'class' is the name
-    # of the class output (we only look at the ground truth) and out1,out2,out3
-    # are names of outputs to be masked. In this case, out1's loss is only
-    # enabled when the GT class is 1 (or [0 1 0 0 ...] in one-hot notation),
-    # out2's loss is only enabled whne the GT class is 2 ([0 0 1 0 ...]), etc.
-    '--cond-losses', dest='loss_mask', type=loss_mask_parser, default=None,
-    help="use given GT class to selectively enable losses"
-)
+
+def get_parser():
+    """Grab the ``argparse.ArgumentParser`` for this application. For some
+    reason ``argparse`` needs access to ``sys.argv`` to build an
+    ``ArgumentParser`` (not just to actually evaluate it), so I've put this
+    into its own function so that it doesn't get executed when running from
+    environments with no ``sys.argv`` (e.g. Matlab)"""
+    parser = ArgumentParser(description="Train a CNN to regress joints")
+
+    # Mandatory arguments
+    parser.add_argument(
+        'train_h5s', metavar='TRAINDATA', type=h5_parser,
+        help='h5 files in which training samples are stored (comma separated)'
+    )
+    parser.add_argument(
+        'val_h5s', metavar='VALDATA', type=h5_parser,
+        help='h5 file in which validation samples are stored (comma separated)'
+    )
+    parser.add_argument(
+        'checkpoint_dir', metavar='CHECKPOINTDIR', type=str,
+        help='directory in which to store checkpoint files'
+    )
+
+    # Optargs
+    parser.add_argument(
+        '--queued-batches', dest='queued_batches', type=int, default=16,
+        help='number of unused batches stored in processing queue (in memory)'
+    )
+    parser.add_argument(
+        '--batch-size', dest='batch_size', type=int, default=32,
+        help='batch size for both training (backprop) and validation'
+    )
+    parser.add_argument(
+        '--checkpoint-epochs', dest='checkpoint_epochs', type=int, default=2,
+        help='training intervals to wait before writing a checkpoint file'
+    )
+    parser.add_argument(
+        '--train-interval-batches', dest='train_interval_batches', type=int,
+        default=256, help='number of batches to train for between validation'
+    )
+    parser.add_argument(
+        '--mean-pixel-mat', dest='mean_pixel_path', type=str, default=None,
+        help='.mat containing mean pixel'
+    )
+    parser.add_argument(
+        '--learning-rate', dest='learning_rate', type=float, default=0.0001,
+        help='learning rate for SGD'
+    )
+    parser.add_argument(
+        '--decay', dest='decay', type=float, default=1e-6,
+        help='decay for SGD'
+    )
+    parser.add_argument(
+        '--finetune', dest='finetune_path', type=str, default=None,
+        help='finetune from these weights instead of starting again'
+    )
+    parser.add_argument(
+        '--logfile', dest='log_file', type=str, default=None,
+        help='path to log messages to (in addition to std{err,out})'
+    )
+    # TODO: Add configuration option to just run through the entire validation set
+    # like I was doing before. That's a lot faster than using randomly sampled
+    # stuff. Edit: I think I pushed down the validaiton block size, so now random
+    # selection should be relatively fast.
+    parser.add_argument(
+        '--val-batches', dest='val_batches', type=int, default=5,
+        help='number of batches to run during each validation step'
+    )
+
+    parser.add_argument(
+        # Syntax proposal: 'class:out1=1,out2=2,out3=3', where 'class' is the name
+        # of the class output (we only look at the ground truth) and out1,out2,out3
+        # are names of outputs to be masked. In this case, out1's loss is only
+        # enabled when the GT class is 1 (or [0 1 0 0 ...] in one-hot notation),
+        # out2's loss is only enabled whne the GT class is 2 ([0 0 1 0 ...]), etc.
+        '--cond-losses', dest='loss_mask', type=loss_mask_parser, default=None,
+        help="use given GT class to selectively enable losses"
+    )
+
+    return parser
 
 
 if __name__ == '__main__':
     # Start by parsing arguments and setting up logger
     logging.basicConfig(level=logging.DEBUG)
+    parser = get_parser()
     args = parser.parse_args()
     if args.log_file is not None:
         file_handler = logging.FileHandler(args.log_file, mode='a')
