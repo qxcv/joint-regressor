@@ -7,6 +7,7 @@ addpath ./train/;
 addpath ./visualisation/;
 addpath ./cy/;
 addpath ./tests/;
+addpath ./keras/;
 
 conf = get_conf();
 if ~exist(conf.cache_dir, 'dir')

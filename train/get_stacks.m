@@ -1,18 +1,9 @@
-function rvs = get_stacks(d1, d2, poselets, left_parts, right_parts, cache_dir, cnn_window, flips, rotations, scales, randtrans)
+function rvs = get_stacks(d1, d2, poselets, left_parts, right_parts, cache_dir, cnn_window, aug)
 %GET_STACKS Get the image/flow stacks for a given data pair and set of
 %transformations.
 % d1: First datum
 % d2: Second datum
-% flips: List of booleans ([0], [1] or 0:1) telling us whether we should
-% includes flips (1) and/or originals (0).
-% rotations: List giving how many degrees to rotate by
-% scales: magnifications to use (e.g. 2.0 will double the size of the
-% skeleton, pushing most of it out of the frame, whilst 0.5 will halve the
-% size of the skeleton)
-% randtrans: If this is greater than zero, and there's some space between
-% the bounding box of the pose and the edge of the image, then the pose box
-% will be translated randomly around in that space randtrans times.
-% Otherwise, the pose will be centered perfectly in the crop.
+% aug: data structure defining which augmentations to perform
 % rvs: struct array with .labels (joint locations) and .stack (full input
 % data) attributes.
 [im1, im2, flow] = get_pair_data(d1, d2, cache_dir);
@@ -26,6 +17,30 @@ all_joints = cat(1, d1.joint_locs, d2.joint_locs);
 % We'll store rvs in a struct array with a "stack" and "joints" attribute
 % for each entry.
 current_idx = 1;
+
+% Flips
+assert(any(strcmp(aug.flip_mode, {'random', 'both', 'none'})));
+if strcmp(aug.flip_mode, 'random')
+    flips = randi([0 1]);
+elseif strcmp(aug.flip_mode, 'both')
+    flips = [0 1];
+else
+    flips = 0;
+end
+
+% Rotations
+assert(isscalar(aug.rand_rots));
+assert(numel(aug.rot_range) == 2);
+rotwidth = aug.rot_range(2) - aug.rot_range(1);
+rotations = rotwidth * rand([1 aug.rand_rots]) + aug.rot_range(1);
+
+% Scales
+assert(isvector(aug.scales));
+scales = aug.scales;
+
+% Random translations
+assert(isscalar(aug.rand_trans));
+rand_trans = aug.rand_trans;
 
 for flip=flips
     %% 1) Flip
@@ -80,7 +95,7 @@ for flip=flips
                 
                 % We repeat this translation process for each random
                 % translation
-                total_trans = max(randtrans, 1);
+                total_trans = max(rand_trans, 1);
                 wiggle_room = side - pose_side;
                 if wiggle_room <= 1
                     % Don't translate at scale 1 or below (effectively)
@@ -90,7 +105,7 @@ for flip=flips
                 for unused=1:total_trans
                     %% 6) Translate box
                     trans_box_center = box_center;
-                    if randtrans > 0 && wiggle_room > 1
+                    if rand_trans > 0 && wiggle_room > 1
                         trans_amount = wiggle_room * rand(1, 2) - wiggle_room / 2;
                         trans_box_center = trans_box_center + trans_amount;
                     end
@@ -118,10 +133,10 @@ for flip=flips
                     
                     % Return column vector [x1 y1 x2 y2 ... xn yn]'
                     poselet_joints = scale_joints(poselet_indices, :);
-                    rvs(current_idx).joint_labels = reshape(poselet_joints', [numel(poselet_joints), 1]);
+                    rvs(current_idx).joint_labels = reshape(poselet_joints', [numel(poselet_joints), 1]); %#ok<AGROW>
                     % Return full w * h * c matrix
-                    rvs(current_idx).stack = final_stack;
-                    rvs(current_idx).poselet_num = poselet_num;
+                    rvs(current_idx).stack = final_stack; %#ok<AGROW>
+                    rvs(current_idx).poselet_num = poselet_num; %#ok<AGROW>
                     
                     current_idx = current_idx + 1;
                 end

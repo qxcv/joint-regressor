@@ -24,23 +24,28 @@ conf.cnn.gpu_id = 0;
 %       + sum(conf.aug.scales >= 1)),
 % which doesn't count random translations on images which aren't sub-scale.
 
-% Rotations for data augmentation (degrees from non-rotated)
-conf.aug.rots = -45:22.5:45;
+% Range of random rotations
+conf.aug.rot_range = [-60, 60];
+% Number of random rotations for each datum
+conf.aug.rand_rots = 3;
 % Scales for data augmentation (2.0 = one quarter of a skeleton per frame, 0.5 = four skeletons per frame)
 conf.aug.scales = [0.7, 0.85];
 % 3 random translations at each scale where it's possible to translate
 % whilst keeping the pose in-frame.
-conf.aug.randtrans = 2;
-% Normal orientation plus one flip
-conf.aug.flips = [0, 1];
+conf.aug.rand_trans = 2;
+% Choose a single flip type at random
+% Values: 'random' (choose only one at random), 'both' (do both flips),
+% 'none' (don't flip)
+conf.aug.flip_mode = 'random'; % Other values: "both", "none"
 % Include 30 randomly cropped negative samples for each datum
 conf.aug.negs = 20;
 
 % Validation augmentations are less aggressive (24x instead)
-conf.val_aug.rots = -15:15:15;
+conf.val_aug.rot_range = [-30, 30];
+conf.val_aug.rand_rots = 2;
 conf.val_aug.scales = [0.75 0.8];
-conf.val_aug.randtrans = 2;
-conf.val_aug.flips = [0 1];
+conf.val_aug.rand_trans = 2;
+conf.val_aug.flip_mode = 'random';
 conf.val_aug.negs = 8;
 
 %% Other training junk

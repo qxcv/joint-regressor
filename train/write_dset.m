@@ -18,7 +18,7 @@ else
 end
 
 % Just cache the flow. We'll use it later.
-cache_all_flow(all_data, pairs, cache_dir);
+% cache_all_flow(all_data, pairs, cache_dir);
 
 % I'm using a nested for/parfor like Anoop suggested to parallelise
 % augmentation calculation. This lets me write to a single file in without
@@ -62,8 +62,8 @@ for start_index = 1:batch_size:size(rem_pairs, 1)
         
         stack_start = tic;
         results{result_index} = get_stacks(...
-            fst, snd, poselets, left_parts, right_parts, cache_dir, cnn_window, ...
-            aug.flips, aug.rots, aug.scales, aug.randtrans); %#ok<PFBNS>
+            fst, snd, poselets, left_parts, right_parts, cache_dir, ...
+            cnn_window, aug);
         stack_time = toc(stack_start);
         fprintf('get_stack() took %fs\n', stack_time);
     end
