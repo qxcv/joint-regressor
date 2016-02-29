@@ -414,7 +414,7 @@ def get_parser():
         help='number of unused batches stored in processing queue (in memory)'
     )
     parser.add_argument(
-        '--batch-size', dest='batch_size', type=int, default=32,
+        '--batch-size', dest='batch_size', type=int, default=16,
         help='batch size for both training (backprop) and validation'
     )
     parser.add_argument(
