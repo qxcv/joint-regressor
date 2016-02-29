@@ -1,9 +1,14 @@
 """Models used by train.py"""
 
+import numpy as np
+
 from keras.models import Graph, Sequential
 from keras.layers.core import Dense, Dropout, Flatten
 from keras.layers.convolutional import (Convolution2D, MaxPooling2D,
                                         ZeroPadding2D)
+from keras.utils.layer_utils import container_from_config
+
+from utils import register_activation, convolution_softmax
 
 
 def make_conv_triple(model, channels, input_shape=None, **extra_args):
@@ -194,3 +199,157 @@ def vggnet16_joint_reg_class_flow(shapes, solver, init):
         optimizer=solver, loss=losses
     )
     return model
+
+def repr_layer(layer):
+    """Pretty name for a Keras layer"""
+    conf = layer.get_config()
+    name = conf['name']
+    input_shape = layer.input_shape
+    output_shape = layer.output_shape
+    return '{} ({}->{})'.format(name, input_shape, output_shape)
+
+def dense_to_conv(dense_layer, conv_shape, **conv_args):
+    """Convert a Dense layer to a 1-channel Convolution2D; will take input from
+    a Convolution2D of size conv_shape (not including None)."""
+    assert len(dense_layer.output_shape) == 2
+    assert len(conv_shape) == 3
+
+    num_outputs = dense_layer.output_shape[1]
+    weight_shape = (num_outputs,) + conv_shape
+    dense_weights = dense_layer.get_weights()
+    assert len(dense_weights) == 2
+
+    print('Old shape: {}, new shape: {}'.format(
+        dense_weights[0].shape, weight_shape
+    ))
+
+    conv_weights = [dense_weights[0].reshape(weight_shape), dense_weights[1]]
+
+    rv = Convolution2D(
+        num_outputs, conv_shape[1], conv_shape[2], weights=conv_weights,
+        **conv_args
+    )
+
+    return rv
+
+def upgrade_sequential(old_model):
+    """Upgrade a ``keras.models.Sequential`` instance to be fully
+    convolutional.
+
+    :param old_model: The old (not-fully-convolutional) ``Sequential`` model.
+    :returns:  A new ``Sequential`` model with the same weights as the old one,
+               but with flattening layers removed and dense layers replaced by
+               convolutions."""
+    assert isinstance(old_model, Sequential), "only works on sequences"
+    rv = Sequential()
+    all_layers = list(old_model.layers)
+
+    while all_layers:
+        next_layer = all_layers.pop(0)
+        if isinstance(next_layer, Flatten):
+            assert all_layers, "flatten must be followed by layer"
+            next_dense = all_layers.pop(0)
+            assert isinstance(next_dense, Dense), \
+                "flatten must be followed by dense"
+            # Upgrade the dense layer to a convolution with the same filter
+            # size as the input
+            assert len(next_layer.input_shape) == 4, "input must be conv"
+            new_conv = dense_to_conv(next_dense, next_layer.input_shape[1:])
+            rv.add(new_conv)
+
+            print('Converted {} via {} to {}'.format(
+                repr_layer(next_dense), repr_layer(next_layer),
+                repr_layer(new_conv)
+            ))
+        elif isinstance(next_layer, Dense):
+            assert len(next_layer.input_shape) == 2, "input must be conv"
+            new_conv = dense_to_conv(
+                next_layer, (next_layer.input_shape[1], 1, 1)
+            )
+            rv.add(new_conv)
+
+            print('Converted {} to {}'.format(
+                repr_layer(next_layer), repr_layer(new_conv)
+            ))
+        else:
+            next_layer_copy = container_from_config(
+                next_layer.get_config()
+            )
+            rv.add(next_layer_copy)
+            next_layer_weights = next_layer.get_weights()
+            next_layer_copy.set_weights(next_layer_weights)
+
+            # Just make sure that weights really are the same
+            new_weights = rv.layers[-1].get_weights()
+            assert len(new_weights) == len(next_layer_weights)
+            assert all(
+                np.all(w1 == w2)
+                for w1, w2 in zip(new_weights, next_layer_weights)
+            )
+
+            print('Added {} to model unchanged (was {})'.format(
+                repr_layer(next_layer_copy), repr_layer(next_layer)
+            ))
+
+    return rv
+
+def upgrade_multipath_vggnet(old_model):
+    # Make sure we have the right model
+    node_names = {
+        'rgb_conv', 'flow_conv', 'shared_layers', 'fc_regr_left',
+        'fc_regr_right', 'fc_regr_head', 'fc_clas'
+    }
+    assert set(old_model.nodes.keys()) == node_names
+
+    rv = Graph()
+
+    # Upgrade RGB path first (weights handled by upgrade_sequential)
+    print('Upgrading RGB path')
+    rgb_shape = old_model.inputs['images'].input_shape[1:]
+    rv.add_input(
+        input_shape=rgb_shape, name='images'
+    )
+    upgraded_rgb_conv = upgrade_sequential(old_model.nodes['rgb_conv'])
+    rv.add_node(upgraded_rgb_conv, input='images', name='rgb_conv')
+
+    # Upgrade flow path
+    print('Upgrading flow path')
+    flow_shape = old_model.inputs['flow'].input_shape[1:]
+    rv.add_input(
+        input_shape=flow_shape, name='flow'
+    )
+    upgraded_flow_conv = upgrade_sequential(old_model.nodes['flow_conv'])
+    rv.add_node(upgraded_flow_conv, input='flow', name='flow_conv')
+
+    # Upgrade shared path
+    print('Upgrading shared path')
+    upgraded_share = upgrade_sequential(old_model.nodes['shared_layers'])
+    rv.add_node(
+        upgraded_share, inputs=['rgb_conv', 'flow_conv'], merge_mode='concat',
+        concat_axis=1, name='shared_layers'
+    )
+
+    # Upgrade dense outputs (weights handled by dense_to_conv)
+    print('Upgrading regression outputs')
+    for out_name in {'left', 'right', 'head'}:
+        dense_name = 'fc_regr_' + out_name
+        old_dense = old_model.nodes[dense_name]
+        new_dense = dense_to_conv(old_dense, (old_dense.input_shape[1], 1, 1))
+        rv.add_node(new_dense, input='shared_layers', name=dense_name)
+        rv.add_output(input=dense_name, name=out_name)
+
+    print('Upgrading classification output')
+    old_clas_dense = old_model.nodes['fc_clas']
+    # We're using a custom activation, so we have to register it
+    register_activation(convolution_softmax, 'convolution_softmax')
+    new_clas_dense = dense_to_conv(
+        old_clas_dense, (old_clas_dense.input_shape[1], 1, 1),
+        activation='convolution_softmax'
+    )
+    rv.add_node(new_clas_dense, input='shared_layers', name='fc_clas')
+    rv.add_output(input='fc_clas', name='class')
+
+    # Plan is to save weights to HDF5 and architecture to JSON, then a small
+    # wrapper can load the data for use from Matlab
+    print('All done!')
+    return rv
