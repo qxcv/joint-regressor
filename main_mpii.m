@@ -21,8 +21,5 @@ write_dset(train_data, train_pairs, conf.cache_dir, train_patch_dir, ...
 write_negatives(train_data, train_pairs, conf.cache_dir, train_patch_dir, ...
     conf.cnn.window, conf.aug.negs, conf.train_chunksz, conf.poselets);
 
-% fprintf('Writing cluster information\n');
-% cluster_h5s(conf.biposelet_classes, train_patch_dir, val_patch_dir);
-
 fprintf('Calculating mean pixel\n');
 store_mean_pixel(train_patch_dir, conf.cache_dir);

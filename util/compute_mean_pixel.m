@@ -40,12 +40,13 @@ for i=1:length(filenames)
             squeeze(mean(mean(mean(batch_data, 2), 4), 1));
     end
     means{i} = batch_results * batch_weights';
-    assert(length(means{i}) == ds_size(3));
+    assert(numel(means{i}) == ds_size(3));
     volumes(i) = ds_size(1) * ds_size(2) * ds_size(4);
 end
 mean_pixel = zeros(size(means{1}));
 weights = volumes / sum(volumes);
 for i=1:length(filenames)
+    assert(isscalar(weights(i)));
     mean_pixel = mean_pixel + means{i} * weights(i);
 end
 end
