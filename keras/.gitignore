@@ -4,4 +4,4 @@ env/
 # train_call is a file storing the commandline used to call train.py. Really I
 # need a better configuration format than the current argument-based format I'm
 # using
-train_call
+train_call*

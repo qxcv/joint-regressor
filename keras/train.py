@@ -24,7 +24,7 @@ import numpy as np
 
 from scipy.io import loadmat
 
-from models import vggnet16_joint_reg_class_flow
+import models
 
 
 INIT = 'glorot_normal'
@@ -288,7 +288,10 @@ def validate(model, queue, batches, mask_class_name, masks):
         data = queue.get()
         assert data is not None
 
-        sample_weight = get_sample_weight(data, mask_class_name, masks)
+        if mask_class_name is not None:
+            sample_weight = get_sample_weight(data, mask_class_name, masks)
+        else:
+            sample_weight = {}
 
         loss, = model.test_on_batch(data, sample_weight=sample_weight)
 
@@ -453,7 +456,6 @@ def get_parser():
         '--val-batches', dest='val_batches', type=int, default=5,
         help='number of batches to run during each validation step'
     )
-
     parser.add_argument(
         # Syntax proposal: 'class:out1=1,out2=2,out3=3', where 'class' is the name
         # of the class output (we only look at the ground truth) and out1,out2,out3
@@ -462,6 +464,11 @@ def get_parser():
         # out2's loss is only enabled whne the GT class is 2 ([0 0 1 0 ...]), etc.
         '--cond-losses', dest='loss_mask', type=loss_mask_parser, default=None,
         help="use given GT class to selectively enable losses"
+    )
+    parser.add_argument(
+        '--model-name', dest='model_name', type=str,
+        default='vggnet16_joint_reg_class_flow',
+        help='name of model to use'
     )
 
     return parser
@@ -482,7 +489,8 @@ if __name__ == '__main__':
     solver = SGD(
         lr=args.learning_rate, decay=args.decay, momentum=0.9, nesterov=True
     )
-    model = vggnet16_joint_reg_class_flow(
+    model_to_load = getattr(models, args.model_name)
+    model = model_to_load(
         ds_shape, solver, INIT
     )
     if args.finetune_path is not None:

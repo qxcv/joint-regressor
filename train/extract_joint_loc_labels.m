@@ -1,19 +1,35 @@
-function locs = extract_joint_loc_labels(paths)
+function [all_classes, locs] = extract_joint_loc_labels(paths, poselets)
 %EXTRACT_JOINT_LOC_LABELS Extract joint location labels from some H5s.
-locs = []; % This will grow; this is fine.
-for i=1:length(paths)
-    path = paths{i};
+locs = cell([1 length(poselets)]);
+all_classes = [];
+
+for path_idx=1:length(paths)
+    path = paths{path_idx};
     % Remember the transpose!
-    labels = h5read(path, '/joints')';
-    classes = boolean(h5read(path, '/class'));
-    fprintf('[extracting labels] Label size: %i, classes size: %i, valid classes: %i\n', ...
-        size(labels, 1), size(classes, 2), sum(classes));
-    assert(ismatrix(labels));
+    [some_ones, classes] = max(h5read(path, '/class'));
+    classes = classes';
     assert(isvector(classes));
-    assert(size(labels, 1) == length(classes));
-    % Only use locations with a person visible (so class=1)
-    locs = cat(1, locs, labels(classes, :));
+    assert(all(some_ones == 1));
+    
+    all_classes = cat(1, all_classes, classes);
+    assert(isvector(all_classes));
+    
+    for poselet_num=1:length(poselets)
+        labels = h5read(path, ['/' poselets(poselet_num).name]);
+        labels = labels';
+        assert(ismatrix(labels));
+        assert(size(labels, 1) == length(classes));
+        
+        if isempty(locs{poselet_num})
+            locs{poselet_num} = labels;
+        else
+            locs{poselet_num} = cat(1, locs{poselet_num}, labels);
+        end
+        
+        assert(ismatrix(locs{poselet_num}));
+    end
 end
+
 % Some other code which I don't want to delete from this file (even though
 % it would be easy to find with git...). This code converts a set of labels
 % into a vector of vectors of vectors, where the innermost axis is for (x,
@@ -24,5 +40,4 @@ end
 %     all_joints = permute(unperm, [1 3 2]);
 %     joints_per_frame = size(all_joints, 2) / 2;
 %     assert(mod(joints_per_frame, 1) == 0);
-%     per_frame = reshape(all_joints, [size(ajs, 1), 2, joints_per_frame, 2]);
-end
+%     per_frame = reshape(all_joints, [size(ajs, 1), 2, joints_per_frame, 2]);end

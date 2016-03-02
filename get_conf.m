@@ -30,21 +30,21 @@ conf.aug.rot_range = [-50, 50];
 conf.aug.rand_rots = 5;
 % Scales for data augmentation (2.0 = one quarter of a skeleton per frame, 0.5 = four skeletons per frame)
 conf.aug.scales = [0.8, 0.9];
-% 3 random translations at each scale where it's possible to translate
-% whilst keeping the pose in-frame.
-conf.aug.rand_trans = 3;
+% Random translations at each scale where it's possible to translate whilst
+% keeping the pose in-frame; 0 to disable.
+conf.aug.rand_trans = 0;
 % Choose a single flip type at random
 % Values: 'random' (choose only one at random), 'both' (do both flips),
 % 'none' (don't flip)
-conf.aug.flip_mode = 'both'; % Other values: "both", "none"
+conf.aug.flip_mode = 'random'; % Other values: "both", "none"
 % Include 30 randomly cropped negative samples for each datum
-conf.aug.negs = 40;
+conf.aug.negs = 30;
 
 % Validation augmentations are less aggressive (24x instead)
 conf.val_aug.rot_range = [-30, 30];
 conf.val_aug.rand_rots = 2;
 conf.val_aug.scales = [0.75 0.8];
-conf.val_aug.rand_trans = 2;
+conf.val_aug.rand_trans = 0;
 conf.val_aug.flip_mode = 'random';
 conf.val_aug.negs = 8;
 
@@ -70,10 +70,6 @@ conf.num_val_hdf5s = 1;
 
 % Fraction of pairs to use for validation (XXX is this used?)
 conf.val_pairs_frac = 0.2;
-
-% Use only parts with these indices (FLIC)
-conf.poselet = 1:3;
-% On FLIC, [17 1:6] is head & both left and right sides of body
 
 % Use K-means to cluster 2 * length(conf.poselet)-dimensional
 % poselet-per-frame vectors, then use the resulting centroids as classes

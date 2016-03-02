@@ -200,6 +200,51 @@ def vggnet16_joint_reg_class_flow(shapes, solver, init):
     )
     return model
 
+
+def vggnet16_poselet_class_flow(shapes, solver, init):
+    """Similar to above, but just predicitng poselet classes.
+
+    :param shapes: Dictionary mapping input or output names to their sizes.
+                   Should not include batch size or leading dimension in HDF5
+                   file (e.g. shape of RGB data might be ``(3, 224, 224)``
+                   rather than ``(None, 3, 224, 224)`` or ``(12091, 3, 224,
+                   224)``).
+    :param solver: Keras solver (e.g. SGD) instance.
+    :param init: String describing weight initialiser (e.g. 'glorot_uniform')
+    :return: Initialised ``keras.models.Graph``"""
+    model = Graph()
+
+    # Just like the above model
+    rgb_shape = shapes['images']
+    model.add_input(input_shape=rgb_shape, name='images')
+    rgb_base = vgg16_twin_base(rgb_shape, init)
+    model.add_node(rgb_base, name='rgb_conv', input='images')
+    flow_shape = shapes['flow']
+    model.add_input(input_shape=flow_shape, name='flow')
+    flow_base = vgg16_twin_base(flow_shape, init)
+    model.add_node(flow_base, name='flow_conv', input='flow')
+    rgb_out_shape = rgb_base.output_shape
+    flow_out_shape = flow_base.output_shape
+    in_channels = rgb_out_shape[1] + flow_out_shape[1]
+    shared_shape = (in_channels,) + rgb_out_shape[2:]
+    shared_final = vgg16_twin_final(shared_shape, init)
+    model.add_node(
+        shared_final, inputs=['rgb_conv', 'flow_conv'],
+        merge_mode='concat', concat_axis=1, name='shared_layers'
+    )
+
+    # Only predict poselet classes this time
+    poselet_classes, = shapes['poselet']
+    model.add_node(Dense(poselet_classes, init=init, activation='softmax'),
+                   input='shared_layers', name='fc_pslt')
+    model.add_output(input='fc_pslt', name='poselet')
+    losses = {'poselet': 'categorical_crossentropy'}
+
+    model.compile(
+        optimizer=solver, loss=losses
+    )
+    return model
+
 def repr_layer(layer):
     """Pretty name for a Keras layer"""
     conf = layer.get_config()
