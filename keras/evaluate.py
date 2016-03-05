@@ -19,6 +19,9 @@ def label_to_coords(label):
         raise ValueError("label should be output for single sample or a batch")
 
 
+# TODO: Merge this with the new functions in the IPython notebook. The notebook
+# functions are meant to handle multiple sub-poses and poselet classifications
+# (where present).
 def get_predictions(model, mean_pixel_path, data, batch_size=32,
                     coord_sets=('joints',)):
     """Evaluate model on given images and flows in order to produce
