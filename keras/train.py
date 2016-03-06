@@ -204,10 +204,6 @@ def h5_read_worker(
 
 
 def get_sample_weight(data, classname, masks):
-    # Oh got this function has a lot of assertions. Guess I'm really worried
-    # about screwing this up, since that would definitely make training
-    # useless.
-
     # [:] is for benefit of h5py
     class_data = data[classname][:].astype('int')
     assert class_data.ndim == 2
@@ -219,25 +215,28 @@ def get_sample_weight(data, classname, masks):
     # labels
     classes = np.argmax(class_data, axis=1)
     assert classes.ndim == 1
-    num_classes = class_data.shape[1]
+    # num_classes = class_data.shape[1]
     # Make sure that the number of masks is the number of classes or the number
     # of classes + 1
-    mask_names = {name for name, val in masks}
-    assert len(mask_names) == len(masks)
-    assert num_classes - 1 <= len(mask_names) <= num_classes
-    mask_vals = {val for name, val in masks}
-    assert(len(mask_vals) == len(mask_names))
+    mask_names = set(masks.keys())
+
+    # XXX: I've commented out these assertions because they only made sense
+    # when we needed a 1:1 mapping between classes and outputs.
+    # assert len(mask_names) == len(masks)
+    # assert num_classes - 1 <= len(mask_names) <= num_classes
+    # mask_vals = {val for name, val in masks}
+    # assert(len(mask_vals) == len(mask_names))
     # Masks are in [0, num_classes); assert that this is the case
     # Note that if the number of classes is one fewer than the number of input
     # masks, then we assume that the zeroth class does not control any external
     # loss.
-    assert max(mask_vals) == num_classes - 1
-    assert len(mask_names) < num_classes or min(mask_vals) == 0
+    # assert max(mask_vals) == num_classes - 1
+    # assert len(mask_names) < num_classes or min(mask_vals) == 0
 
     sample_weight = {}
 
-    for mask_name, mask_val in masks:
-        sample_weight[mask_name] = (classes == mask_val).astype('float32')
+    for mask_name, mask_vals in masks.iteritems():
+        sample_weight[mask_name] = np.in1d(classes, mask_vals).astype('float32')
 
     assert len(sample_weight) == len(mask_names)
 
@@ -383,10 +382,30 @@ def h5_parser(h5_string):
     return rv
 
 def loss_mask_parser(arg):
+    """Takes as input a string dictating which losses should be enabled by
+    which class values, and returns a dictionary with the same information in a
+    more malleable form.
+
+    :param arg: String of form
+                ``<class>:<output>=<value>,<output>=<value>,...``
+    :returns: Dictionary with keys corresponding to seen outputs, each with an
+              array value indicating which class values should unmask it; if
+              the class holds any of the values in the set associated with an
+              output, then that output should count towards the total loss of
+              the model."""
     classname, rest = arg.split(':', 1)
     nosep = rest.split(',')
     pairs = [s.split('=', 1) for s in nosep if '=' in s]
-    return classname, [(label, int(clas)) for label, clas in pairs]
+    set_dict = {}
+    for label, clas in pairs:
+        set_dict.setdefault(label, set()).add(int(clas))
+    # We return a dictionary mapping output names to *Numpy arrays* of
+    # corresponding classes. This lets us use np.in1d to test for membership in
+    # a vectorised way.
+    rv_dict = {
+        k: np.fromiter(v, dtype='int') for k, v in set_dict.iteritems()
+    }
+    return classname, rv_dict
 
 
 def get_parser():
@@ -490,9 +509,11 @@ if __name__ == '__main__':
         lr=args.learning_rate, decay=args.decay, momentum=0.9, nesterov=True
     )
     model_to_load = getattr(models, args.model_name)
+    print('Using loader %s' % args.model_name)
     model = model_to_load(
         ds_shape, solver, INIT
     )
+    print('Loaded model of type {}'.format(type(model)))
     if args.finetune_path is not None:
         info("Loading weights from '%s'", args.finetune_path)
         model.load_weights(args.finetune_path)

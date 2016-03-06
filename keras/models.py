@@ -201,6 +201,45 @@ def vggnet16_joint_reg_class_flow(shapes, solver, init):
     return model
 
 
+def vggnet16_joint_reg_class_flow_leftright(shapes, solver, init):
+    # As above, but this time we output "leftright" instead of independent left
+    # and right predictions.
+    model = Graph()
+    rgb_shape = shapes['images']
+    model.add_input(input_shape=rgb_shape, name='images')
+    rgb_base = vgg16_twin_base(rgb_shape, init)
+    model.add_node(rgb_base, name='rgb_conv', input='images')
+    flow_shape = shapes['flow']
+    model.add_input(input_shape=flow_shape, name='flow')
+    flow_base = vgg16_twin_base(flow_shape, init)
+    model.add_node(flow_base, name='flow_conv', input='flow')
+    rgb_out_shape = rgb_base.output_shape
+    flow_out_shape = flow_base.output_shape
+    in_channels = rgb_out_shape[1] + flow_out_shape[1]
+    shared_shape = (in_channels,) + rgb_out_shape[2:]
+    shared_final = vgg16_twin_final(shared_shape, init)
+    model.add_node(
+        shared_final, inputs=['rgb_conv', 'flow_conv'],
+        merge_mode='concat', concat_axis=1, name='shared_layers'
+    )
+    num_classes, = shapes['class']
+    model.add_node(Dense(num_classes, init=init, activation='softmax'), input='shared_layers', name='fc_clas')
+    model.add_output(input='fc_clas', name='class')
+    reg_out_names = ['head', 'leftright']
+    for name in reg_out_names:
+        reg_outs, = shapes[name]
+        rname = 'fc_regr_' + name
+        model.add_node(Dense(reg_outs, init=init), input='shared_layers', name=rname)
+        model.add_output(input=rname, name=name)
+    losses = {'class': 'categorical_crossentropy'}
+    for name in reg_out_names:
+        losses[name] = 'mae'
+    model.compile(
+        optimizer=solver, loss=losses
+    )
+    return model
+
+
 def vggnet16_poselet_class_flow(shapes, solver, init):
     """Similar to above, but just predicitng poselet classes.
 
