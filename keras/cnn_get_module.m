@@ -14,8 +14,13 @@ function module = cnn_get_module(modname)
 % LD_PRELOAD appropriately, or do HDF5_DISABLE_VERSION_CHECK=1 when
 % launching Matlab.
 % See https://au.mathworks.com/help/matlab/matlab_external/call-user-defined-custom-module.html
-if count(py.sys.path,'') == 0
-    insert(py.sys.path,int32(0),'');
+if ~count(py.sys.path, '')
+    insert(py.sys.path, int32(0), '');
+end
+
+if exist('./keras', 'dir') && ~count(py.sys.path, './keras')
+    % This is just a check in case we're in the root dir
+    insert(py.sys.path, int32(0), './keras');
 end
 
 module = py.importlib.import_module(modname);

@@ -10,12 +10,13 @@ conf.ext_dir = 'ext/';
 %% CNN-related props
 % Size of CNN crop necessary
 conf.cnn.window = [224 224];
-% Deploy prototxt
-conf.cnn.deploy_prototxt = 'models/deploy.prototxt';
-% Trained net
-conf.cnn.model = fullfile(conf.cache_dir, 'regressor.caffemodel');
+% Fully convolutional network definition for Keras
+conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn-model.json');
+% Trained net weights
+conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn-weights.h5');
 % GPU ID for testing (negative to disable)
 conf.cnn.gpu_id = 0;
+
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 
 % Total number of augmentations is given by

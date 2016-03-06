@@ -5,3 +5,4 @@ train-patches.txt
 val-patches.txt
 *.log
 logs/
+*.mexa64

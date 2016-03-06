@@ -5,9 +5,13 @@ addpath ./detect/;
 addpath ./util/;
 addpath ./train/;
 addpath ./visualisation/;
-addpath ./cy/;
 addpath ./tests/;
 addpath ./keras/;
+addpath ./cy/;
+old = cd('./cy');
+CY_startup;
+CY_compile;
+cd(old);
 
 conf = get_conf();
 if ~exist(conf.cache_dir, 'dir')

@@ -26,3 +26,18 @@ poselet_names = {'left', 'right', 'head'};
 % is left shoulder->right shoulder->upper head->lower head.
 poselet_indices = {[4 6 8 10], [3 5 7 9], [3 4 11 12]};
 conf.poselets = struct('name', poselet_names, 'poselet', poselet_indices);
+% Tells us which subpose is the parent of which (0 for root)
+conf.subpose_pa = [3 3 0];
+% subpose_shared_parts{c}
+conf.shared_parts = {
+    % Left side shoulder coordinates in the left arm subpose have indices 1
+    % (first frame) and 5 (second frame), which correspond to indices 2
+    % (first frame) and 6 (second frame) in the head subpose.
+    {[1 5], [2 6]}
+    % Right side shoulder coordinates in the right arm subpose have indices
+    % 1 (first frame) and 5 (second frame), which correspond to indices 2
+    % (first frame) and 5 (second frame) in the head subpose.
+    {[1 5], [1 5]}
+    % Don't worry about the head because it has no parents
+    {}
+ };
