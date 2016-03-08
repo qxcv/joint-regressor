@@ -1,5 +1,6 @@
 function model = train(name, model, pos, neg, iter, C, wpos, maxsize, overlap)
 % Train a structured SVM with latent assignement of positive variables
+%                      1     2      3    4    5     6  7     8        9
 % pos  = list of positive images with part annotations
 % neg  = list of negative images
 % iter is the number of training iterations
@@ -7,6 +8,13 @@ function model = train(name, model, pos, neg, iter, C, wpos, maxsize, overlap)
 % wpos =  amount to weight errors on positives
 % maxsize = maximum size of the training data cache (in GB)
 % overlap =  minimum overlap in latent positive search
+%
+%                                           1    2      3        4        5
+% In train_model.m, this is called as train(cls, model, pos_val, neg_val, 1);
+% Originally I thought this was called recursively (I think it might be in
+% Y&R's code?), but a quick grep indicates that the only call is in
+% train_model. This raises the question of why the functino takes nine
+% arguments but only ever gets five of them.
 
 model.name = name;
 conf = global_conf();
@@ -213,5 +221,3 @@ for c = 1:length(model.components)
   %   1 + numberofblocks*2 + #nonzeronumbers
   len = 1 + numblocks*2 + sum(feat);
 end
-
-

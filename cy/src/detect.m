@@ -1,6 +1,7 @@
 function [boxes,model,ex] = detect(iminfo, model, thresh, bbox, overlap, id, label)
 % Detect objects in image using a model and a score threshold.
 % Higher threshold leads to fewer detections.
+%                                  1       2      3       4     5        6   7
 %
 % The function returns a matrix with one row per detected object.  The
 % last column of each row gives the score of the detection.  The
@@ -10,7 +11,15 @@ function [boxes,model,ex] = detect(iminfo, model, thresh, bbox, overlap, id, lab
 % If bbox is not empty, we pick best detection with significant overlap.
 % If label is included, we write feature vectors to a global QP structure
 %
-% This function updates the model (by running the QP solver) if upper and lower bound differs
+% This function updates the model (by running the QP solver) if upper and
+% lower bound differs
+%
+% detect() is called from two places in train.m. The signatures of those
+% calls are:
+%                         1       2      3   4   5  6  7
+% 1) [box,model] = detect(neg(i), model, -1, [], 0, i, -1);
+%                 1        2      3  4     5        6   7
+% 2) box = detect(pos(ii), model, 0, bbox, overlap, ii, 1);
 
 INF = 1e10;
 conf = global_conf();

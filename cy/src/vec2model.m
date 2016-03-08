@@ -1,4 +1,8 @@
 function model = vec2model(w,model)
+%VEC2MODEL Incorporate QP-solver-optimised weights back into model.
+% I think that the QP solver just treats all the weights as one big vector,
+% so after it does its thing we need to copy weights back into their
+% respective (meaningfully named/divided) model fields.
 w = double(w);
 
 % Biases

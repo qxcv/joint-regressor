@@ -25,17 +25,23 @@ model.bias    = struct('w',{},'i',{});             % bias
 model.apps = struct('w',{},'i',{});                % appearance of each part
 model.pdefs = struct('w',{},'i',{});               % prior of deformation (regressed)
 model.gaus    = struct('w',{},'i',{},'mean',{}, 'var', {});   % deformation gaussian
+% for each edge attached to a given part, pdefs weights the appearance term
+% given by the CNN for all possible types of that edge using only the patch
+% around the part in question; in contrast, gaus stores the weights for a
+% standard quadratic deformation term (same one used in every DPM ever)
 
 model.components{1} = struct('parent',{}, 'pid', {}, 'nbh_IDs', {}, ...
   'biasid',{},'appid',{},'app_global_ids',{},'pdefid',{},'gauid',{},'idpr_global_ids',{});
 
 model.pa = pa;
+% ??? what does model.tsize = model.tsize achieve?
 model.tsize  = model.tsize;
 model.interval = conf.interval;
 model.sbin = conf.step;
 model.len = 0;
 
 % cnn parameters
+% ??? AGAIN, WHAT COULD THIS LINE POSSIBLY ACHIEVE?!
 model.cnn = model.cnn;
 
 % add children
@@ -43,6 +49,8 @@ for i = 1:length(pa)
   child = i;
   parent = pa(child);
   assert(parent < child);
+  % p is a single struct array entry which will get appended to
+  % components{1}.
   p.parent = parent;
   p.pid    = child;
   p.nbh_IDs = nbh_IDs{p.pid};
@@ -109,5 +117,3 @@ for i = 1:length(pa)
   np = length(model.components{1});
   model.components{1}(np+1) = p;
 end
-
-

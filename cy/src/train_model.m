@@ -14,13 +14,11 @@ catch
     end
   end
   
-  model = build_model(pa, clusters, tsize);
+  model = build_model(subpose_pa, clusters, tsize);
   % add near filed to provide mixture supervision
   for ii = 1:numel(pos_val)
     pos_val(ii).near = label_val(ii).near;
   end
-  caffe('reset');
   model = train(cls, model, pos_val, neg_val, 1);
-  caffe('reset');
   parsave([cachedir cls], model);
 end
