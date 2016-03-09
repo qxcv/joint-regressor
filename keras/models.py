@@ -437,3 +437,48 @@ def upgrade_multipath_vggnet(old_model):
     # wrapper can load the data for use from Matlab
     print('All done!')
     return rv
+
+
+def upgrade_multipath_poselet_vggnet(old_model):
+    # TODO: This is mostly the same as the above code (cut and pasted). This is
+    # non-ideal, so the above code should be deleted or somehow merged with
+    # this code.
+    node_names = {
+        'rgb_conv', 'flow_conv', 'shared_layers', 'fc_pslt'
+    }
+    assert set(old_model.nodes.keys()) == node_names
+
+    rv = Graph()
+
+    print('Upgrading RGB path')
+    rgb_shape = old_model.inputs['images'].input_shape[1:]
+    rv.add_input(
+        input_shape=rgb_shape, name='images'
+    )
+    upgraded_rgb_conv = upgrade_sequential(old_model.nodes['rgb_conv'])
+    rv.add_node(upgraded_rgb_conv, input='images', name='rgb_conv')
+    print('Upgrading flow path')
+    flow_shape = old_model.inputs['flow'].input_shape[1:]
+    rv.add_input(
+        input_shape=flow_shape, name='flow'
+    )
+    upgraded_flow_conv = upgrade_sequential(old_model.nodes['flow_conv'])
+    rv.add_node(upgraded_flow_conv, input='flow', name='flow_conv')
+    print('Upgrading shared path')
+    upgraded_share = upgrade_sequential(old_model.nodes['shared_layers'])
+    rv.add_node(
+        upgraded_share, inputs=['rgb_conv', 'flow_conv'], merge_mode='concat',
+        concat_axis=1, name='shared_layers'
+    )
+
+    print('Upgrading classification output')
+    old_clas_dense = old_model.nodes['fc_pslt']
+    register_activation(convolution_softmax, 'convolution_softmax')
+    new_clas_dense = dense_to_conv(
+        old_clas_dense, (old_clas_dense.input_shape[1], 1, 1),
+        activation='convolution_softmax'
+    )
+    rv.add_node(new_clas_dense, input='shared_layers', name='fc_pslt')
+    rv.add_output(input='fc_pslt', name='poselet')
+
+    return rv
