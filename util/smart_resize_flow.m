@@ -12,12 +12,15 @@ old_size = size(flow_data);
 old_size = old_size(1:2);
 
 if isscalar(new_size_in)
-    new_size = new_size_in * old_size;
+    new_flow = imresize(flow_data, new_size_in);
 elseif ndims(new_size_in) == 3
-    new_size = new_size_in(1:2);
+    new_size_trunc = new_size_in(1:2);
+    new_flow = imresize(flow_data, new_size_trunc);
 end
 
-new_flow = imresize(flow_data, new_size); 
+new_size = size(new_flow);
+new_size = new_size(1:2);
+
 new_flow = rescale_flow_mags(new_flow, old_size, new_size);
 assert(all(size(new_flow) == [new_size 2]));
 end
