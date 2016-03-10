@@ -1,4 +1,4 @@
-function [left_locs, right_locs, head_locs, classes] = cnn_eval(model, images_data, flow_data, mean_pixels)
+function poselet_probs = cnn_eval(model, images_data, flow_data, mean_pixels)
 %CNN_EVAL Evaluates our CNN by calling into Python
 % Our code uses Keras, so evaluating directly in Matlab (or a mex library)
 % won't work here.
@@ -22,9 +22,7 @@ data_dict.setdefault('images', matlab2numpy(norm_images_data));
 data_dict.setdefault('flow', matlab2numpy(norm_flow_data));
 results = model.predict(data_dict);
 
-% Get results
-left_locs = numpy2matlab(results.get('left'));
-right_locs = numpy2matlab(results.get('right'));
-head_locs = numpy2matlab(results.get('head'));
-classes = numpy2matlab(results.get('class'));
+% Get results in NCHW format (assuming fully convolutional)
+% In the poselet case, the result will be (num samples)*301*height*width.
+poselet_probs = numpy2matlab(results.get('poselet'));
 end
