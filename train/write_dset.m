@@ -1,5 +1,5 @@
 function write_dset(all_data, pairs, cache_dir, patch_dir, num_hdf5s, ...
-    cnn_window, poselets, left_parts, right_parts, aug, chunksz)
+    cnn_window, subposes, left_parts, right_parts, aug, chunksz)
 %WRITE_DSET Write out a data set (e.g. pairs from the train set or pairs
 %from the test set).
 
@@ -62,7 +62,7 @@ for start_index = 1:batch_size:size(rem_pairs, 1)
         
         stack_start = tic;
         results{result_index} = get_stacks(...
-            fst, snd, poselets, left_parts, right_parts, cache_dir, ...
+            fst, snd, subposes, left_parts, right_parts, cache_dir, ...
             cnn_window, aug);
         stack_time = toc(stack_start);
         fprintf('get_stack() took %fs\n', stack_time);
@@ -93,21 +93,21 @@ for start_index = 1:batch_size:size(rem_pairs, 1)
             stack_im_bytes = uint8(stack_im * 255);
             % 1-of-K array of class labels. Ends up having dimension K*N,
             % where N is the unmber of samples and K is the number of
-            % classes (i.e. number of poselets plus one for background
+            % classes (i.e. number of subposes plus one for background
             % class).
-            class_labels = one_of_k(stacks(j).poselet_num + 1, length(poselets) + 1)';
+            class_labels = one_of_k(stacks(j).subpose_num + 1, length(subposes) + 1)';
             joint_args = {};
-            for poselet_idx=1:length(poselets)
-                name = poselets(poselet_idx).name;
+            for subpose_idx=1:length(subposes)
+                name = subposes(subpose_idx).name;
                 joint_args{length(joint_args)+1} = sprintf('/%s', name); %#ok<AGROW>
-                if poselet_idx ~= stacks(j).poselet_num
-                    num_values = 4 * length(poselets(poselet_idx).poselet);
-                    poselet_data = zeros([num_values, 1]);
+                if subpose_idx ~= stacks(j).subpose_num;
+                    num_values = 4 * length(subposes(subpose_idx).subpose);
+                    subpose_data = zeros([num_values, 1]);
                 else
-                    poselet_data = stacks(j).joint_labels;
+                    subpose_data = stacks(j).joint_labels;
                 end
-                joint_args{length(joint_args)+1} = single(poselet_data); %#ok<AGROW>
-                assert(size(poselet_data, 2) == 1);
+                joint_args{length(joint_args)+1} = single(subpose_data); %#ok<AGROW>
+                assert(size(subpose_data, 2) == 1);
             end
             store3hdf6(filename, opts, '/flow', stack_flow, ...
                 '/images', stack_im_bytes, ...

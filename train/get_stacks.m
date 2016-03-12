@@ -1,4 +1,4 @@
-function rvs = get_stacks(d1, d2, poselets, left_parts, right_parts, cache_dir, cnn_window, aug)
+function rvs = get_stacks(d1, d2, subposes, left_parts, right_parts, cache_dir, cnn_window, aug)
 %GET_STACKS Get the image/flow stacks for a given data pair and set of
 %transformations.
 % d1: First datum
@@ -76,14 +76,14 @@ for flip=flips
             rot_stack(:, :, 7:8) = reshape(flat_flow, size(flow));
         end
         
-        %% 3) Choose a poselet
-        for poselet_num=1:length(poselets)
-            this_poselet = poselets(poselet_num).poselet;
-            poselet_indices = [this_poselet, this_poselet + length(d1.joint_locs)];
+        %% 3) Choose a subpose
+        for subpose_num=1:length(subposes)
+            this_subpose = subposes(subpose_num).subpose;
+            subpose_indices = [this_subpose, this_subpose + length(d1.joint_locs)];
             
             %% 4) Get bounding box for joint
-            maxes = max(rot_joints(poselet_indices, :), [], 1);
-            mins = min(rot_joints(poselet_indices, :), [], 1);
+            maxes = max(rot_joints(subpose_indices, :), [], 1);
+            mins = min(rot_joints(subpose_indices, :), [], 1);
             % Always crop a square patch
             pose_side = max(maxes - mins);
             % box_center is (x, y)
@@ -132,11 +132,11 @@ for flip=flips
                     end
                     
                     % Return column vector [x1 y1 x2 y2 ... xn yn]'
-                    poselet_joints = scale_joints(poselet_indices, :);
-                    rvs(current_idx).joint_labels = reshape(poselet_joints', [numel(poselet_joints), 1]); %#ok<AGROW>
+                    subpose_joints = scale_joints(subpose_indices, :);
+                    rvs(current_idx).joint_labels = reshape(subpose_joints', [numel(subpose_joints), 1]); %#ok<AGROW>
                     % Return full w * h * c matrix
                     rvs(current_idx).stack = final_stack; %#ok<AGROW>
-                    rvs(current_idx).poselet_num = poselet_num; %#ok<AGROW>
+                    rvs(current_idx).subpose_num = subpose_num; %#ok<AGROW>
                     
                     current_idx = current_idx + 1;
                 end

@@ -1,11 +1,11 @@
 function pairwise_means = calc_subpose_disps(centroids, subpose_graph, shared_parts)
-%CALC_SUBPOSE_DISPS Displacements between subposes for each poselet
-%Uses centroids calculated with K-means, and asks, for each pair of
-%adjacent sub-poses s1 and s2, and each poselet p1 and p2 (respectively),
-%what the "distance" between the first and second subposes and the first
-%and second poselets is. Note that this is the distance between the
-%centers of the poselets, which is taken to be the middle of the 224x224
-%frame which they are cropped from.
+%CALC_SUBPOSE_DISPS Displacements between subposes for each poselet Uses
+%centroids calculated with K-means, and asks, for each pair of adjacent
+%sub-poses s1 and s2, and each of their poselet classes p1 and p2
+%(respectively), what the "distance" between the first and second subposes
+%and the first and second poselets is. Note that this is the distance
+%between the centers of the poselets, which is taken to be the middle of
+%the 224x224 frame which they are cropped from.
 
 % Return value will probably be an S*P*P*2 array, where rv(i, p1, p2, :)
 % gives the amount that the child subpose has to be moved to match its
@@ -19,7 +19,9 @@ function pairwise_means = calc_subpose_disps(centroids, subpose_graph, shared_pa
 num_poselets = length(centroids{1});
 coord_shape = [size(centroids{1}, 2)/2, 2];
 rv_size = [length(subpose_graph), num_poselets, num_poselets, 2];
-pairwise_means = zeros(rv_size);
+% Initialise return value to all nans so that I can figure out when I've
+% messed up :)
+pairwise_means = nan(rv_size);
 
 for child=1:length(subpose_graph)
     parent = subpose_graph(child);
@@ -43,8 +45,7 @@ for child=1:length(subpose_graph)
             % disp is the amount by which the child has to be moved to
             % match the parent
             disp = child_end - parent_end;
-            assert(isvector(disp));
-            % Need to find (a) which parts are shared and (b) 
+            assert(isvector(disp)); 
             pairwise_means(child, child_poselet, parent_poselet, :) = disp;
         end
     end

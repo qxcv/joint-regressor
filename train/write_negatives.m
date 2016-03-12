@@ -1,5 +1,5 @@
 function write_negatives(all_data, pairs, cache_dir, patch_dir, ...
-    cnn_window, crops_per_pair, chunksz, poselets)
+    cnn_window, crops_per_pair, chunksz, subposes)
 %WRITE_NEGATIVES Analogue of write_dset for negative patches.
 %Note that unlike write_dset, this function will intentionally avoid
 %whatever poses are present in the images it is given (this functionality
@@ -9,7 +9,7 @@ function write_negatives(all_data, pairs, cache_dir, patch_dir, ...
 %
 %For the initial version of this function, I'm not doing any augmentation
 %other than random crops, and I'm just ignoring people altogether. In
-%future, it might make sense to avoid only the specific poselet which we
+%future, it might make sense to avoid only the specific subpose which we
 %wish to regress for (so other parts of the person are visible) and to
 %perform the same augmentations which we would perform normally.
 %
@@ -80,16 +80,16 @@ for pair_idx=1:length(pairs)
     % All negatives are "class 1" in Matlab, which translates into class 0
     % in Python (and other languages with zero-based indexing); the
     % conversion is implicit in the one-of-k representation.
-    class_labels = one_of_k(ones([1, lcr]), length(poselets)+1)';
+    class_labels = one_of_k(ones([1, lcr]), length(subposes)+1)';
     assert(isa(final_images, 'uint8'));
     
-    % Produce fake joints for each part of the poselet
+    % Produce fake joints for each part of the subpose
     joint_args = {};
-    for i=1:length(poselets)
-        poselet_name = poselets(i).name;
-        poselet_idxs = poselets(i).poselet;
-        num_vals = 4 * length(poselet_idxs);
-        ds_name = sprintf('/%s', poselet_name);
+    for i=1:length(subposes)
+        subpose_name = subposes(i).name;
+        subpose_idxs = subposes(i).subpose;
+        num_vals = 4 * length(subpose_idxs);
+        ds_name = sprintf('/%s', subpose_name);
         fake_data = zeros([num_vals size(final_images, 4)]);
         joint_args{length(joint_args)+1} = ds_name; %#ok<AGROW>
         joint_args{length(joint_args)+1} = fake_data; %#ok<AGROW>

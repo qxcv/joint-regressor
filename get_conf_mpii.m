@@ -10,7 +10,6 @@ conf.right_parts = [3, 5, 7, 9];
 conf.left_parts = [4, 6, 8, 10];
 
 %% STUFF FOR MULTI-POSELET CODE BELOW HERE
-poselet_names = {'left', 'right', 'head'};
 % Rough guide for MPII
 % 3  -> right shoulder
 % 4  -> left shoulder
@@ -24,8 +23,9 @@ poselet_names = {'left', 'right', 'head'};
 % 12 -> head lower point
 % This means that left and right are shoulder->elbow->wrist->hand, and head
 % is left shoulder->right shoulder->upper head->lower head.
-poselet_indices = {[4 6 8 10], [3 5 7 9], [3 4 11 12]};
-conf.poselets = struct('name', poselet_names, 'poselet', poselet_indices);
+subpose_indices = {[4 6 8 10], [3 5 7 9], [3 4 11 12]};
+subpose_names = {'left', 'right', 'head'};
+conf.subposes = struct('name', subpose_names, 'subpose', subpose_indices);
 % Tells us which subpose is the parent of which (0 for root)
 conf.subpose_pa = [3 3 0];
 % subpose_shared_parts{c}

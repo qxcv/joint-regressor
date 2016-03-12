@@ -1,4 +1,5 @@
-function model = train_model(cachedir, subpose_pa, pos_val, neg_val, tsize)
+function model = train_model(cachedir, subpose_pa, pos_val, neg_val, ...
+    subposes, edge_means, tsize)
 % IMPORTANT: pos_val and neg_val must be structs with .data and .pairs
 % members (probably .name as well), as produced by unify_dataset.m
 cls = 'graphical_model';
@@ -8,7 +9,8 @@ catch
     % learn clusters, and derive labels
     % must have already been learnt!
     clusters = parload(fullfile(cachedir, 'centroids.mat'), 'centroids');
-    label_val = derive_labels(cachedir, subpose_pa, clusters, pos_val, tsize);
+    label_val = derive_labels(cachedir, subpose_pa, pos_val, subposes, ...
+        edge_means, tsize);
     assert(false, 'you need to fix build_model');
     
     model = build_model(subpose_pa, clusters, tsize);

@@ -16,6 +16,6 @@ if ~exist(mean_pixel_path, 'file')
     display(out_struct.images);
     display(out_struct.flow);
 else
-    fprintf('Mean pixels already exist');
+    fprintf('Mean pixels already exist\n');
 end
 end
