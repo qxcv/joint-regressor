@@ -1,28 +1,35 @@
-function labels = assign_label(imdata, clusters, pa, tsize, K, is_check)
-if ~exist('is_check', 'var')
-  is_check = false;
-end
+function labels = assign_label(all_data, clusters, pa, tsize)
+assert(iscell(clusters) && length(clusters) == length(pa), ...
+    'Need as many clusters as joints');
+assert(ismatrix(clusters{1}), 'Centroids should be K*J matrix');
+assert(all(cellfun(@(x) all(size(x) == size(clusters{1})), clusters)), ...
+    'Size of clusters should be uniform');
+K = size(clusters{1}, 1);
+is_check = false;
 % add mix field to imgs
 p_no = numel(pa);
-labels = struct( 'mix_id', cell(numel(imdata), 1), ...
-  'global_id', cell(numel(imdata), 1), ...
-  'near', cell(numel(imdata), 1), ...
-  'invalid', cell(numel(imdata), 1) );
+get_cell = @() cell(all_data.num_pairs, 1);
+labels = struct('mix_id', get_cell(), ...
+  'global_id', get_cell(), ...
+  'near', get_cell(), ...
+  'invalid', get_cell());
 [nbh_IDs, global_IDs] = get_IDs(pa, K);
 
-parfor ii = 1:length(imdata)
-  labels(ii).mix_id = cell(p_no, 1);
-  labels(ii).near = cell(p_no, 1);
-  labels(ii).invalid = false(p_no, 1);
+assert(false, 'You need to fix the rest of assign_label');
+
+parfor pair_idx = 1:all_data.num_pairs
+  labels(pair_idx).mix_id = cell(p_no, 1);
+  labels(pair_idx).near = cell(p_no, 1);
+  labels(pair_idx).invalid = false(p_no, 1);
   for p = 1:p_no
     nbh_N = numel(clusters{p});
-    labels(ii).mix_id{p} = zeros(nbh_N, 1, 'int32');
-    labels(ii).near{p} = cell(nbh_N, 1);
+    labels(pair_idx).mix_id{p} = zeros(nbh_N, 1, 'int32');
+    labels(pair_idx).near{p} = cell(nbh_N, 1);
     invalid = false;
     for n = 1:nbh_N
       % find nearest
       nbh_idx = nbh_IDs{p}(n);
-      if ( isfield(imdata, 'invalid') && (imdata(ii).invalid(p) || imdata(ii).invalid(nbh_idx)) )
+      if ( isfield(all_data, 'invalid') && (all_data(pair_idx).invalid(p) || all_data(pair_idx).invalid(nbh_idx)) )
         invalid = true;
       end
       cluster_num = numel(clusters{p}{n});
@@ -31,7 +38,7 @@ parfor ii = 1:length(imdata)
         centers(k,:) = clusters{p}{n}(k).center;
         % sigmas(k,:) = clusters{p}{n}(k).sigma;
       end
-      rp = norm_rp(imdata(ii), p, nbh_idx, tsize);
+      rp = norm_rp(all_data(pair_idx), p, nbh_idx, tsize);
       
       dists = bsxfun(@minus, centers, rp);
       dists = sqrt(sum(dists .^ 2, 2));
@@ -40,15 +47,15 @@ parfor ii = 1:length(imdata)
       % for debug
       if (is_check && ~invalid)
         is_imgid = clusters{p}{n}(id).imgid;
-        assert(is_imgid(ii));
+        assert(is_imgid(pair_idx));
       end
-      labels(ii).mix_id{p}(n) = int32(id);
-      labels(ii).near{p}{n} = dists < 3 * dists(id);
+      labels(pair_idx).mix_id{p}(n) = int32(id);
+      labels(pair_idx).near{p}{n} = dists < 3 * dists(id);
     end
     % invalid
-    labels(ii).invalid(p) = invalid;
+    labels(pair_idx).invalid(p) = invalid;
   end
-  labels(ii).global_id = int32(mix2global(labels(ii).mix_id, global_IDs));
+  labels(pair_idx).global_id = int32(mix2global(labels(pair_idx).mix_id, global_IDs));
 end
 
 function global_id = mix2global(mix_id, global_IDs)

@@ -10,7 +10,7 @@ conf = get_conf_mpii;
 [neg_data, neg_pairs] = get_inria_person(conf.dataset_dir, conf.cache_dir);
 
 fprintf('Writing validation set\n');
-val_patch_dir = fullfile(conf.cache_dir, 'val-patches-notrans');
+val_patch_dir = fullfile(conf.cache_dir, 'val-patches-mpii');
 write_dset(val_data, val_pairs, conf.cache_dir, val_patch_dir, ...
     conf.num_val_hdf5s, conf.cnn.window, conf.poselets, ...
     conf.left_parts, conf.right_parts, conf.val_aug, conf.val_chunksz);
@@ -18,7 +18,7 @@ write_negatives(val_data, val_pairs, conf.cache_dir, val_patch_dir, ...
     conf.cnn.window, conf.val_aug.negs, conf.val_chunksz, conf.poselets);
 
 fprintf('Writing training set\n');
-train_patch_dir = fullfile(conf.cache_dir, 'train-patches-notrans');
+train_patch_dir = fullfile(conf.cache_dir, 'train-patches-mpii');
 write_dset(train_data, train_pairs, conf.cache_dir, train_patch_dir, ...
     conf.num_hdf5s, conf.cnn.window, conf.poselets, ...
     conf.left_parts, conf.right_parts, conf.aug, conf.train_chunksz);
@@ -32,6 +32,11 @@ cluster_h5s(conf.biposelet_classes, conf.poselets, train_patch_dir, ...
 fprintf('Calculating mean pixel\n');
 store_mean_pixel(train_patch_dir, conf.cache_dir);
 
+fprintf('Organising pairs into unified dataset\n');
+train_dataset = unify_dataset(train_data, train_pairs, 'train_dataset');
+val_dataset = unify_dataset(train_data, val_pairs, 'val_dataset');
+neg_dataset = unify_dataset(neg_data, neg_pairs, 'neg_dataset');
+
 % TODO: Make training automatic. I can do this manually, but people who
 % want to reproduce my results can't.
 if ~(exist(conf.cnn.deploy_json, 'file') && exist(conf.cnn.deploy_weights, 'file'))
@@ -43,12 +48,16 @@ if ~(exist(conf.cnn.deploy_json, 'file') && exist(conf.cnn.deploy_weights, 'file
 end
 
 fprintf('Computing ideal poselet displacements\n');
-save_centroid_pairwise_means(...
-    conf.cache_dir, conf.subpose_pa, shared_parts, conf.cnn_window);
+save_centroid_pairwise_means(conf.cache_dir, conf.subpose_pa, conf.shared_parts);
 
-fprintf('Training graphical model');
-graphical_model = train_model(conf.cache_dir, conf.subpose_pa, val_data, ...
-    neg_data, tsize);
+fprintf('Training graphical model\n');
+% XXX: This is woefully unscientific and needs to be changed as soon as I
+% can figure out a uniform-scale training protocol
+tsize = 350;
+graph_model = train_model(conf.cache_dir, conf.subpose_pa, val_dataset, ...
+    neg_dataset, tsize);
+
+assert(false, 'You need to write the rest of this');
 
 % TODO: remember that I need to copy the evaluation code out of my own
 % project, since that does the stitching thing properly (much easier here

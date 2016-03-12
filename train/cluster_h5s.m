@@ -31,6 +31,13 @@ for fn_no=1:num_fns
     % Read data from file
     fn = all_fns{fn_no};
     fprintf('Writing labels on sample %d/%d (%s)\n', fn_no, num_fns, fn);
+    
+    info = h5info(fn);
+    if any(strcmp('poselet', {info.Datasets.Name}))
+        fprintf('Poselet labels already exist, skipping\n');
+        continue
+    end
+    
     [classes, current_labels] = extract_joint_loc_labels({fn}, poselets);
     
     % Determine poselet class for each sample; use ones because 1 is the

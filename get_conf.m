@@ -11,9 +11,9 @@ conf.ext_dir = 'ext/';
 % Size of CNN crop necessary
 conf.cnn.window = [224 224];
 % Fully convolutional network definition for Keras
-conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn-model.json');
+conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights
-conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn-weights.h5');
+conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 % GPU ID for testing (negative to disable)
 conf.cnn.gpu_id = 0;
 

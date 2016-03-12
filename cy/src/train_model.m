@@ -1,24 +1,22 @@
 function model = train_model(cachedir, subpose_pa, pos_val, neg_val, tsize)
-cls = [note '_graphical_model'];
+% IMPORTANT: pos_val and neg_val must be structs with .data and .pairs
+% members (probably .name as well), as produced by unify_dataset.m
+cls = 'graphical_model';
 try
-  model = parload([cachedir cls], 'model');
+    model = parload([cachedir cls], 'model');
 catch
-  % learn clusters, and derive labels
-  % must have already been learnt!
-  clusters = learn_clusters();
-  label_val = derive_labels('val', clusters, pos_val, tsize);
-  % ------------
-  for ii = 1:numel(label_val)
-    if isfield(label_val(ii), 'invalid')
-      assert(all(~label_val(ii).invalid));    % currently, all validation labels should be valid !!!
+    % learn clusters, and derive labels
+    % must have already been learnt!
+    clusters = parload(fullfile(cachedir, 'centroids.mat'), 'centroids');
+    label_val = derive_labels(cachedir, subpose_pa, clusters, pos_val, tsize);
+    assert(false, 'you need to fix build_model');
+    
+    model = build_model(subpose_pa, clusters, tsize);
+    % add near filed to provide mixture supervision
+    for ii = 1:numel(pos_val)
+        % XXX: Really need to add a .near field when I do my clustering :/
+        pos_val(ii).near = label_val(ii).near;
     end
-  end
-  
-  model = build_model(subpose_pa, clusters, tsize);
-  % add near filed to provide mixture supervision
-  for ii = 1:numel(pos_val)
-    pos_val(ii).near = label_val(ii).near;
-  end
-  model = train(cls, model, pos_val, neg_val, 1);
-  parsave([cachedir cls], model);
+    model = train(cls, model, pos_val, neg_val, 1);
+    parsave([cachedir cls], model);
 end

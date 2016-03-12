@@ -1,30 +1,17 @@
-function [pyra, unary_map, idpr_map] = imCNNdet(im, model, useGpu, upS, impyra_fun)
-if ~exist('useGpu', 'var')
-  useGpu = 1;
-end
+function [pyra, unary_map, idpr_map] = imCNNdet(im, model, upS)
 if ~exist('upS', 'var')
   upS = 1;        % by default, we do not upscale the image
 end
-if ~exist('impyra_fun', 'var')
-  impyra_fun = @impyra;
-end
+
 cnnpar = model.cnn;
-
-% init caffe network (spews logging info)
-
-if caffe('is_initialized') == 0
-  if ~exist(cnnpar.cnn_deploy_conv_file, 'file') || ~exist(cnnpar.cnn_conv_model_file, 'file')
-    error('model files not exist');
+persistent cnn_model;
+if isempty(cnn_model)
+  if ~exist(cnnpar.deploy_json, 'file') || ~exist(cnnpar.deploy_weights, 'file')
+      error('jointregressor:invalidCNNConfig', ...
+          'Need "%s" and "%s" to initialise CNN', cnnpar.deploy_json, ...
+          cnnpar.deploy_weights);
   end
-  caffe('init', cnnpar.cnn_deploy_conv_file, cnnpar.cnn_conv_model_file);
-  % set to use GPU or CPU
-  if useGpu
-    caffe('set_mode_gpu');
-  else
-    caffe('set_mode_cpu');
-  end
-  % put into test mode
-  caffe('set_phase_test');
+  cnn_model = cnn_get_model(cnnpar.deploy_json, cnnpar.deploy_weights);
 end
 
 %
@@ -34,7 +21,7 @@ if upS > 1
   upS = min(upS, 600 / max(imx,imy));
 end
 %
-pyra = impyra_fun(im, model, upS);
+pyra = impyra(im, model, cnn_model, upS);
 max_scale = numel(pyra);
 FLT_MIN = realmin('single');
 % 0.01;

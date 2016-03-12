@@ -35,10 +35,12 @@ else
 end
 
 % Compute the feature pyramid and prepare filter
+% XXX: This must be changed to read both frames & flow
 im = imreadx(iminfo);
 % if has box information, crop it
 if latent && label > 0
   % crop positive images to speed up latent search
+  % XXX: This needs to be changed to handle flow
   [im, bbox] = cropscale_pos(im, bbox, model.cnn.psize);
 end
 
