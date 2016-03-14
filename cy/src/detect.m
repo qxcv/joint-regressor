@@ -44,7 +44,8 @@ if latent && label > 0
   [im, bbox] = cropscale_pos(im, bbox, model.cnn.psize);
 end
 
-[pyra, unary_map, idpr_map] = imCNNdet(im,model,useGpu);
+[pyra, unary_map] = imCNNdet(im,model,useGpu);
+idpr_map;
 
 levels = 1:length(pyra);
 

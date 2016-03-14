@@ -18,14 +18,6 @@ for x = model.apps
   noneg = [noneg uint32(j)];
 end
 
-for x = model.pdefs
-  j = x.i:x.i+numel(x.w)-1;
-  w(j) = x.w;
-  % Enforce
-  w0(j) = .001;
-  noneg = [noneg uint32(j)];
-end
-
 for x = model.gaus
   j = x.i:x.i+numel(x.w)-1;
   w(j) = x.w;

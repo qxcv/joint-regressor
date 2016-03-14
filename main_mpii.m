@@ -56,8 +56,7 @@ fprintf('Training graphical model\n');
 % XXX: This is woefully unscientific and needs to be changed as soon as I
 % can figure out a uniform-scale training protocol
 tsize = 350;
-[~] = train_model(conf.cache_dir, conf.subpose_pa, val_dataset, ...
-    neg_dataset, conf.subposes, edge_means, tsize);
+[~] = train_model(conf, val_dataset, neg_dataset, edge_means, tsize);
 
 assert(false, 'You need to write the rest of this');
 

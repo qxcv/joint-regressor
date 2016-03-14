@@ -21,14 +21,6 @@ for i = 1:length(model.apps)
   model.apps(i).w = reshape(w(j),s);
 end
 
-% prior of deformation parameters
-for i = 1:length(model.pdefs)
-  x = model.pdefs(i);
-  s = size(x.w);
-  j = x.i:x.i+prod(s)-1;
-  model.pdefs(i).w = reshape(w(j),s);
-end
-
 % gauss parameters
 for i = 1:length(model.gaus)
   x = model.gaus(i);

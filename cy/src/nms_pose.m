@@ -17,7 +17,7 @@ end
 
 % throw away boxes if the number of candidates are too many
 if size(boxes,1) > 1000
-  [foo,I] = sort(boxes(:,end),'descend');
+  [~, I] = sort(boxes(:,end),'descend');
   boxes = boxes(I(1:1000),:);
 end
 
@@ -48,17 +48,17 @@ y2 = [y2 ry2];
 area = [area rarea];
 
 s = boxes(:,end);
-[vals, I] = sort(s);
+[~, I] = sort(s);
 pick = [];
 while ~isempty(I)
   last = length(I);
   i = I(last);
-  pick = [pick; i];
+  pick = [pick; i]; %#ok<AGROW>
   
-  xx1 = bsxfun(@max,x1(i,:), x1(I,:));
-  yy1 = bsxfun(@max,y1(i,:), y1(I,:));
-  xx2 = bsxfun(@min,x2(i,:), x2(I,:));
-  yy2 = bsxfun(@min,y2(i,:), y2(I,:));
+  xx1 = bsxfun(@max, x1(i, :), x1(I, :));
+  yy1 = bsxfun(@max, y1(i, :), y1(I, :));
+  xx2 = bsxfun(@min, x2(i, :), x2(I, :));
+  yy2 = bsxfun(@min, y2(i, :), y2(I, :));
   
   w = xx2-xx1+1; w(w<0) = 0;
   h = yy2-yy1+1; h(h<0) = 0;
@@ -69,4 +69,3 @@ while ~isempty(I)
   I(o > overlap) = [];
 end
 top = boxes(pick,:);
-

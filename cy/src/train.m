@@ -124,9 +124,10 @@ for i = 1:length(neg)
   fprintf('\n Image(%d/%d)',i,length(neg));
   % last argument is a label for the pose. detect() will use this to update the
   % global qp (ugh).
-  [box,model] = detect(neg(i), model, -1, [], 0, i, -1);
+  [box, model] = detect(neg(i), model, -1, [], 0, i, -1);
   numnegatives = numnegatives + size(box,1);
-  fprintf(' #cache+%d=%d/%d, #sv=%d, #sv>0=%d, (est)UB=%.4f, LB=%.4f',size(box,1),qp.n,nmax,sum(qp.sv),sum(qp.a>0),qp.ub,qp.lb);
+  fprintf(' #cache+%d=%d/%d, #sv=%d, #sv>0=%d, (est)UB=%.4f, LB=%.4f', ...
+      size(box,1), qp.n, nmax, sum(qp.sv), sum(qp.a>0), qp.ub, qp.lb);
   
   % Stop if cache is full
   if sum(qp.sv) == nmax,
@@ -154,8 +155,9 @@ for ii = 1:numpos
   end
   
   % get example
-  % note that detect is updating qp using ii and the label which we supply it at
-  % the end, as above (but the label is 1 this time since we have a positive)
+  % note that detect is updating qp using ii and the label which we supply
+  % it at the end, as above (but the label is 1 this time since we have a
+  % positive)
   box = detect(pos(ii), model, 0, bbox, overlap, ii, 1);
   if ~isempty(box),
     fprintf(' (comp=%d,sc=%.3f)\n',box(1,end-1),box(1,end));
@@ -199,7 +201,8 @@ for c = 1:length(model.components)
     nbh_N = numel(p.nbh_IDs);
     if ~isempty(p.pdefid)
       for i = 1:nbh_N
-        x = model.pdefs(p.pdefid(i));       % use one deformation prior for each neighbor
+        % use one deformation prior for each neighbor
+        x = model.pdefs(p.pdefid(i));
         i1 = x.i;
         i2 = i1 + numel(x.w) - 1;
         feat(i1:i2) = 1;
@@ -208,7 +211,8 @@ for c = 1:length(model.components)
     end
     if ~isempty(p.gauid)
       for i = 1:nbh_N
-        x  = model.gaus(p.gauid{i}(1));    % use only one kind of deformation in each mixture
+        % use only one kind of deformation in each mixture
+        x  = model.gaus(p.gauid{i}(1));
         i1 = x.i;
         i2 = i1 + numel(x.w) - 1;
         feat(i1:i2) = 1;
