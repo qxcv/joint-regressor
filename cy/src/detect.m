@@ -1,7 +1,7 @@
-function [boxes,model,ex] = detect(iminfo, model, thresh, bbox, overlap, id, label)
+function [boxes,model,ex] = detect(im1_info, im2_info, model, thresh, ...
+    bbox, overlap, id, label)
 % Detect objects in image using a model and a score threshold.
 % Higher threshold leads to fewer detections.
-%                                  1       2      3       4     5        6   7
 %
 % The function returns a matrix with one row per detected object.  The
 % last column of each row gives the score of the detection.  The
@@ -22,8 +22,6 @@ function [boxes,model,ex] = detect(iminfo, model, thresh, bbox, overlap, id, lab
 % 2) box = detect(pos(ii), model, 0, bbox, overlap, ii, 1);
 
 INF = 1e10;
-conf = global_conf();
-useGpu = conf.useGpu;
 
 if nargin > 3 && ~isempty(bbox)
   latent = true;
@@ -35,17 +33,19 @@ else
 end
 
 % Compute the feature pyramid and prepare filter
-% XXX: This must be changed to read both frames & flow
-im = imreadx(iminfo);
+im1 = readim(im1_info);
+im2 = readim(im2_info);
+flow = imflow(im1_info.image_path, im2_info.image_path);
+im_stack = cat(3, im1, im2);
 % if has box information, crop it
 if latent && label > 0
   % crop positive images to speed up latent search
-  % XXX: This needs to be changed to handle flow
-  [im, bbox] = cropscale_pos(im, bbox, model.cnn.psize);
+  % XXX: This needs to be changed to handle flow. Also it won't work until
+  % I actually have scales :P
+  % [im, bbox] = cropscale_pos(im, bbox, model.cnn.psize);
 end
 
-[pyra, unary_map] = imCNNdet(im,model,useGpu);
-idpr_map;
+[pyra, unary_map] = imCNNdet(im_stack, flow, model);
 
 levels = 1:length(pyra);
 
@@ -65,9 +65,9 @@ if nargin < 7
 end
 
 % Cache various statistics derived from model
-[components,apps] = modelcomponents(model);
+[components, apps] = modelcomponents(model);
 
-boxes = zeros(100000,length(components{1})*4+2);
+boxes = zeros(100000, 4 * length(components) + 2);
 cnt = 0;
 
 ex.blocks = [];
@@ -81,70 +81,69 @@ end
 
 % Iterate over random permutation of scales and components,
 for level = levels
-  % Iterate through mixture components
-  sizs = pyra(level).sizs;
-  for c  = randperm(length(model.components))
-    parts = components{c};
+    % Iterate through mixture components
+    sizs = pyra(level).sizs;
+    parts = components;
     p_no = length(parts);
     
     % Skip if there is no overlap of root filter with bbox
     if latent
-      skipflag = 0;
-      for p = 1:p_no
-        % because all mixtures for one part is the same size, we only need to do this once
-        ovmask = testoverlap(parts(p).sizx(1),parts(p).sizy(1),sizs(1),sizs(2),pyra(level),bbox.xy(p,:),overlap);
-        if ~any(ovmask)
-          skipflag = 1;
-          break;
+        skipflag = 0;
+        for p = 1:p_no
+            % because all mixtures for one part is the same size, we only need to do this once
+            ovmask = testoverlap(parts(p).sizx(1), parts(p).sizy(1), ...
+                sizs(1), sizs(2), pyra(level), bbox.xy(p,:), overlap);
+            if ~any(ovmask)
+                skipflag = 1;
+                break;
+            end
         end
-      end
-      if skipflag == 1
-        continue;
-      end
+        if skipflag == 1
+            continue;
+        end
     end
     % Local scores
     
     for p = 1:p_no
-      % assign each deformation scores
-      parts(p).defMap = idpr_map{level}{p};
-      % --------------
-      parts(p).appMap = unary_map{level}{p};
-      
-      f = parts(p).appid;
-      parts(p).score = parts(p).appMap * apps{f};
-      
-      parts(p).level = level;
-      
-      if latent
-        ovmask = testoverlap(parts(p).sizx,parts(p).sizy,sizs(1),sizs(2),pyra(level),bbox.xy(p,:),overlap);
-        tmpscore = parts(p).score;
-        % label supervision
-        if label > 0
-          tmpscore(~ovmask) = -INF;
-          % mixture part supervision
-          if isfield(iminfo,'near')
-            for n = 1:numel(parts(p).nbh_IDs)
-              parts(p).defMap{n}(:,:,~iminfo.near{p}{n}) = -INF;
+        parts(p).appMap = unary_map{level}{p};
+        
+        f = parts(p).appid;
+        parts(p).score = parts(p).appMap * apps{f};
+        
+        parts(p).level = level;
+        
+        if latent
+            ovmask = testoverlap(parts(p).sizx, parts(p).sizy, ...
+                sizs(1), sizs(2), pyra(level), bbox.xy(p,:), overlap);
+            tmpscore = parts(p).score;
+            % label supervision
+            if label > 0
+                tmpscore(~ovmask) = -INF;
+                % mixture part supervision
+                % Disabled for now because I don't have a .defMap
+                %           if isfield(iminfo,'near')
+                %             for n = 1:numel(parts(p).nbh_IDs)
+                %               parts(p).defMap{n}(:,:,~iminfo.near{p}{n}) = -INF;
+                %             end
+                %           end
+            elseif label < 0
+                tmpscore(ovmask) = -INF;
             end
-          end
-        elseif label < 0
-          tmpscore(ovmask) = -INF;
+            parts(p).score = tmpscore;
         end
-        parts(p).score = tmpscore;
-      end
     end
     
     % Walk from leaves to root of tree, passing message to parent
     for p = p_no:-1:2
-      child = parts(p);
-      par = parts(p).parent;
-      parent = parts(par);
-      cbid = find(child.nbh_IDs == parent.pid);
-      pbid = find(parent.nbh_IDs == child.pid);
-      
-      [msg,parts(p).Ix,parts(p).Iy,parts(p).Im{cbid},parts(par).Im{pbid}] ...
-        = passmsg(child, parent, cbid, pbid);
-      parts(par).score = parts(par).score + msg;
+        child = parts(p);
+        par = parts(p).parent;
+        parent = parts(par);
+        cbid = find(child.nbh_IDs == parent.pid);
+        pbid = find(parent.nbh_IDs == child.pid);
+        
+        [msg,parts(p).Ix,parts(p).Iy,parts(p).Im{cbid},parts(par).Im{pbid}] ...
+            = passmsg(child, parent, cbid, pbid);
+        parts(par).score = parts(par).score + msg;
     end
     
     % Add bias to root score
@@ -153,53 +152,52 @@ for level = levels
     
     % keep the positive example with the highest score in latent mode
     if latent && label > 0
-      thresh = max(thresh,max(rscore(:)));
+        thresh = max(thresh,max(rscore(:)));
     end
     
-    [Y,X] = find(rscore >= thresh);
+    [Y, X] = find(rscore >= thresh);
     % Walk back down tree following pointers
     % (DEBUG) Assert extracted feature re-produces score
     for i = 1:length(X)
-      cnt = cnt + 1;
-      x = X(i);
-      y = Y(i);
-      
-      [box,ex] = backtrack(x,y,parts,pyra(level),ex,write);
-      
-      boxes(cnt,:) = [box c rscore(y,x)];
-      if write && (~latent || label < 0)
-        % we're expected to update qp, and we have a non-latent node //or// a
-        % negative sample (there's not actually a pose in the image)
-        qp_write(ex);
-        qp.ub = qp.ub + qp.Cneg*max(1+rscore(y,x),0);
-      elseif latent && label > 0
-        % otherwise, if we have a latent positive
-        if isempty(best_box)
-          best_box = boxes(cnt,:);
-          best_ex = ex;
-        elseif best_box(end) < rscore(y,x)
-          % update best
-          best_box = boxes(cnt,:);
-          best_ex = ex;
+        cnt = cnt + 1;
+        x = X(i);
+        y = Y(i);
+        
+        [box,ex] = backtrack(x, y, parts, pyra(level), ex, write);
+        
+        boxes(cnt,:) = [box c rscore(y,x)];
+        if write && (~latent || label < 0)
+            % we're expected to update qp, and we have a non-latent node //or// a
+            % negative sample (there's not actually a pose in the image)
+            qp_write(ex);
+            qp.ub = qp.ub + qp.Cneg*max(1+rscore(y,x),0);
+        elseif latent && label > 0
+            % otherwise, if we have a latent positive
+            if isempty(best_box)
+                best_box = boxes(cnt,:);
+                best_ex = ex;
+            elseif best_box(end) < rscore(y,x)
+                % update best
+                best_box = boxes(cnt,:);
+                best_ex = ex;
+            end
         end
-      end
     end
     
     % Crucial DEBUG assertion:
     % If we're computing features, assert extracted feature re-produces score
     % (see qp_writ.m for computing original score)
     if write && (~latent || label < 0) && ~isempty(X) && qp.n < length(qp.a)
-      w = -(qp.w + qp.w0.*qp.wreg) / qp.Cneg;
-      assert(abs(score(w,qp.x,qp.n) - rscore(y,x)) < 1e-5);
+        w = -(qp.w + qp.w0.*qp.wreg) / qp.Cneg;
+        assert(abs(score(w,qp.x,qp.n) - rscore(y,x)) < 1e-5);
     end
     
     % Optimize qp with coordinate descent, and update model
     if write && (~latent || label < 0) && ...
-        (qp.lb < 0 || 1 - qp.lb/qp.ub > .05 || qp.n == length(qp.sv))
-      model = optimize(model);
-      [components,apps] = modelcomponents(model);
+            (qp.lb < 0 || 1 - qp.lb/qp.ub > .05 || qp.n == length(qp.sv))
+        model = optimize(model);
+        [components, apps] = modelcomponents(model);
     end
-  end
 end
 
 boxes = boxes(1:cnt,:);
@@ -209,6 +207,7 @@ if latent && ~isempty(boxes) && label > 0
   if write
     qp_write(best_ex);
   end
+end
 end
 
 % Backtrack through dynamic programming messages to estimate part locations
@@ -264,9 +263,8 @@ for k = 2:numparts
     ex.blocks(end+1).i = p.pdefI(cbid);
     ex.blocks(end).x = p.defMap{cbid}(ptr(k,2),ptr(k,1),cm);
     
-    ex.blocks(end+1).i = parts(par).pdefI(pbid);
-    ex.blocks(end).x = parts(par).defMap{pbid}(y,x,pm);
     % two deformations
+    % XXX: This may be incorrect.
     ex.blocks(end+1).i = p.gauI{cbid}(cm);
     ex.blocks(end).x   = defvector(p, ptr(k,1),ptr(k,2),x,y,cm,cbid);
     
@@ -283,11 +281,11 @@ for k = 2:numparts
   end
 end
 box = reshape(box',1,4*numparts);
+end
 
 % Update QP with coordinate descent
 % and return the asociated model
 function model = optimize(model)
-
 global qp;
 fprintf('.');
 if qp.lb < 0 || qp.n == length(qp.a),
@@ -297,4 +295,4 @@ else
   qp_one();
 end
 model = vec2model(qp_w(),model);
-
+end

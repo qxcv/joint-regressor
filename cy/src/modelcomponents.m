@@ -1,11 +1,11 @@
 % Cache various statistics from the model data structure for later use
 function [components, apps] = modelcomponents(model)
-components = cell(length(model.components), 1);
-for c = 1:length(model.components)
-  for k = 1:length(model.components{c})
-    p = model.components{c}(k); % has nbh_IDs
+cell_components = cell(1, 1);
+
+for k = 1:length(model.components)
+    p = model.components(k); % has nbh_IDs
     nbh_N = numel(p.nbh_IDs);
-    p.Im = cell(nbh_N,1);
+    p.Im = cell(nbh_N, 1);
     % store the scale of each part relative to the component root
     par = p.parent;
     assert(par < k);
@@ -21,22 +21,26 @@ for c = 1:length(model.components)
     p.appI = x.i;
     
     for d = 1:nbh_N
-      for m = 1:numel(p.gauid{d})
-        x = model.gaus(p.gauid{d}(m));
-        p.gauw{d}(m,:)  = x.w;
-        p.gauI{d}(m) = x.i;
-        mean_x = x.mean(1);
-        mean_y = x.mean(2);
-        
-        p.mean_x{d}(m) = mean_x;
-        p.mean_y{d}(m) = mean_y;
-      end
+        for m = 1:numel(p.gauid{d})
+            x = model.gaus(p.gauid{d}(m));
+            p.gauw{d}(m,:)  = x.w;
+            p.gauI{d}(m) = x.i;
+            mean_x = x.mean(1);
+            mean_y = x.mean(2);
+            
+            p.mean_x{d}(m) = mean_x;
+            p.mean_y{d}(m) = mean_y;
+        end
     end
-    components{c}(k) = p;
-  end
+    cell_components{1}(k) = p;
 end
 apps = cell(length(model.apps), 1);
 
 for i = 1:length(apps)
-  apps{i} = model.apps(i).w;
+    apps{i} = model.apps(i).w;
 end
+
+% Unwrap cell array; I can only assume a cell array was used to make struct
+% access easier (apparently Matlab doesn't require you to declare a struct
+% ahead of time if it's a cell? WTF?)
+components = cell_components{1};

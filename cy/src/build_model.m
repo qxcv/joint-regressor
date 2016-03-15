@@ -23,7 +23,7 @@ model.apps = struct('w',{},'i',{});
 % deformation gaussian parameters
 model.gaus    = struct('w',{},'i',{});
 
-model.components{1} = struct('parent',{}, 'pid', {}, 'nbh_IDs', {}, ...
+model.components = struct('parent',{}, 'pid', {}, 'nbh_IDs', {}, ...
   'biasid',{},'appid',{},'app_global_ids',{},'gauid',{});
 
 model.subpose_pa = subpose_pa;
@@ -83,6 +83,6 @@ for subpose_idx = 1:length(subpose_pa)
         p.gauid = ng+1;
     end
     
-    np = length(model.components{1});
-    model.components{1}(np+1) = p;
+    np = length(model.components);
+    model.components(np+1) = p;
 end

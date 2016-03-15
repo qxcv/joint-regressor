@@ -34,7 +34,7 @@ end
 if ~exist('maxsize', 'var')
   % Estimated #sv = (wpos + 1) * # of positive examples
   % maxsize*1e9/(4*model.len)  = # of examples we can store, encoded as 4-byte floats
-  no_sv = (wpos+1) * length(pos);
+  no_sv = (wpos+1) * pos.num_pairs;
   maxsize = 10 * no_sv * 4 * sparselen(model) / 1e9;
   maxsize = min(max(maxsize,conf.memsize),7.5);
 end
@@ -93,7 +93,7 @@ for t = 1:iter,
   
   qp_prune();
   qp_opt();
-  model = vec2model(qp_w(),model);
+  model = vec2model(qp_w(), model);
   
   % grab negative examples from negative images
   mining_onneg(model, neg, nmax)
@@ -112,6 +112,7 @@ for t = 1:iter,
 end
 fprintf('qp.x size = [%d %d]\n',size(qp.x));
 clear global qp;
+end
 
 % negative mining on negative images
 function numnegatives = mining_onneg(model, neg, nmax)
@@ -119,12 +120,14 @@ model.interval = 3;
 numnegatives = 0;
 global qp;
 % grab negative examples from negative images
-for i = 1:length(neg)
-  
-  fprintf('\n Image(%d/%d)',i,length(neg));
+for neg_num = 1:neg.num_pairs
+  % XXX: Needs to be updated to handle pairs
+  fprintf('\n Image(%d/%d)', neg_num, neg.num_pairs);
   % last argument is a label for the pose. detect() will use this to update the
   % global qp (ugh).
-  [box, model] = detect(neg(i), model, -1, [], 0, i, -1);
+  d1 = neg.data(neg.pairs(neg_num).fst);
+  d2 = neg.data(neg.pairs(neg_num).snd);
+  [box, model] = detect(d1, d2, model, -1, [], 0, neg_num, -1);
   numnegatives = numnegatives + size(box,1);
   fprintf(' #cache+%d=%d/%d, #sv=%d, #sv>0=%d, (est)UB=%.4f, LB=%.4f', ...
       size(box,1), qp.n, nmax, sum(qp.sv), sum(qp.a>0), qp.ub, qp.lb);
@@ -134,20 +137,32 @@ for i = 1:length(neg)
     break;
   end
 end
+end
 
 % get positive examples using latent detections
 % we create virtual examples by flipping each image left to right
 function numpositives = poslatent(name, t, model, pos, overlap)
-numpos = length(pos);
-numpositives = zeros(length(model.components), 1);
+num_pairs = pos.num_pairs;
+% numpositives was length(model.components), which I think would have been
+% 1 before I changed model.components from a 1x1 cell array containing a
+% single struct array to just a struct array itself.
+numpositives = [];
 minsize = prod(double(model.tsize*model.sbin));
 
-for ii = 1:numpos
-  fprintf('%s: iter %d: latent positive: %d/%d\n', name, t, ii, numpos);
+for pair_num = 1:num_pairs
+  fprintf('%s: iter %d: latent positive: %d/%d\n', name, t, pair_num, num_pairs);
   % skip small examples
-  scale_x = pos(ii).scale_x; scale_y = pos(ii).scale_y;
-  bbox.xy = [pos(ii).joints(:,1)-scale_x, pos(ii).joints(:,2)-scale_y, ...
-    pos(ii).joints(:,1)+scale_x, pos(ii).joints(:,2)+scale_y];
+  pair = pos.pairs(pair_num);
+  scale_x = pair.scale_x; scale_y = pair.scale_y;
+  d1 = pos.data(pair.fst);
+  d2 = pos.data(pair.snd);
+  all_joints = cat(2, d1, d2);
+  assert(ismatrix(all_joints) && size(all_joints, 2) == 2);
+  % XXX: Needs to handle pairs properly.
+  % also, remember that scale_x/scale_y measure joint position (so the
+  % below is actually a big matrix with one row per joint).
+  bbox.xy = [all_joints(:,1)-scale_x, all_joints(:,2)-scale_y, ...
+    all_joints(:,1)+scale_x, all_joints(:,2)+scale_y];
   area = (bbox.xy(:,3)-bbox.xy(:,1)+1).*(bbox.xy(:,4)-bbox.xy(:,2)+1);
   if any(area < minsize/1.5)
     % skip only when exmaple are too small
@@ -158,12 +173,13 @@ for ii = 1:numpos
   % note that detect is updating qp using ii and the label which we supply
   % it at the end, as above (but the label is 1 this time since we have a
   % positive)
-  box = detect(pos(ii), model, 0, bbox, overlap, ii, 1);
+  box = detect(d1, d2, model, 0, bbox, overlap, pair_num, 1);
   if ~isempty(box),
     fprintf(' (comp=%d,sc=%.3f)\n',box(1,end-1),box(1,end));
     c = box(1,end-1);
-    numpositives(c) = numpositives(c)+1;
+    numpositives(c) = numpositives(c)+1; %#ok<AGROW>
   end
+end
 end
 
 % Compute score (weights*x) on positives examples (see qp_write.m)
@@ -176,52 +192,51 @@ y = qp.i(1,1:qp.n);
 I = find(y == 1);
 w = qp.w + qp.w0.*qp.wreg;
 scores = score(w,qp.x,I) / qp.Cpos;
+end
 
 % Computes expected number of nonzeros in sparse feature vector
 function len = sparselen(model)
-
 numblocks = 0;
-for c = 1:length(model.components)
-  feat = zeros(model.len,1);
-  for p = model.components{c},
+feat = zeros(model.len,1);
+for p = model.components,
     if ~isempty(p.biasid)
-      x = model.bias(p.biasid(1));    % use only one biase
-      i1 = x.i;
-      i2 = i1 + numel(x.w) - 1;
-      feat(i1:i2) = 1;
-      numblocks = numblocks + 1;
+        x = model.bias(p.biasid(1));    % use only one biase
+        i1 = x.i;
+        i2 = i1 + numel(x.w) - 1;
+        feat(i1:i2) = 1;
+        numblocks = numblocks + 1;
     end
     if ~isempty(p.appid)
-      x  = model.apps(p.appid(1));  % use only one appearance filter
-      i1 = x.i;
-      i2 = i1 + numel(x.w) - 1;
-      feat(i1:i2) = 1;
-      numblocks = numblocks + 1;
+        x  = model.apps(p.appid(1));  % use only one appearance filter
+        i1 = x.i;
+        i2 = i1 + numel(x.w) - 1;
+        feat(i1:i2) = 1;
+        numblocks = numblocks + 1;
     end
     nbh_N = numel(p.nbh_IDs);
     if ~isempty(p.pdefid)
-      for i = 1:nbh_N
-        % use one deformation prior for each neighbor
-        x = model.pdefs(p.pdefid(i));
-        i1 = x.i;
-        i2 = i1 + numel(x.w) - 1;
-        feat(i1:i2) = 1;
-        numblocks = numblocks + 1;
-      end
+        for i = 1:nbh_N
+            % use one deformation prior for each neighbor
+            x = model.pdefs(p.pdefid(i));
+            i1 = x.i;
+            i2 = i1 + numel(x.w) - 1;
+            feat(i1:i2) = 1;
+            numblocks = numblocks + 1;
+        end
     end
     if ~isempty(p.gauid)
-      for i = 1:nbh_N
-        % use only one kind of deformation in each mixture
-        x  = model.gaus(p.gauid{i}(1));
-        i1 = x.i;
-        i2 = i1 + numel(x.w) - 1;
-        feat(i1:i2) = 1;
-        numblocks = numblocks + 1;
-      end
+        for i = 1:nbh_N
+            % use only one kind of deformation in each mixture
+            x  = model.gaus(p.gauid{i}(1));
+            i1 = x.i;
+            i2 = i1 + numel(x.w) - 1;
+            feat(i1:i2) = 1;
+            numblocks = numblocks + 1;
+        end
     end
-  end
-  
-  % Number of entries needed to encode a block-sparse representation
-  %   1 + numberofblocks*2 + #nonzeronumbers
-  len = 1 + numblocks*2 + sum(feat);
+end
+
+% Number of entries needed to encode a block-sparse representation
+%   1 + numberofblocks*2 + #nonzeronumbers
+len = 1 + numblocks*2 + sum(feat);
 end

@@ -1,4 +1,5 @@
-function pyra = impyra(im, flow, cnn_model, mean_pixels, step, psize, interval, scale_factor)
+function pyra = impyra(im, flow, cnn_model, mean_pixels, step, psize, ...
+    interval, scale_factor)
 % Compute feature pyramid.
 %
 % pyra.feat{i} is the i-th level of the feature pyramid.

@@ -1,7 +1,11 @@
-function [pyra, unary_map] = imCNNdet(im, model, upS)
+function [pyra, unary_map] = imCNNdet(im_stack, flow, model, upS)
 if ~exist('upS', 'var')
   upS = 1;        % by default, we do not upscale the image
 end
+
+assert(size(im_stack, 3) == 6, 'Need RGBRGB channels');
+assert(size(im_stack) == size(flow) | [0 0 1], ...
+    'Stack and flow should have same width/height');
 
 cnnpar = model.cnn;
 persistent cnn_model;
@@ -21,7 +25,10 @@ if upS > 1
   upS = min(upS, 600 / max(imx,imy));
 end
 % XXX: This does not pass the right parameters into impyra
-pyra = impyra(im, model, cnn_model, upS);
+% impyra(im, flow, cnn_model, mean_pixels, step, psize, ...
+%        interval, scale_factor)
+pyra = impyra(im_stack, flow, cnn_model, cnnpar.mean_pixels, ...
+    cnnpar.step, cnnpar.psize, model.interval, upS);
 max_scale = numel(pyra);
 FLT_MIN = realmin('single');
 % 0.01;
@@ -29,7 +36,7 @@ FLT_MIN = realmin('single');
 nbh_IDs = model.nbh_IDs;
 unary_map = cell(max_scale, 1);
 num_subparts = numel(nbh_IDs);
-model_parts = model.components{1};
+model_parts = model.components;
 
 for scale_idx = 1:max_scale
   joint_prob = pyra(scale_idx).feat;

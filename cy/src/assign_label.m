@@ -18,10 +18,11 @@ labels = struct(...
 for pair_idx = 1:all_data.num_pairs
 %     labels(pair_idx).mix_id = cell(subpose_no, 1);
     labels(pair_idx).global_id = int32(zeros([subpose_no 1]));
-    pair = all_data.pairs(pair_idx, :);
+    this_pair = all_data.pairs(pair_idx);
+    pair_idxs = [this_pair.fst this_pair.snd];
     for subpose_idx = 1:subpose_no
         subpose = subposes(subpose_idx).subpose;
-        joint_locs_mat = subpose_joint_locs(all_data.data, pair, subpose);
+        joint_locs_mat = subpose_joint_locs(all_data.data, pair_idxs, subpose);
         assert(ismatrix(joint_locs_mat));
         % Flatten because centroids are flat
         joint_locs = joint_locs_mat(:);

@@ -26,10 +26,9 @@ for x = model.gaus
   w0(j) = .001;
   noneg = [noneg uint32(j)];
 end
+
 % Regularize root biases differently
-for i = 1:length(model.components)
-  b = model.components{i}(1).biasid;
-  x = model.bias(b);
-  j = x.i:x.i+numel(x.w)-1;
-  wreg(j) = .001;
-end
+b = model.components(1).biasid;
+x = model.bias(b);
+j = x.i:x.i+numel(x.w)-1;
+wreg(j) = .001;
