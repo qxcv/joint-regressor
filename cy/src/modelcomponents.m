@@ -2,37 +2,39 @@
 function [components, apps] = modelcomponents(model)
 cell_components = cell(1, 1);
 
-for k = 1:length(model.components)
-    p = model.components(k); % has nbh_IDs
-    nbh_N = numel(p.nbh_IDs);
-    p.Im = cell(nbh_N, 1);
+assert(false, 'Need to fix modelcomponents');
+
+for subpose_idx = 1:length(model.components)
+    subpose = model.components(subpose_idx); % has nbh_IDs
+    nbh_N = numel(subpose.nbh_IDs);
+    subpose.Im = cell(nbh_N, 1);
     % store the scale of each part relative to the component root
-    par = p.parent;
-    assert(par < k);
-    p.b = [model.bias(p.biasid).w];
-    p.b = reshape(p.b, [1 size(p.biasid)]);
-    p.biasI = [model.bias(p.biasid).i];
-    p.biasI = reshape(p.biasI, size(p.biasid));
+    parent_idx = subpose.parent;
+    assert(parent_idx < subpose_idx);
+    subpose.b = [model.bias(subpose.biasid).w];
+    subpose.b = reshape(subpose.b, [1 size(subpose.biasid)]);
+    subpose.biasI = [model.bias(subpose.biasid).i];
+    subpose.biasI = reshape(subpose.biasI, size(subpose.biasid));
     
-    x = model.apps(p.appid);
+    x = model.apps(subpose.appid);
     
-    p.sizy = model.tsize(1);
-    p.sizx = model.tsize(2);
-    p.appI = x.i;
+    subpose.sizy = model.tsize(1);
+    subpose.sizx = model.tsize(2);
+    subpose.appI = x.i;
     
     for d = 1:nbh_N
-        for m = 1:numel(p.gauid{d})
-            x = model.gaus(p.gauid{d}(m));
-            p.gauw{d}(m,:)  = x.w;
-            p.gauI{d}(m) = x.i;
+        for m = 1:numel(subpose.gauid{d})
+            x = model.gaus(subpose.gauid{d}(m));
+            subpose.gauw{d}(m,:)  = x.w;
+            subpose.gauI{d}(m) = x.i;
             mean_x = x.mean(1);
             mean_y = x.mean(2);
             
-            p.mean_x{d}(m) = mean_x;
-            p.mean_y{d}(m) = mean_y;
+            subpose.mean_x{d}(m) = mean_x;
+            subpose.mean_y{d}(m) = mean_y;
         end
     end
-    cell_components{1}(k) = p;
+    cell_components{1}(subpose_idx) = subpose;
 end
 apps = cell(length(model.apps), 1);
 

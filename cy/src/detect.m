@@ -24,12 +24,12 @@ function [boxes,model,ex] = detect(im1_info, im2_info, model, thresh, ...
 INF = 1e10;
 
 if nargin > 3 && ~isempty(bbox)
-  latent = true;
-  if label > 0
-    thresh = -INF;
-  end
+    latent = true;
+    if label > 0
+        thresh = -INF;
+    end
 else
-  latent = false;
+    latent = false;
 end
 
 % Compute the feature pyramid and prepare filter
@@ -38,11 +38,10 @@ im2 = readim(im2_info);
 flow = imflow(im1_info.image_path, im2_info.image_path);
 im_stack = cat(3, im1, im2);
 % if has box information, crop it
+assert(false, 'Need to fix the rest of detect');
 if latent && label > 0
-  % crop positive images to speed up latent search
-  % XXX: This needs to be changed to handle flow. Also it won't work until
-  % I actually have scales :P
-  % [im, bbox] = cropscale_pos(im, bbox, model.cnn.psize);
+    % crop positive images to speed up latent search
+    [im_stack, flow, bbox] = cropscale_pos(im_stack, flow, bbox, model.cnn.psize);
 end
 
 [pyra, unary_map] = imCNNdet(im_stack, flow, model);
@@ -53,15 +52,15 @@ levels = 1:length(pyra);
 % Randomize order to increase effectiveness of model updating
 write = false;
 if nargin > 5
-  global qp;
-  write  = true;
-  levels = levels(randperm(length(levels)));
+    global qp;
+    write  = true;
+    levels = levels(randperm(length(levels)));
 end
 if nargin < 6
-  id = 0;
+    id = 0;
 end
 if nargin < 7
-  label = 0;
+    label = 0;
 end
 
 % Cache various statistics derived from model
@@ -74,25 +73,26 @@ ex.blocks = [];
 ex.id = [label id 0 0 0];
 
 if latent && label > 0
-  % record best when doing latent on positive example
-  best_ex = ex;
-  best_box = [];
+    % record best when doing latent on positive example
+    best_ex = ex;
+    best_box = [];
 end
 
 % Iterate over random permutation of scales and components,
 for level = levels
     % Iterate through mixture components
     sizs = pyra(level).sizs;
-    parts = components;
-    p_no = length(parts);
+    num_subposes = length(components);
+    assert(num_subposes > 1, 'Only %d parts?\n', num_subposes);
     
     % Skip if there is no overlap of root filter with bbox
     if latent
         skipflag = 0;
-        for p = 1:p_no
+        for subpose_idx = 1:num_subposes
             % because all mixtures for one part is the same size, we only need to do this once
-            ovmask = testoverlap(parts(p).sizx(1), parts(p).sizy(1), ...
-                sizs(1), sizs(2), pyra(level), bbox.xy(p,:), overlap);
+            ovmask = testoverlap(components(subpose_idx).sizx(1), ...
+                components(subpose_idx).sizy(1), sizs(1), sizs(2), ...
+                pyra(level), bbox.xy(subpose_idx,:), overlap);
             if ~any(ovmask)
                 skipflag = 1;
                 break;
@@ -104,18 +104,25 @@ for level = levels
     end
     % Local scores
     
-    for p = 1:p_no
-        parts(p).appMap = unary_map{level}{p};
+    for subpose_idx = 1:num_subposes
+        components(subpose_idx).appMap = unary_map{level}{subpose_idx};
+        assert(ndims(components(subpose_idx).appMap) == 3, ...
+            'Need h*w*K unary map');
         
-        f = parts(p).appid;
-        parts(p).score = parts(p).appMap * apps{f};
+        % appid will be 1x1, and gives the unary weight associated with
+        % this subpose
+        f = components(subpose_idx).appid;
+        assert(isscalar(f), 'Should have only one weight ID');
+        assert(isscalar(apps{f}, 'Should have only one weight for that ID'));
+        components(subpose_idx).score = components(subpose_idx).appMap * apps{f};
         
-        parts(p).level = level;
+        components(subpose_idx).level = level;
         
         if latent
-            ovmask = testoverlap(parts(p).sizx, parts(p).sizy, ...
-                sizs(1), sizs(2), pyra(level), bbox.xy(p,:), overlap);
-            tmpscore = parts(p).score;
+            assert(false, 'Need to fix this check to deal with bigger unaries');
+            ovmask = testoverlap(components(subpose_idx).sizx, components(subpose_idx).sizy, ...
+                sizs(1), sizs(2), pyra(level), bbox.xy(subpose_idx,:), overlap);
+            tmpscore = components(subpose_idx).score;
             % label supervision
             if label > 0
                 tmpscore(~ovmask) = -INF;
@@ -129,26 +136,28 @@ for level = levels
             elseif label < 0
                 tmpscore(ovmask) = -INF;
             end
-            parts(p).score = tmpscore;
+            components(subpose_idx).score = tmpscore;
         end
     end
     
     % Walk from leaves to root of tree, passing message to parent
-    for p = p_no:-1:2
-        child = parts(p);
-        par = parts(p).parent;
-        parent = parts(par);
-        cbid = find(child.nbh_IDs == parent.pid);
-        pbid = find(parent.nbh_IDs == child.pid);
+    for subpose_idx = num_subposes:-1:2
+        child = components(subpose_idx);
+        par = components(subpose_idx).parent;
+        parent = components(par);
+        limb_to_parent = find(child.nbh_IDs == parent.pid);
+        limb_to_child = find(parent.nbh_IDs == child.pid);
         
-        [msg,parts(p).Ix,parts(p).Iy,parts(p).Im{cbid},parts(par).Im{pbid}] ...
-            = passmsg(child, parent, cbid, pbid);
-        parts(par).score = parts(par).score + msg;
+        [msg, components(subpose_idx).Ix, components(subpose_idx).Iy, ...
+            components(subpose_idx).Im{limb_to_parent}, ...
+            components(par).Im{limb_to_child}] ...
+            = passmsg(child, parent, limb_to_parent, limb_to_child);
+        components(par).score = components(par).score + msg;
     end
     
     % Add bias to root score
-    parts(1).score = parts(1).score + parts(1).b;
-    rscore = parts(1).score;
+    components(1).score = components(1).score + components(1).b;
+    rscore = components(1).score;
     
     % keep the positive example with the highest score in latent mode
     if latent && label > 0
@@ -163,16 +172,13 @@ for level = levels
         x = X(i);
         y = Y(i);
         
-        [box,ex] = backtrack(x, y, parts, pyra(level), ex, write);
+        [box, ex] = backtrack(x, y, components, pyra(level), ex, write);
         
         boxes(cnt,:) = [box c rscore(y,x)];
         if write && (~latent || label < 0)
-            % we're expected to update qp, and we have a non-latent node //or// a
-            % negative sample (there's not actually a pose in the image)
             qp_write(ex);
             qp.ub = qp.ub + qp.Cneg*max(1+rscore(y,x),0);
         elseif latent && label > 0
-            % otherwise, if we have a latent positive
             if isempty(best_box)
                 best_box = boxes(cnt,:);
                 best_ex = ex;
@@ -185,8 +191,8 @@ for level = levels
     end
     
     % Crucial DEBUG assertion:
-    % If we're computing features, assert extracted feature re-produces score
-    % (see qp_writ.m for computing original score)
+    % If we're computing features, assert extracted feature re-produces
+    % score (see qp_writ.m for computing original score)
     if write && (~latent || label < 0) && ~isempty(X) && qp.n < length(qp.a)
         w = -(qp.w + qp.w0.*qp.wreg) / qp.Cneg;
         assert(abs(score(w,qp.x,qp.n) - rscore(y,x)) < 1e-5);
@@ -203,10 +209,10 @@ end
 boxes = boxes(1:cnt,:);
 
 if latent && ~isempty(boxes) && label > 0
-  boxes = best_box;
-  if write
-    qp_write(best_ex);
-  end
+    boxes = best_box;
+    if write
+        qp_write(best_ex);
+    end
 end
 end
 
@@ -228,57 +234,57 @@ y2  = y1 + p.sizy*scale - 1;
 box(k,:) = [x1 y1 x2 y2];
 
 if write
-  ex.id(3:5) = [p.level round(x+p.sizx/2) round(y+p.sizy/2)];
-  ex.blocks = [];
-  ex.blocks(end+1).i = p.biasI;
-  ex.blocks(end).x   = 1;
-  f = parts(k).appMap(y, x);
-  ex.blocks(end+1).i = p.appI;
-  ex.blocks(end).x   = f;
+    ex.id(3:5) = [p.level round(x+p.sizx/2) round(y+p.sizy/2)];
+    ex.blocks = [];
+    ex.blocks(end+1).i = p.biasI;
+    ex.blocks(end).x   = 1;
+    f = parts(k).appMap(y, x);
+    ex.blocks(end+1).i = p.appI;
+    ex.blocks(end).x   = f;
 end
 for k = 2:numparts
-  p   = parts(k);
-  par = p.parent;
-  
-  x   = ptr(par,1);
-  y   = ptr(par,2);
-  
-  ptr(k,1) = p.Ix(y,x);
-  ptr(k,2) = p.Iy(y,x);
-  
-  x1  = (ptr(k,1) - 1 - pyra.padx)*scale+1;
-  y1  = (ptr(k,2) - 1 - pyra.pady)*scale+1;
-  x2  = x1 + p.sizx*scale - 1;
-  y2  = y1 + p.sizy*scale - 1;
-  box(k,:) = [x1 y1 x2 y2];
-  
-  if write
-    cbid = find(p.nbh_IDs == parts(par).pid);
-    pbid = find(parts(par).nbh_IDs == p.pid);
+    p   = parts(k);
+    par = p.parent;
     
-    cm = p.Im{cbid}(y,x);
-    pm = parts(par).Im{pbid}(y,x);
+    x   = ptr(par,1);
+    y   = ptr(par,2);
     
-    % two prior of deformation
-    ex.blocks(end+1).i = p.pdefI(cbid);
-    ex.blocks(end).x = p.defMap{cbid}(ptr(k,2),ptr(k,1),cm);
+    ptr(k,1) = p.Ix(y,x);
+    ptr(k,2) = p.Iy(y,x);
     
-    % two deformations
-    % XXX: This may be incorrect.
-    ex.blocks(end+1).i = p.gauI{cbid}(cm);
-    ex.blocks(end).x   = defvector(p, ptr(k,1),ptr(k,2),x,y,cm,cbid);
+    x1  = (ptr(k,1) - 1 - pyra.padx)*scale+1;
+    y1  = (ptr(k,2) - 1 - pyra.pady)*scale+1;
+    x2  = x1 + p.sizx*scale - 1;
+    y2  = y1 + p.sizy*scale - 1;
+    box(k,:) = [x1 y1 x2 y2];
     
-    ex.blocks(end+1).i = parts(par).gauI{pbid}(pm);
-    ex.blocks(end).x   = defvector(parts(par),x,y,ptr(k,1),ptr(k,2),pm,pbid);
-    
-    x   = ptr(k,1);
-    y   = ptr(k,2);
-    
-    % unary
-    f   = parts(k).appMap(y,x);
-    ex.blocks(end+1).i = p.appI;
-    ex.blocks(end).x = f;
-  end
+    if write
+        cbid = find(p.nbh_IDs == parts(par).pid);
+        pbid = find(parts(par).nbh_IDs == p.pid);
+        
+        cm = p.Im{cbid}(y,x);
+        pm = parts(par).Im{pbid}(y,x);
+        
+        % two prior of deformation
+        ex.blocks(end+1).i = p.pdefI(cbid);
+        ex.blocks(end).x = p.defMap{cbid}(ptr(k,2),ptr(k,1),cm);
+        
+        % two deformations
+        % XXX: This may be incorrect.
+        ex.blocks(end+1).i = p.gauI{cbid}(cm);
+        ex.blocks(end).x   = defvector(p, ptr(k,1),ptr(k,2),x,y,cm,cbid);
+        
+        ex.blocks(end+1).i = parts(par).gauI{pbid}(pm);
+        ex.blocks(end).x   = defvector(parts(par),x,y,ptr(k,1),ptr(k,2),pm,pbid);
+        
+        x   = ptr(k,1);
+        y   = ptr(k,2);
+        
+        % unary
+        f   = parts(k).appMap(y,x);
+        ex.blocks(end+1).i = p.appI;
+        ex.blocks(end).x = f;
+    end
 end
 box = reshape(box',1,4*numparts);
 end
@@ -289,10 +295,10 @@ function model = optimize(model)
 global qp;
 fprintf('.');
 if qp.lb < 0 || qp.n == length(qp.a),
-  qp_opt();
-  qp_prune();
+    qp_opt();
+    qp_prune();
 else
-  qp_one();
+    qp_one();
 end
 model = vec2model(qp_w(),model);
 end

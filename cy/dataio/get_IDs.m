@@ -31,5 +31,9 @@ end
 
 global_IDs = cell(p_no, 1);
 for p = 1:p_no
-  global_IDs{p} = (p-1)*K+1:p*K;
+  % This leaves ID 1 as the background ID
+  global_IDs{p} = (p-1)*K+2:p*K+1;
+  assert(numel(global_IDs{p}) == K);
+  assert(all(global_IDs{p} > 1));
+end
 end

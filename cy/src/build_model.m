@@ -1,5 +1,5 @@
-function model = build_model(subpose_pa, K, cnn_conf, mean_pixels, ...
-    interval, tsize)
+function model = build_model(subpose_pa, K, subpose_disps, cnn_conf, mean_pixels, ...
+    interval, tsize, memsize)
 % This function merges together separate part models into a tree structure
 
 [nbh_IDs, global_IDs, target_IDs] = get_IDs(subpose_pa, K);
@@ -10,11 +10,14 @@ model.cnn.mean_pixels = mean_pixels;
 model.cnn.cnn_output_dim = global_IDs{end}(end)+1;   % +1 for background
 model.cnn.psize = tsize * cnn_conf.step;
 
+model.memsize = memsize;
+
 model.tsize = tsize;
 model.global_IDs = global_IDs;
 model.nbh_IDs = nbh_IDs;
 model.target_IDs = target_IDs;
 model.K = K;
+model.subpose_disps = subpose_disps;
 
 % bias
 model.bias    = struct('w',{},'i',{});
@@ -24,12 +27,14 @@ model.apps = struct('w',{},'i',{});
 model.gaus    = struct('w',{},'i',{});
 
 model.components = struct('parent',{}, 'pid', {}, 'nbh_IDs', {}, ...
-  'biasid',{},'appid',{},'app_global_ids',{},'gauid',{});
+  'subpose_disps', {}, 'biasid', {}, 'appid', {}, 'app_global_ids', {}, ...
+  'gauid', {});
 
 model.subpose_pa = subpose_pa;
 model.interval = interval;
 model.sbin = cnn_conf.step;
 model.len = 0;
+model.root = [];
 
 % add children
 for subpose_idx = 1:length(subpose_pa)
@@ -43,6 +48,21 @@ for subpose_idx = 1:length(subpose_pa)
     p.parent = parent;
     p.pid    = child;
     p.nbh_IDs = nbh_IDs{p.pid};
+    
+    if parent == 0
+        assert(isempty(model.root));
+        model.root = subpose_idx;
+    end
+    
+    % Will be K*K*2 matrix; use like disp = p.subpose_disps(child_type,
+    % parent_type, :) to get child_center - parent_center (IIRC)
+    if parent ~= 0
+        p.subpose_disps = squeeze(subpose_disps(subpose_idx, :, :, :));
+        assert(ndims(p.subpose_disps) == 3);
+        assert(size(p.subpose_disps, 3) == 2);
+    else
+        p.subpose_disps = [];
+    end
     
     % add bias (only to root, i.e. parent == 0)
     p.biasid = [];
@@ -85,4 +105,7 @@ for subpose_idx = 1:length(subpose_pa)
     
     np = length(model.components);
     model.components(np+1) = p;
+end
+
+assert(isscalar(model.root), 'Could not find root part');
 end

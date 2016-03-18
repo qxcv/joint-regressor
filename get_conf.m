@@ -24,6 +24,9 @@ conf.cnn.step = 32;
 % Levels of the feature pyramid in each octave. Might have to turn this
 % down, since 10 is insane.
 conf.interval = 10;
+% Not even sure what this is for. Number of support vectors or something?
+% Should remove it if it turns out not to be needed.
+conf.memsize = 16;
 
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 

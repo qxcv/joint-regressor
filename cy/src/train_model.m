@@ -1,4 +1,4 @@
-function model = train_model(conf, pos_val, neg_val, edge_means, tsize)
+function model = train_model(conf, pos_val, neg_val, subpose_disps, tsize)
 % IMPORTANT: pos_val and neg_val must be structs with .data and .pairs
 % members (probably .name as well), as produced by unify_dataset.m
 cachedir = conf.cache_dir;
@@ -15,12 +15,12 @@ catch
     % XXX: As far as I can tell, this isn't used except to extract its
     % .near attribute below (which I'm not calculating at the moment).
     derive_labels(cachedir, subpose_pa, pos_val, clusters, ...
-        subposes, edge_means, tsize);
+        subposes, subpose_disps, tsize);
     
     % XXX: Should pass this in more elegantly :/
     mean_pixels = load(fullfile(cachedir, 'mean_pixel.mat'));
-    model = build_model(subpose_pa, conf.biposelet_classes, conf.cnn, ...
-        mean_pixels, conf.interval, tsize);
+    model = build_model(subpose_pa, conf.biposelet_classes, subpose_disps, ...
+        conf.cnn, mean_pixels, conf.interval, tsize, conf.memsize);
 %     % add near filed to provide mixture supervision
 %     for ii = 1:numel(pos_val)
 %         % XXX: Really need to add a .near field when I do my clustering :/
@@ -28,7 +28,6 @@ catch
 %         % best poselet (one vector of those for each subpose).
 %         pos_val(ii).near = label_val(ii).near;
 %     end
-    assert(false, 'you need to fix train()');
     model = train(cls, model, pos_val, neg_val, 1);
     parsave([cachedir cls], model);
 end

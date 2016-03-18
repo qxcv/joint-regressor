@@ -1,38 +1,46 @@
-function [score,Ix,Iy,Imc,Imp] = passmsg(child, parent, cbid, pbid)
-assert(numel(cbid) == 1 && numel(pbid) == 1);
-Ny  = size(parent.score,1);
-Nx  = size(parent.score,2);
+function [score, Ix, Iy, Imc, Imp] = passmsg(child, parent, limb_to_parent, limb_to_child)
+assert(numel(limb_to_parent) == 1 && numel(limb_to_child) == 1);
+height = size(parent.score, 1);
+width = size(parent.score, 2);
 
-MC = numel(child.gauid{cbid});
-MP = numel(parent.gauid{pbid});
+assert(false, 'Fix passmsg!');
 
-[score0,Ix0,Iy0] = deal(zeros(Ny,Nx,MC,MP));
-for mc = 1:MC
-  for mp = 1:MP
-    % XXX: .defMap and .pdw no longer exist. They were just for the "prior
-    % of deformation", which is the limb type which Chen & Yuille's CNN
-    % predicted. I'm not predicting limb types, so I don't need that.
-    [score0(:,:,mc,mp), Ix0(:,:,mc,mp), Iy0(:,:,mc,mp)] = ...
-      distance_transform( double(child.score + (child.pdw(cbid)*child.defMap{cbid}(:,:,mc))), ...
-      child.gauw{cbid}(mc,:), parent.gauw{pbid}(mp,:), ...
-      [child.mean_x{cbid}(mc), child.mean_y{cbid}(mc)], ...
-      ... XXX: I've ripped the variance thing out of here, but I should rip
-      ... it out of distance_transform as well.
-      [1 1], ... [child.var_x{cbid}(mc), child.var_y{cbid}(mc)], ...
-      [parent.mean_x{pbid}(mp), parent.mean_y{pbid}(mp)], ...
-      [1 1], ... [parent.var_x{pbid}(mp), parent.var_y{pbid}(mp)], ...
-      int32(Nx), int32(Ny) );
-    
-    score0(:,:,mc,mp) = score0(:,:,mc,mp) + parent.pdw(pbid)*parent.defMap{pbid}(:,:,mp);
-  end
+num_child_parent_types = numel(child.gauid{limb_to_parent});
+num_parent_child_types = numel(parent.gauid{limb_to_child});
+
+[score0, Ix0, Iy0] = deal(zeros(height, width, num_child_parent_types, num_parent_child_types));
+for c_to_p_type = 1:num_child_parent_types
+    for p_to_c_type = 1:num_parent_child_types
+        % XXX: need to change code so that .appMap is no longer
+        % incorporated at a higher level. Instead, it should be passed in
+        % here so that this function can get the right score heatmap for
+        % each type combination.
+        fixed_score_map = double(child.score ...
+            + (child.pdw(limb_to_parent) * child.defMap{limb_to_parent}(:, :, c_to_p_type)));
+        [score0(:, :, c_to_p_type,p_to_c_type), Ix0(:, :, c_to_p_type,p_to_c_type), ...
+            Iy0(:, :, c_to_p_type,p_to_c_type)] = distance_transform(...
+            fixed_score_map, ...
+            child.gauw{limb_to_parent}(c_to_p_type,:), parent.gauw{limb_to_child}(p_to_c_type,:), ...
+            [child.mean_x{limb_to_parent}(c_to_p_type), child.mean_y{limb_to_parent}(c_to_p_type)], ...
+            ... XXX: I've ripped the variance thing out of here, but I should rip
+            ... it out of distance_transform as well.
+            [1 1], ... Constant variance for limb from child to parent
+            [parent.mean_x{limb_to_child}(p_to_c_type), parent.mean_y{limb_to_child}(p_to_c_type)], ...
+            [1 1], ... Also constant variance for limb from parent to child
+            int32(width), int32(height));
+        
+        score0(:, :, c_to_p_type, p_to_c_type) = ...
+            score0(:, :, c_to_p_type, p_to_c_type) ...
+            + parent.pdw(limb_to_child)*parent.defMap{limb_to_child}(:, :, p_to_c_type);
+    end
 end
-score = reshape(score0, size(score0, 1),size(score0, 2), MC*MP);
+score = reshape(score0, size(score0, 1), size(score0, 2), num_child_parent_types*num_parent_child_types);
 [score, Imcp] = max(score, [], 3);
-[Imc, Imp] = ind2sub([MC,MP], Imcp);
-[Ix, Iy] = deal(zeros(Ny,Nx));
-for i = 1:Ny
-  for j = 1:Nx
-    Ix(i,j) = Ix0(i,j,Imc(i,j),Imp(i,j));
-    Iy(i,j) = Iy0(i,j,Imc(i,j),Imp(i,j));
-  end
+[Imc, Imp] = ind2sub([num_child_parent_types, num_parent_child_types], Imcp);
+[Ix, Iy] = deal(zeros(height, width));
+for row = 1:height
+    for col = 1:width
+        Ix(row, col) = Ix0(row, col, Imc(row, col), Imp(row, col));
+        Iy(row, col) = Iy0(row, col, Imc(row, col), Imp(row, col));
+    end
 end

@@ -28,7 +28,7 @@ for x = model.gaus
 end
 
 % Regularize root biases differently
-b = model.components(1).biasid;
+b = model.components(model.root).biasid;
 x = model.bias(b);
 j = x.i:x.i+numel(x.w)-1;
 wreg(j) = .001;

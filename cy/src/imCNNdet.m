@@ -24,9 +24,6 @@ if upS > 1
   [imx, imy, ~] = size(im);
   upS = min(upS, 600 / max(imx,imy));
 end
-% XXX: This does not pass the right parameters into impyra
-% impyra(im, flow, cnn_model, mean_pixels, step, psize, ...
-%        interval, scale_factor)
 pyra = impyra(im_stack, flow, cnn_model, cnnpar.mean_pixels, ...
     cnnpar.step, cnnpar.psize, model.interval, upS);
 max_scale = numel(pyra);
@@ -35,23 +32,24 @@ FLT_MIN = realmin('single');
 
 nbh_IDs = model.nbh_IDs;
 unary_map = cell(max_scale, 1);
-num_subparts = numel(nbh_IDs);
+num_subposes = numel(nbh_IDs);
 model_parts = model.components;
 
 for scale_idx = 1:max_scale
+  % the first dimension is the reponse of background, but app_global_ids
+  % accounts for that
   joint_prob = pyra(scale_idx).feat;
-  % the first dimension is the reponse of background
-  joint_prob = joint_prob(:,:,2:end);
   
   % marginalize
-  unary_map{scale_idx} = cell(num_subparts, 1);
-  for subpose_idx = 1:num_subparts
+  unary_map{scale_idx} = cell(num_subposes, 1);
+  for subpose_idx = 1:num_subposes
     app_global_ids = model_parts(subpose_idx).app_global_ids;
-    % TODO: What? What is it doing here?!
-    unary_map{scale_idx}{subpose_idx} = sum(joint_prob(:, :, app_global_ids), 3);
+    assert(all(app_global_IDs > 1));
+    % at each location l_i (for subpose index i, type index t_i),
+    % gives p(s=i,t=t_i | I(l_i); theta).
+    subpose_map = joint_prob(:, :, app_global_ids);
     % convert to log space
-    unary_map{scale_idx}{subpose_idx} = log(max(unary_map{scale_idx}{subpose_idx}, FLT_MIN));
+    unary_map{scale_idx}{subpose_idx} = log(max(subpose_map, FLT_MIN));
   end
 end
-
-
+end

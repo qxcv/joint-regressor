@@ -1,4 +1,4 @@
-function model = train(name, model, pos, neg, iter, C, wpos, maxsize, overlap)
+function model = train(name, model, pos, neg, num_iters, C, wpos, maxsize, overlap)
 % Train a structured SVM with latent assignement of positive variables
 %                      1     2      3    4    5     6  7     8        9
 % pos  = list of positive images with part annotations
@@ -17,10 +17,9 @@ function model = train(name, model, pos, neg, iter, C, wpos, maxsize, overlap)
 % arguments but only ever gets five of them.
 
 model.name = name;
-conf = global_conf();
 
-if ~exist('iter', 'var')
-  iter = 1;
+if ~exist('num_iters', 'var')
+  num_iters = 1;
 end
 
 if ~exist('C', 'var')
@@ -36,7 +35,7 @@ if ~exist('maxsize', 'var')
   % maxsize*1e9/(4*model.len)  = # of examples we can store, encoded as 4-byte floats
   no_sv = (wpos+1) * pos.num_pairs;
   maxsize = 10 * no_sv * 4 * sparselen(model) / 1e9;
-  maxsize = min(max(maxsize,conf.memsize),7.5);
+  maxsize = min(max(maxsize, model.memsize),7.5);
 end
 
 fprintf('Using %.3f GB\n', maxsize);
@@ -60,57 +59,58 @@ global qp;
 % qp.b(:,i) = bias of linear constraint
 % qp.d(i)   = ||qp.x(:,i)||^2
 % qp.a(i)   = ith dual variable
-qp.x   = zeros(len,nmax,'single');
-qp.i   = zeros(5,nmax,'int32');
-qp.b   = ones(nmax,1,'single');
-qp.d   = zeros(nmax,1,'double');
-qp.a   = zeros(nmax,1,'double');
-qp.sv  = false(1,nmax);
+qp.x   = zeros(len, nmax, 'single');
+qp.i   = zeros(5, nmax, 'int32');
+qp.b   = ones(nmax, 1, 'single');
+qp.d   = zeros(nmax, 1, 'double');
+qp.a   = zeros(nmax, 1, 'double');
+qp.sv  = false(1, nmax);
 qp.n   = 0;
 qp.lb = [];
 
-[qp.w,qp.wreg,qp.w0,qp.noneg] = model2vec(model);
+[qp.w, qp.wreg, qp.w0, qp.noneg] = model2vec(model);
 qp.Cpos = C*wpos;
 qp.Cneg = C;
 qp.w    = (qp.w - qp.w0).*qp.wreg;
 
-for t = 1:iter,
-  fprintf('\niter: %d/%d\n', t, iter);
-  
-  qp.n = 0;
-  numpositives = poslatent(name, t, model, pos, overlap);
-  
-  for i = 1:length(numpositives),
-    fprintf('component %d got %d positives\n', i, numpositives(i));
-  end
-  assert(qp.n <= nmax);
-  
-  % Fix positive examples as permanent support vectors
-  % Initialize QP soln to a valid weight vector
-  % Update QP with coordinate descent
-  qp.svfix = 1:qp.n;
-  qp.sv(qp.svfix) = 1;
-  
-  qp_prune();
-  qp_opt();
-  model = vec2model(qp_w(), model);
-  
-  % grab negative examples from negative images
-  mining_onneg(model, neg, nmax)
-  
-  % One final pass of optimization
-  qp_opt();
-  model = vec2model(qp_w(),model);
-  
-  fprintf('\nDONE iter: %d/%d #sv=%d/%d, LB=%.4f\n',t,iter,sum(qp.sv),nmax,qp.lb);
-  
-  % Compute minimum score on positive example (with raw, unscaled features)
-  r = sort(qp_scorepos());
-  model.thresh   = r(ceil(length(r)*.05));
-  model.lb = qp.lb;
-  model.ub = qp.ub;
+for iter_idx=1:num_iters,
+    fprintf('\niter: %d/%d\n', iter_idx, num_iters);
+    
+    qp.n = 0;
+    numpositives = poslatent(name, iter_idx, model, pos, overlap);
+    
+    for i = 1:length(numpositives),
+        fprintf('component %d got %d positives\n', i, numpositives(i));
+    end
+    assert(qp.n <= nmax);
+    
+    % Fix positive examples as permanent support vectors
+    % Initialize QP soln to a valid weight vector
+    % Update QP with coordinate descent
+    qp.svfix = 1:qp.n;
+    qp.sv(qp.svfix) = 1;
+    
+    qp_prune();
+    qp_opt();
+    model = vec2model(qp_w(), model);
+    
+    % grab negative examples from negative images
+    mining_onneg(model, neg, nmax)
+    
+    % One final pass of optimization
+    qp_opt();
+    model = vec2model(qp_w(),model);
+    
+    fprintf('\nDONE iter: %d/%d #sv=%d/%d, LB=%.4f\n', iter_idx, ...
+        num_iters, sum(qp.sv), nmax, qp.lb);
+    
+    % Compute minimum score on positive example (with raw, unscaled features)
+    r = sort(qp_scorepos());
+    model.thresh = r(ceil(length(r)*.05));
+    model.lb = qp.lb;
+    model.ub = qp.ub;
 end
-fprintf('qp.x size = [%d %d]\n',size(qp.x));
+fprintf('qp.x size = [%d %d]\n', size(qp.x));
 clear global qp;
 end
 
@@ -121,26 +121,26 @@ numnegatives = 0;
 global qp;
 % grab negative examples from negative images
 for neg_num = 1:neg.num_pairs
-  % XXX: Needs to be updated to handle pairs
-  fprintf('\n Image(%d/%d)', neg_num, neg.num_pairs);
-  % last argument is a label for the pose. detect() will use this to update the
-  % global qp (ugh).
-  d1 = neg.data(neg.pairs(neg_num).fst);
-  d2 = neg.data(neg.pairs(neg_num).snd);
-  [box, model] = detect(d1, d2, model, -1, [], 0, neg_num, -1);
-  numnegatives = numnegatives + size(box,1);
-  fprintf(' #cache+%d=%d/%d, #sv=%d, #sv>0=%d, (est)UB=%.4f, LB=%.4f', ...
-      size(box,1), qp.n, nmax, sum(qp.sv), sum(qp.a>0), qp.ub, qp.lb);
-  
-  % Stop if cache is full
-  if sum(qp.sv) == nmax,
-    break;
-  end
+    fprintf('\n Image(%d/%d)', neg_num, neg.num_pairs);
+    % last argument is a label for the pose. detect() will use this to update the
+    % global qp (ugh).
+    d1 = neg.data(neg.pairs(neg_num).fst);
+    d2 = neg.data(neg.pairs(neg_num).snd);
+    [box, model] = detect(d1, d2, model, -1, [], 0, neg_num, -1);
+    numnegatives = numnegatives + size(box,1);
+    fprintf(' #cache+%d=%d/%d, #sv=%d, #sv>0=%d, (est)UB=%.4f, LB=%.4f', ...
+        size(box,1), qp.n, nmax, sum(qp.sv), sum(qp.a>0), qp.ub, qp.lb);
+    
+    % Stop if cache is full
+    if sum(qp.sv) == nmax,
+        break;
+    end
 end
 end
 
 % get positive examples using latent detections
 % we create virtual examples by flipping each image left to right
+% XXX: where is the flipping part?
 function numpositives = poslatent(name, t, model, pos, overlap)
 num_pairs = pos.num_pairs;
 % numpositives was length(model.components), which I think would have been
@@ -150,35 +150,34 @@ numpositives = [];
 minsize = prod(double(model.tsize*model.sbin));
 
 for pair_num = 1:num_pairs
-  fprintf('%s: iter %d: latent positive: %d/%d\n', name, t, pair_num, num_pairs);
-  % skip small examples
-  pair = pos.pairs(pair_num);
-  scale_x = pair.scale_x; scale_y = pair.scale_y;
-  d1 = pos.data(pair.fst);
-  d2 = pos.data(pair.snd);
-  all_joints = cat(2, d1, d2);
-  assert(ismatrix(all_joints) && size(all_joints, 2) == 2);
-  % XXX: Needs to handle pairs properly.
-  % also, remember that scale_x/scale_y measure joint position (so the
-  % below is actually a big matrix with one row per joint).
-  bbox.xy = [all_joints(:,1)-scale_x, all_joints(:,2)-scale_y, ...
-    all_joints(:,1)+scale_x, all_joints(:,2)+scale_y];
-  area = (bbox.xy(:,3)-bbox.xy(:,1)+1).*(bbox.xy(:,4)-bbox.xy(:,2)+1);
-  if any(area < minsize/1.5)
-    % skip only when exmaple are too small
-    continue;
-  end
-  
-  % get example
-  % note that detect is updating qp using ii and the label which we supply
-  % it at the end, as above (but the label is 1 this time since we have a
-  % positive)
-  box = detect(d1, d2, model, 0, bbox, overlap, pair_num, 1);
-  if ~isempty(box),
-    fprintf(' (comp=%d,sc=%.3f)\n',box(1,end-1),box(1,end));
-    c = box(1,end-1);
-    numpositives(c) = numpositives(c)+1; %#ok<AGROW>
-  end
+    fprintf('%s: iter %d: latent positive: %d/%d\n', name, t, pair_num, num_pairs);
+    % skip small examples
+    pair = pos.pairs(pair_num);
+    scale_x = pair.scale_x; scale_y = pair.scale_y;
+    d1 = pos.data(pair.fst);
+    d2 = pos.data(pair.snd);
+    all_joints = cat(2, d1, d2);
+    assert(ismatrix(all_joints) && size(all_joints, 2) == 2);
+    % keep in mind that scale_x/scale_y measure joint position (so the
+    % below is actually a big matrix with one row per joint).
+    bbox.xy = [all_joints(:,1)-scale_x, all_joints(:,2)-scale_y, ...
+        all_joints(:,1)+scale_x, all_joints(:,2)+scale_y];
+    area = (bbox.xy(:,3)-bbox.xy(:,1)+1).*(bbox.xy(:,4)-bbox.xy(:,2)+1);
+    if any(area < minsize/1.5)
+        % skip only when exmaple are too small
+        continue;
+    end
+    
+    % get example
+    % note that detect is updating qp using ii and the label which we supply
+    % it at the end, as above (but the label is 1 this time since we have a
+    % positive)
+    box = detect(d1, d2, model, 0, bbox, overlap, pair_num, 1);
+    if ~isempty(box),
+        fprintf(' (comp=%d,sc=%.3f)\n', box(1, end-1), box(1, end));
+        c = box(1,end-1);
+        numpositives(c) = numpositives(c)+1; %#ok<AGROW>
+    end
 end
 end
 
@@ -198,7 +197,7 @@ end
 function len = sparselen(model)
 numblocks = 0;
 feat = zeros(model.len,1);
-for p = model.components,
+for p = model.components
     if ~isempty(p.biasid)
         x = model.bias(p.biasid(1));    % use only one biase
         i1 = x.i;
@@ -213,26 +212,17 @@ for p = model.components,
         feat(i1:i2) = 1;
         numblocks = numblocks + 1;
     end
-    nbh_N = numel(p.nbh_IDs);
-    if ~isempty(p.pdefid)
-        for i = 1:nbh_N
-            % use one deformation prior for each neighbor
-            x = model.pdefs(p.pdefid(i));
-            i1 = x.i;
-            i2 = i1 + numel(x.w) - 1;
-            feat(i1:i2) = 1;
-            numblocks = numblocks + 1;
-        end
-    end
+    assert(isempty(p.gauid) == (p.parent == 0), ...
+        'gauid should be empty iff part is parent');
     if ~isempty(p.gauid)
-        for i = 1:nbh_N
-            % use only one kind of deformation in each mixture
-            x  = model.gaus(p.gauid{i}(1));
-            i1 = x.i;
-            i2 = i1 + numel(x.w) - 1;
-            feat(i1:i2) = 1;
-            numblocks = numblocks + 1;
-        end
+        % use only one kind of deformation in each mixture
+        assert(numel(p.gauid) == 1, ...
+            'Need one deformation Gaussian per non-root part');
+        x  = model.gaus(p.gauid(1));
+        i1 = x.i;
+        i2 = i1 + numel(x.w) - 1;
+        feat(i1:i2) = 1;
+        numblocks = numblocks + 1;
     end
 end
 
