@@ -1,0 +1,7 @@
+--ignore-dir=keras/env/
+--ignore-dir=cy-learn.m~/
+--ignore-dir=ext/conscaffe/
+--ignore-dir=ext/DeepFlow_release2.0/
+--ignore-dir=ext/LDOF_src/
+--ignore-dir=ext/deepmatching_1.2.2_c++/
+--ignore-dir=cache/
