@@ -46,3 +46,4 @@ end
 % access easier (apparently Matlab doesn't require you to declare a struct
 % ahead of time if it's a cell? WTF?)
 components = cell_components{1};
+end

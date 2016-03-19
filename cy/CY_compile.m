@@ -1,5 +1,5 @@
 function CY_compile()
-buildfile('src/mex/distance_transform.cpp');
+buildfile('src/mex/shiftdt.cpp');
 buildfile('external/qpsolver/qp_one_sparse.cc');
 buildfile('external/qpsolver/score.cc');
 buildfile('external/qpsolver/lincomb.cc');

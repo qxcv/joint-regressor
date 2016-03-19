@@ -132,7 +132,7 @@ for neg_num = 1:neg.num_pairs
         size(box,1), qp.n, nmax, sum(qp.sv), sum(qp.a>0), qp.ub, qp.lb);
     
     % Stop if cache is full
-    if sum(qp.sv) == nmax,
+    if sum(qp.sv) == nmax
         break;
     end
 end
@@ -173,7 +173,7 @@ for pair_num = 1:num_pairs
     % it at the end, as above (but the label is 1 this time since we have a
     % positive)
     box = detect(d1, d2, model, 0, bbox, overlap, pair_num, 1);
-    if ~isempty(box),
+    if ~isempty(box)
         fprintf(' (comp=%d,sc=%.3f)\n', box(1, end-1), box(1, end));
         c = box(1,end-1);
         numpositives(c) = numpositives(c)+1; %#ok<AGROW>

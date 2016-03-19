@@ -21,6 +21,22 @@ function [boxes,model,ex] = detect(im1_info, im2_info, model, thresh, ...
 %                 1        2      3  4     5        6   7
 % 2) box = detect(pos(ii), model, 0, bbox, overlap, ii, 1);
 
+% XXX: List of things I've found which are broken and will need changing:
+% 1) Need to change message-passing code to account for types of each node.
+% This probably means that some previously 2D arrays used in message
+% passing become 3D, or even higher-dimensional (because now we need to
+% remember which type of each part yielded the highest score). Remember
+% that I need to recover joint locations at the end of this process, and
+% that will require access to type information!
+% 2) In passmsg, I'll have to figure out how to compute displacements
+% correctly. In particular, I'll have to make sure that displacement sign
+% is correct and that the displacement is scaled correctly so that it is in
+% "heatmap coordinates".
+% 3) There are a few places where I need to find bounding boxes for parts
+% (well, sub-poses in my model). I should do that by using the CNN
+% receptive field corresponding to each sub-pose, instead of whatever
+% heuristic measure is currently used.
+
 INF = 1e10;
 
 if nargin > 3 && ~isempty(bbox)
@@ -114,15 +130,21 @@ for level = levels
         f = components(subpose_idx).appid;
         assert(isscalar(f), 'Should have only one weight ID');
         assert(isscalar(apps{f}, 'Should have only one weight for that ID'));
-        components(subpose_idx).score = components(subpose_idx).appMap * apps{f};
-        
+        % .score will now be h*w*K for each part
+        weighted_apps = components(subpose_idx).appMap * apps{f};
+        assert(ndims(weighted_apps) == 3);
+        assert(size(weihted_apps, 3) == model.K);
+        components(subpose_idx).score = weighted_apps;
         components(subpose_idx).level = level;
         
         if latent
             assert(false, 'Need to fix this check to deal with bigger unaries');
             ovmask = testoverlap(components(subpose_idx).sizx, components(subpose_idx).sizy, ...
                 sizs(1), sizs(2), pyra(level), bbox.xy(subpose_idx,:), overlap);
+            assert(ismatrix(ovmask));
             tmpscore = components(subpose_idx).score;
+            ovmask = repmat(ovmask, 1, 1, size(tmpscore, 3));
+            assert(all(size(ovmask) == size(tmpscore)));
             % label supervision
             if label > 0
                 tmpscore(~ovmask) = -INF;
@@ -136,6 +158,7 @@ for level = levels
             elseif label < 0
                 tmpscore(ovmask) = -INF;
             end
+            assert(all(size(components(subpose_idx).score) == size(tmpscore)));
             components(subpose_idx).score = tmpscore;
         end
     end
@@ -143,21 +166,22 @@ for level = levels
     % Walk from leaves to root of tree, passing message to parent
     for subpose_idx = num_subposes:-1:2
         child = components(subpose_idx);
-        par = components(subpose_idx).parent;
-        parent = components(par);
-        limb_to_parent = find(child.nbh_IDs == parent.pid);
-        limb_to_child = find(parent.nbh_IDs == child.pid);
+        par_idx = components(subpose_idx).parent;
+        parent = components(par_idx);
         
         [msg, components(subpose_idx).Ix, components(subpose_idx).Iy, ...
             components(subpose_idx).Im{limb_to_parent}, ...
-            components(par).Im{limb_to_child}] ...
-            = passmsg(child, parent, limb_to_parent, limb_to_child);
-        components(par).score = components(par).score + msg;
+            components(par_idx).Im{limb_to_child}] ...
+            = passmsg(child, parent);
+        components(par_idx).score = components(par_idx).score + msg;
     end
     
     % Add bias to root score
-    components(1).score = components(1).score + components(1).b;
-    rscore = components(1).score;
+    % XXX: Will also need to account for root node type and its
+    % corresponding appearance map.
+    components(model.root).score = ...
+        components(model.root).score + components(model.root).b;
+    rscore = components(model.root).score;
     
     % keep the positive example with the highest score in latent mode
     if latent && label > 0
@@ -224,7 +248,7 @@ ptr = zeros(numparts,2);
 box = zeros(numparts,4);
 k   = 1;
 p   = parts(k);
-ptr(k,:) = [x,y];
+ptr(k, :) = [x, y];
 scale = pyra.scale;
 x1  = (x - 1 - pyra.padx)*scale+1;
 y1  = (y - 1 - pyra.pady)*scale+1;
@@ -277,16 +301,16 @@ for k = 2:numparts
         ex.blocks(end+1).i = parts(par).gauI{pbid}(pm);
         ex.blocks(end).x   = defvector(parts(par),x,y,ptr(k,1),ptr(k,2),pm,pbid);
         
-        x   = ptr(k,1);
-        y   = ptr(k,2);
+        x = ptr(k,1);
+        y = ptr(k,2);
         
         % unary
-        f   = parts(k).appMap(y,x);
+        f = parts(k).appMap(y, x);
         ex.blocks(end+1).i = p.appI;
         ex.blocks(end).x = f;
     end
 end
-box = reshape(box',1,4*numparts);
+box = reshape(box', 1, 4*numparts);
 end
 
 % Update QP with coordinate descent
@@ -294,11 +318,11 @@ end
 function model = optimize(model)
 global qp;
 fprintf('.');
-if qp.lb < 0 || qp.n == length(qp.a),
+if qp.lb < 0 || qp.n == length(qp.a)
     qp_opt();
     qp_prune();
 else
     qp_one();
 end
-model = vec2model(qp_w(),model);
+model = vec2model(qp_w(), model);
 end
