@@ -40,9 +40,6 @@ conf.memsize = 16;
 conf.aug.rot_range = [-50, 50];
 % Number of random rotations for each datum
 conf.aug.rand_rots = 5;
-% Scales for data augmentation (2.0 = one quarter of a skeleton per frame, 0.5 = four skeletons per frame)
-% conf.aug.scales = [0.8 0.9]; (disabled because of new uniform-scale
-% training)
 % Random translations at each scale where it's possible to translate whilst
 % keeping the pose in-frame; 0 to disable. Should probably pad all images
 % by step size and then randomly translate by [-step/2, step/2] (both axes)
@@ -59,7 +56,6 @@ conf.aug.negs = 30;
 % Validation augmentations are less aggressive (24x instead)
 conf.val_aug.rot_range = [-30, 30];
 conf.val_aug.rand_rots = 2;
-% conf.val_aug.scales = [0.75 0.8]; disabled (see above)
 conf.val_aug.rand_trans = 0;
 conf.val_aug.flip_mode = 'random';
 conf.val_aug.negs = 8;
@@ -88,3 +84,7 @@ conf.num_val_hdf5s = 1;
 % poselet-per-frame vectors, then use the resulting centroids as classes
 % for biposelet prediction.
 conf.biposelet_classes = 100;
+
+% Multiply bounding box sides by this factor to get a CNN crop size
+% (ensures that entire bounding box is in view)
+conf.template_scale = 1.2;

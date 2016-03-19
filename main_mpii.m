@@ -3,15 +3,18 @@
 startup;
 conf = get_conf_mpii;
 [train_dataset, val_dataset] = get_mpii_cooking(conf.dataset_dir, ...
-    conf.cache_dir);
+    conf.cache_dir, conf.pair_mean_dist_thresh);
 % INRIAPerson data is only used for training the graphical model; I used
 % person-free crops of MPII cooking to train the CNN to recognise
 % background.
 neg_dataset = get_inria_person(conf.dataset_dir, conf.cache_dir);
 
-% [train_dataset, ~] = mark_scales(train_dataset);
-% [val_dataset, ~] = mark_scales(val_dataset);
-% [neg_dataset, ~] = mark_scales(neg_dataset);
+% TODO: Should derive scale from both train dataset and validation dataset
+% at same time
+[train_dataset, ~] = mark_scales(train_dataset, conf.subposes, ...
+    conf.cnn.step);
+[val_dataset, tsize] = mark_scales(val_dataset, conf.subposes, ...
+    conf.cnn.step, [train_dataset.pairs.scale]);
 
 fprintf('Writing validation set\n');
 val_patch_dir = fullfile(conf.cache_dir, 'val-patches-mpii');
@@ -55,7 +58,6 @@ subpose_disps = save_centroid_pairwise_means(...
 fprintf('Training graphical model\n');
 % XXX: This is woefully unscientific and needs to be changed as soon as I
 % can figure out a uniform-scale training protocol
-tsize = 350;
 [~] = train_model(conf, val_dataset, neg_dataset, subpose_disps, tsize);
 
 assert(false, 'You need to write the rest of this');

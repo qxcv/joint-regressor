@@ -41,3 +41,8 @@ conf.shared_parts = {
     % (first frame) and 5 (second frame) in the head subpose.
     {[1 5], [1 5]}
  };
+
+% Throw out pairs for which the mean distance between corresponding joints
+% (between the two frames) is beyond this pixel threshold. Empirically, this
+% retains ~95% of data. Most of the remaining 5% are probably mislabels.
+conf.pair_mean_dist_thresh = 20;

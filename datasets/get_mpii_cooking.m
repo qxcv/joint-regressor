@@ -23,7 +23,7 @@
 %      pose(11,:)-> head upper point
 %      pose(12,:)-> head lower point
 
-function [train_dataset, val_dataset] = get_mpii_cooking(dest_dir, cache_dir)
+function [train_dataset, val_dataset] = get_mpii_cooking(dest_dir, cache_dir, dump_thresh)
 %GET_MPII_COOKING Fetches continuous pose estimation data from MPII
 MPII_POSE_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallenge-1.1.zip';
 MPII_CONTINUOUS_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallengeContinuous-1.0.zip';
@@ -87,8 +87,8 @@ end
 pair_path = fullfile(cache_dir, 'mpii_pairs.mat');
 if ~exist(pair_path, 'file') || regen_pairs
     fprintf('Generating pairs\n');
-    train_pairs = find_pairs(train_data, TRAIN_FRAME_SKIP);
-    val_pairs = find_pairs(val_data, VAL_FRAME_SKIP);
+    train_pairs = find_pairs(train_data, TRAIN_FRAME_SKIP, dump_thresh);
+    val_pairs = find_pairs(val_data, VAL_FRAME_SKIP, dump_thresh);
     save(pair_path, 'train_pairs', 'val_pairs');
 else
     fprintf('Loading pairs from file\n');
@@ -164,7 +164,7 @@ assert(length(tokens{1}) == 1);
 index = str2double(tokens{1}{1});
 end
 
-function pairs = find_pairs(data, frame_skip)
+function pairs = find_pairs(data, frame_skip, dump_thresh)
 % Find pairs with frame_skip frames between them
 frame_nums = [data.frame_no];
 scene_nums = [data.scene_num];
@@ -172,5 +172,19 @@ fst_inds = 1:(length(data)-frame_skip-1);
 snd_inds = fst_inds + frame_skip + 1;
 good_inds = (frame_nums(snd_inds) - frame_nums(fst_inds) == frame_skip + 1) ...
     & (scene_nums(fst_inds) == scene_nums(snd_inds));
+dropped = 0;
+for i=find(good_inds)
+    fst = data(fst_inds(i));
+    snd = data(snd_inds(i));
+    if mean_dists(fst.joint_locs, snd.joint_locs) > dump_thresh
+        fprintf('Dropping %s->%s (%i->%i)\n', ...
+            fst.image_path, snd.image_path, fst_inds(i), snd_inds(i));
+        good_inds(i) = false;
+        dropped = dropped + 1;
+    end
+end
+if dropped
+    fprintf('Dropped %i pairs due to threshold %f\n', dropped, dump_thresh);
+end
 pairs = cat(2, fst_inds(good_inds)', snd_inds(good_inds)');
 end
