@@ -4,7 +4,7 @@
 #include "mex.h"
 
 /*
- * shiftdt.cc
+ * shiftdt.cpp
  * Generalized distance transforms based on Felzenswalb and Huttenlocher.
  * This applies computes a min convolution of an arbitrary quadratic function ax^2 + bx
  * This outputs results on an shifted, subsampled grid (useful for passing messages between variables in different domains)
@@ -53,7 +53,7 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len, double a, doubl
 
 
 // matlab entry point
-// [M, Ix, Iy] = dt(vals, ax, bx, ay, by)
+// [M, Ix, Iy] = shiftdt(score, ax, bx, ay, by, offx, offy, lenx, leny, step)
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) { 
   if (nrhs != 10)
     mexErrMsgTxt("Wrong number of inputs"); 
