@@ -1,4 +1,4 @@
-function write_negatives(all_data, pairs, cache_dir, patch_dir, ...
+function write_negatives(dataset, cache_dir, patch_dir, ...
     cnn_window, crops_per_pair, chunksz, subposes)
 %WRITE_NEGATIVES Analogue of write_dset for negative patches.
 %Note that unlike write_dset, this function will intentionally avoid
@@ -31,13 +31,13 @@ opts.chunksz = chunksz;
 % space for 500MiB data).
 % opts.deflate = 5;
 
-% Fill flow cache (probably not really necessary here)
-% cache_all_flow(all_data, pairs, cache_dir);
+assert(isstruct(data.pairs) && isvector(data.pairs));
+num_pairs = length(data.pairs);
 
-for pair_idx=1:length(pairs)
-    fprintf('Cropping pair %i\n', pair_idx);
-    fst = all_data(pairs(pair_idx, 1));
-    snd = all_data(pairs(pair_idx, 2));
+for pair_idx=1:num_pairs
+    fprintf('Cropping pair %i/%i\n', pair_idx, num_pairs);
+    fst = dataset.data(dataset.pairs(pair_idx).fst);
+    snd = dataset.data(dataset.pairs(pair_idx).snd);
     [im1, im2, flow] = get_pair_data(fst, snd, cache_dir);
     imstack = cat(3, im1, im2);
     
@@ -67,7 +67,7 @@ for pair_idx=1:length(pairs)
         crop = crop_rects(crop_num, :);
         cropped_imstack = imcrop2(imstack, crop);
         resized_imstack = imresize(cropped_imstack, cnn_window);
-        % swap w/h with pmask
+        % pmask tells permute() to swap h/w
         pmask = [2 1 3];
         final_images(:, :, :, crop_num) = permute(resized_imstack, pmask);
         

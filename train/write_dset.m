@@ -1,4 +1,4 @@
-function write_dset(all_data, pairs, cache_dir, patch_dir, num_hdf5s, ...
+function write_dset(dataset, cache_dir, patch_dir, num_hdf5s, ...
     cnn_window, subposes, left_parts, right_parts, aug, chunksz)
 %WRITE_DSET Write out a data set (e.g. pairs from the train set or pairs
 %from the test set).
@@ -40,7 +40,7 @@ catch ex
     if ~any(strcmp(ex.identifier, {'MATLAB:load:couldNotReadFile', 'MATLAB:nonExistentField'}))
         ex.rethrow();
     end
-    rem_pairs = pairs;
+    rem_pairs = dataset.pairs;
     fprintf('No cached pairs; starting anew\n');
 end
 
@@ -49,16 +49,18 @@ if isempty(rem_pairs)
     return;
 end
 
-for start_index = 1:batch_size:size(rem_pairs, 1)
-    true_batch_size = min(batch_size, size(rem_pairs, 1) - start_index + 1);
+assert(isstruct(rem_pairs) && isvector(rem_pairs));
+
+for start_index = 1:batch_size:length(rem_pairs)
+    true_batch_size = min(batch_size, length(rem_pairs) - start_index + 1);
     results = {};
     % Calculate in parallel
     fprintf('Augmenting samples %i to %i\n', ...
         start_index, start_index + true_batch_size - 1);
     parfor result_index=1:true_batch_size
         mpii_index = start_index + result_index - 1;
-        fst = all_data(rem_pairs(mpii_index, 1)); %#ok<PFBNS>
-        snd = all_data(rem_pairs(mpii_index, 2));
+        fst = dataset.data(rem_pairs(mpii_index).fst); %#ok<PFBNS>
+        snd = dataset.data(rem_pairs(mpii_index).snd);
         
         stack_start = tic;
         results{result_index} = get_stacks(...

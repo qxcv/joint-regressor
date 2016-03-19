@@ -41,9 +41,13 @@ conf.aug.rot_range = [-50, 50];
 % Number of random rotations for each datum
 conf.aug.rand_rots = 5;
 % Scales for data augmentation (2.0 = one quarter of a skeleton per frame, 0.5 = four skeletons per frame)
-conf.aug.scales = [0.8, 0.9];
+% conf.aug.scales = [0.8 0.9]; (disabled because of new uniform-scale
+% training)
 % Random translations at each scale where it's possible to translate whilst
-% keeping the pose in-frame; 0 to disable.
+% keeping the pose in-frame; 0 to disable. Should probably pad all images
+% by step size and then randomly translate by [-step/2, step/2] (both axes)
+% in training code; that should ensure that learnt biposelet clusters
+% capture something interesting about pose structure.
 conf.aug.rand_trans = 0;
 % Choose a single flip type at random
 % Values: 'random' (choose only one at random), 'both' (do both flips),
@@ -55,7 +59,7 @@ conf.aug.negs = 30;
 % Validation augmentations are less aggressive (24x instead)
 conf.val_aug.rot_range = [-30, 30];
 conf.val_aug.rand_rots = 2;
-conf.val_aug.scales = [0.75 0.8];
+% conf.val_aug.scales = [0.75 0.8]; disabled (see above)
 conf.val_aug.rand_trans = 0;
 conf.val_aug.flip_mode = 'random';
 conf.val_aug.negs = 8;
@@ -79,9 +83,6 @@ conf.val_chunksz = 4;
 
 % Number of hdf5s to use for validation
 conf.num_val_hdf5s = 1;
-
-% Fraction of pairs to use for validation (XXX is this used?)
-conf.val_pairs_frac = 0.2;
 
 % Use K-means to cluster 2 * length(conf.poselet)-dimensional
 % poselet-per-frame vectors, then use the resulting centroids as classes

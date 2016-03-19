@@ -2,27 +2,31 @@
 
 startup;
 conf = get_conf_mpii;
-[train_data, val_data, train_pairs, val_pairs] = get_mpii_cooking(...
-    conf.dataset_dir, conf.cache_dir);
+[train_dataset, val_dataset] = get_mpii_cooking(conf.dataset_dir, ...
+    conf.cache_dir);
 % INRIAPerson data is only used for training the graphical model; I used
 % person-free crops of MPII cooking to train the CNN to recognise
 % background.
-[neg_data, neg_pairs] = get_inria_person(conf.dataset_dir, conf.cache_dir);
+neg_dataset = get_inria_person(conf.dataset_dir, conf.cache_dir);
+
+% [train_dataset, ~] = mark_scales(train_dataset);
+% [val_dataset, ~] = mark_scales(val_dataset);
+% [neg_dataset, ~] = mark_scales(neg_dataset);
 
 fprintf('Writing validation set\n');
 val_patch_dir = fullfile(conf.cache_dir, 'val-patches-mpii');
-write_dset(val_data, val_pairs, conf.cache_dir, val_patch_dir, ...
+write_dset(val_dataset, conf.cache_dir, val_patch_dir, ...
     conf.num_val_hdf5s, conf.cnn.window, conf.subposes, ...
     conf.left_parts, conf.right_parts, conf.val_aug, conf.val_chunksz);
-write_negatives(val_data, val_pairs, conf.cache_dir, val_patch_dir, ...
+write_negatives(val_dataset, conf.cache_dir, val_patch_dir, ...
     conf.cnn.window, conf.val_aug.negs, conf.val_chunksz, conf.subposes);
 
 fprintf('Writing training set\n');
 train_patch_dir = fullfile(conf.cache_dir, 'train-patches-mpii');
-write_dset(train_data, train_pairs, conf.cache_dir, train_patch_dir, ...
+write_dset(train_dataset, conf.cache_dir, train_patch_dir, ...
     conf.num_hdf5s, conf.cnn.window, conf.subposes, ...
     conf.left_parts, conf.right_parts, conf.aug, conf.train_chunksz);
-write_negatives(train_data, train_pairs, conf.cache_dir, train_patch_dir, ...
+write_negatives(train_dataset, conf.cache_dir, train_patch_dir, ...
     conf.cnn.window, conf.aug.negs, conf.train_chunksz, conf.subposes);
 
 fprintf('Writing cluster information\n');
@@ -43,11 +47,6 @@ if ~(exist(conf.cnn.deploy_json, 'file') && exist(conf.cnn.deploy_weights, 'file
          'give you a model definition (%s) and a weights file (%s).'], ...
          conf.cnn.deploy_json, conf.cnn.deploy_weights);
 end
-
-fprintf('Organising pairs into unified dataset\n');
-% train_dataset = unify_dataset(train_data, train_pairs, 'train_dataset');
-val_dataset = unify_dataset(train_data, val_pairs, 'val_dataset');
-neg_dataset = unify_dataset(neg_data, neg_pairs, 'neg_dataset');
 
 fprintf('Computing ideal poselet displacements\n');
 subpose_disps = save_centroid_pairwise_means(...

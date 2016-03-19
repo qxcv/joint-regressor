@@ -23,7 +23,7 @@
 %      pose(11,:)-> head upper point
 %      pose(12,:)-> head lower point
 
-function [train_data, val_data, train_pairs, val_pairs] = get_mpii_cooking(dest_dir, cache_dir)
+function [train_dataset, val_dataset] = get_mpii_cooking(dest_dir, cache_dir)
 %GET_MPII_COOKING Fetches continuous pose estimation data from MPII
 MPII_POSE_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallenge-1.1.zip';
 MPII_CONTINUOUS_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallengeContinuous-1.0.zip';
@@ -98,6 +98,8 @@ else
     train_pairs = loaded.train_pairs;
     val_pairs = loaded.val_pairs;
 end
+train_dataset = unify_dataset(train_data, train_pairs, 'train_dataset_mpii_cont');
+val_dataset = unify_dataset(val_data, val_pairs, 'val_dataset_mpii_base');
 end
 
 % XXX: This is ugly. I can probably combine load_files_{continuous,basic}.
