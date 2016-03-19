@@ -1,4 +1,4 @@
-function [dataset, tsize] = mark_scales(dataset, subposes, step, other_scales)
+function [dataset, tsize] = mark_scales(dataset, subposes, step, template_scale, other_scales)
 %MARK_SCALES Determine overall dataset scale and scales for each datum.
 % - dataset should be a unified dataset with .pairs and .data attributes.
 % - subpose_pa should be a parents array giving the locations of each subpose
@@ -31,7 +31,7 @@ for pair_idx=1:num_pairs
         subpose_locs = all_joints(all_inds, :);
         bbox = get_bbox(subpose_locs);
         % bbox(3:4) is width and height
-        patch_size = max(bbox(3:4));
+        patch_size = template_scale * max(bbox(3:4));
         assert(patch_size > 1);
         subpose_sizes(subpose_idx) = patch_size;
     end

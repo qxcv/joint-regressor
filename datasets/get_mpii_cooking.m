@@ -37,6 +37,12 @@ TRAIN_FRAME_SKIP = 2;
 % Yeah, don't skip anything on the validation set because it's much lower
 % frequency
 VAL_FRAME_SKIP = 0;
+% The continuous dataset frames between these two (inclusive) are
+% mislabelled horribly, so I have to take them out.
+CONT_EVIL_FRAMES = struct(...
+    'start', {'pose_010890_000487.mat', 'pose_002871_001148.mat'}, ...
+    'end', {'pose_003474_001093.mat', 'pose_009976_001186.mat'}, ...
+    'diff', {606, 38});
 
 % First we get the (much larger) continuous pose estimation dataset
 if ~exist(CONTINUOUS_DEST_PATH, 'dir')
@@ -68,7 +74,7 @@ data_path = fullfile(cache_dir, 'mpii_data.mat');
 regen_pairs = false;
 if ~exist(data_path, 'file')
     fprintf('Regenerating data\n');
-    train_data = load_files_continuous(CONTINUOUS_DEST_PATH);
+    train_data = load_files_continuous(CONTINUOUS_DEST_PATH, CONT_EVIL_FRAMES);
     val_data = load_files_basic(POSE_DEST_PATH);
     
     train_data = split_mpii_scenes(train_data, 0.2);
@@ -103,10 +109,11 @@ val_dataset = unify_dataset(val_data, val_pairs, 'val_dataset_mpii_base');
 end
 
 % XXX: This is ugly. I can probably combine load_files_{continuous,basic}.
-function cont_data = load_files_continuous(dest_path)
+function cont_data = load_files_continuous(dest_path, evil_frames)
 pose_dir = fullfile(dest_path, 'data', 'gt_poses');
 pose_fns = dir(pose_dir);
 pose_fns = pose_fns(3:end); % Remove . and ..
+
 cont_data = struct(); % Silences Matlab warnings about growing arrays
 for i=1:length(pose_fns)
     data_fn = pose_fns(i).name;
@@ -118,11 +125,36 @@ for i=1:length(pose_fns)
     cont_data(i).action_track_index = track_index;
     file_name = sprintf('img_%06i_%06i.jpg', track_index, index);
     cont_data(i).image_path = fullfile(dest_path, 'data', 'images', file_name);
+    cont_data(i).pose_fn = data_fn;
     loaded = load(fullfile(pose_dir, data_fn), 'pose');
     cont_data(i).joint_locs = loaded.pose;
     cont_data(i).is_val = false;
 end
 cont_data = sort_by_frame(cont_data);
+
+% Exorcise evil frames
+assert(length(cont_data) == length(pose_fns));
+old_frame_count = length(cont_data);
+good_mask = true([1 old_frame_count]);
+total_evil = 0;
+
+for evil_seq_num=1:length(evil_frames)
+    evil_seq = evil_frames(evil_seq_num);
+    pose_fns_strs = {cont_data.pose_fn};
+    evil_start_idx = find(strcmp(evil_seq.start, pose_fns_strs));
+    evil_end_idx = find(strcmp(evil_seq.end, pose_fns_strs));
+    assert(isscalar(evil_start_idx) && isscalar(evil_end_idx), ...
+        'Evil frames should appear once each');
+    assert(evil_end_idx - evil_start_idx == evil_seq.diff, ...
+        'Incorrect number of evil frames identified');
+    good_mask(evil_start_idx:evil_end_idx) = false;
+    total_evil = total_evil + evil_seq.diff + 1;
+end
+
+assert(total_evil >= length(evil_frames)); % just a sanity check
+cont_data = cont_data(good_mask);
+assert(old_frame_count - length(cont_data) == total_evil, ...
+    'Incorrect number of evil frames removed');
 end
 
 function basic_data = load_files_basic(dest_path)

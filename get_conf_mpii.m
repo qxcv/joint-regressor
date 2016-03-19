@@ -44,5 +44,6 @@ conf.shared_parts = {
 
 % Throw out pairs for which the mean distance between corresponding joints
 % (between the two frames) is beyond this pixel threshold. Empirically, this
-% retains ~95% of data. Most of the remaining 5% are probably mislabels.
-conf.pair_mean_dist_thresh = 20;
+% retains ~99% of the data. The rest are probably mislabelled or
+% incorrectly classified as being in the same scene.
+conf.pair_mean_dist_thresh = 50;

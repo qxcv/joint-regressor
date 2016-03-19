@@ -36,8 +36,9 @@ num_pairs = length(data.pairs);
 
 for pair_idx=1:num_pairs
     fprintf('Cropping pair %i/%i\n', pair_idx, num_pairs);
-    fst = dataset.data(dataset.pairs(pair_idx).fst);
-    snd = dataset.data(dataset.pairs(pair_idx).snd);
+    pair = dataset.pairs(pair_idx);
+    fst = dataset.data(pair.fst);
+    snd = dataset.data(pair.snd);
     [im1, im2, flow] = get_pair_data(fst, snd, cache_dir);
     imstack = cat(3, im1, im2);
     
@@ -48,12 +49,13 @@ for pair_idx=1:num_pairs
     all_joints = cat(1, fst.joint_locs, snd.joint_locs);
     pose_box = get_bbox(all_joints);
     % Try to get crops with side lengths between half the minimum dimension
-    % of the pose bounding box and 125% of the maximum dimension of the
-    % pose bounding box. This is an approximation intended to crop
-    % negative patches which are around the same scale as the actual pose.
-    base_crop_size = max(pose_box(3:4));
-    min_crop_size = 0.5 * base_crop_size;
-    max_crop_size = 1.25 * base_crop_size;
+    % of the max subpose receptive field size and 125% of the maximum
+    % dimension of the pose bounding box. This is an approximation intended
+    % to crop negative patches which are around the same scale as the
+    % actual pose.
+    base_crop_size = pair.scale;
+    min_crop_size = 0.8 * base_crop_size;
+    max_crop_size = 1.2 * base_crop_size;
     crop_rects = random_nonint_rects(pair_frame, pose_box, min_crop_size, ...
         max_crop_size, crops_per_pair);
     

@@ -12,9 +12,11 @@ neg_dataset = get_inria_person(conf.dataset_dir, conf.cache_dir);
 % TODO: Should derive scale from both train dataset and validation dataset
 % at same time
 [train_dataset, ~] = mark_scales(train_dataset, conf.subposes, ...
-    conf.cnn.step);
+    conf.cnn.step, conf.template_scale);
 [val_dataset, tsize] = mark_scales(val_dataset, conf.subposes, ...
-    conf.cnn.step, [train_dataset.pairs.scale]);
+    conf.cnn.step, conf.template_scale, [train_dataset.pairs.scale]);
+
+assert(false, 'Everything below here is broken');
 
 fprintf('Writing validation set\n');
 val_patch_dir = fullfile(conf.cache_dir, 'val-patches-mpii');
