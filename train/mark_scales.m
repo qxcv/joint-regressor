@@ -31,7 +31,7 @@ for pair_idx=1:num_pairs
         subpose_locs = all_joints(all_inds, :);
         bbox = get_bbox(subpose_locs);
         % bbox(3:4) is width and height
-        patch_size = template_scale * max(bbox(3:4));
+        patch_size = round(template_scale * max(bbox(3:4)));
         assert(patch_size > 1);
         subpose_sizes(subpose_idx) = patch_size;
     end

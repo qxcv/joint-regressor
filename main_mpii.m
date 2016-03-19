@@ -16,8 +16,6 @@ neg_dataset = get_inria_person(conf.dataset_dir, conf.cache_dir);
 [val_dataset, tsize] = mark_scales(val_dataset, conf.subposes, ...
     conf.cnn.step, conf.template_scale, [train_dataset.pairs.scale]);
 
-assert(false, 'Everything below here is broken');
-
 fprintf('Writing validation set\n');
 val_patch_dir = fullfile(conf.cache_dir, 'val-patches-mpii');
 write_dset(val_dataset, conf.cache_dir, val_patch_dir, ...

@@ -17,9 +17,6 @@ else
     end
 end
 
-% Just cache the flow. We'll use it later.
-% cache_all_flow(all_data, pairs, cache_dir);
-
 % I'm using a nested for/parfor like Anoop suggested to parallelise
 % augmentation calculation. This lets me write to a single file in without
 % making everything sequential or resorting to locking hacks. The implicit
@@ -57,15 +54,17 @@ for start_index = 1:batch_size:length(rem_pairs)
     % Calculate in parallel
     fprintf('Augmenting samples %i to %i\n', ...
         start_index, start_index + true_batch_size - 1);
+    ds_data = dataset.data;
     parfor result_index=1:true_batch_size
         mpii_index = start_index + result_index - 1;
-        fst = dataset.data(rem_pairs(mpii_index).fst); %#ok<PFBNS>
-        snd = dataset.data(rem_pairs(mpii_index).snd);
+        pair = rem_pairs(mpii_index); %#ok<PFBNS>
+        fst = ds_data(pair.fst); %#ok<PFBNS>
+        snd = ds_data(pair.snd);
         
         stack_start = tic;
         results{result_index} = get_stacks(...
-            fst, snd, subposes, left_parts, right_parts, cache_dir, ...
-            cnn_window, aug);
+            fst, snd, pair.scale, subposes, left_parts, right_parts, ...
+            cache_dir, cnn_window, aug);
         stack_time = toc(stack_start);
         fprintf('get_stack() took %fs\n', stack_time);
     end
