@@ -88,13 +88,17 @@ for flip=flips
             %% 4) Get bounding box for joint
             maxes = max(rot_joints(subpose_indices, :), [], 1);
             mins = min(rot_joints(subpose_indices, :), [], 1);
+            assert(numel(maxes) == 2 && numel(mins) == 2);
             % Always crop a square patch
             pose_side = max(maxes - mins);
             % box_center is (x, y)
             box_center = mins + (maxes - mins) ./ 2;
-            assert(pair_scale > pose_side, ...
+            extra = sprintf('sp_idx=%i; pose_side=%f; pair_scale=%f', ....
+                subpose_num, pose_side, pair_scale);
+            % sqrt(2) thing is to account for fact that joints are rotated
+            assert(sqrt(2) * pair_scale > pose_side, ...
                 ['mark_scales should have defined a scale larger than '...
-                 'the longest side of the largest subpose >:(']);
+                 'the longest side of the largest subpose. ' extra]);
             
             %% 5) Random translations
             % We repeat this translation process for each random

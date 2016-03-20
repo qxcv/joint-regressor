@@ -50,12 +50,12 @@ assert(isstruct(rem_pairs) && isvector(rem_pairs));
 
 for start_index = 1:batch_size:length(rem_pairs)
     true_batch_size = min(batch_size, length(rem_pairs) - start_index + 1);
-    results = {};
+    results = cell([1 true_batch_size]);
     % Calculate in parallel
     fprintf('Augmenting samples %i to %i\n', ...
         start_index, start_index + true_batch_size - 1);
     ds_data = dataset.data;
-    parfor result_index=1:true_batch_size
+    parfor result_index=1:true_batch_size % XXX: Should be parfor!
         mpii_index = start_index + result_index - 1;
         pair = rem_pairs(mpii_index); %#ok<PFBNS>
         fst = ds_data(pair.fst); %#ok<PFBNS>
@@ -117,7 +117,7 @@ for start_index = 1:batch_size:length(rem_pairs)
         end
         
         % Write out the remaining pairs for resumable training
-        rem_pairs_trimmed = rem_pairs(start_index+true_batch_size:end, :); %#ok
+        rem_pairs_trimmed = rem_pairs(start_index+true_batch_size:end); %#ok
         save(rem_pairs_path, 'rem_pairs_trimmed');
         
         write_time = toc(write_start);
