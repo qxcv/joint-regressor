@@ -14,20 +14,13 @@ catch
     % label_val = ...
     % XXX: As far as I can tell, this isn't used except to extract its
     % .near attribute below (which I'm not calculating at the moment).
-    derive_labels(cachedir, subpose_pa, pos_val, clusters, ...
-        subposes, subpose_disps, tsize);
+    derive_labels(cachedir, subpose_pa, pos_val, clusters, subposes, ...
+        conf.K);
     
-    % XXX: Should pass this in more elegantly :/
+    % XXX: Should pass this in more elegantly. Same goes for clusters.
     mean_pixels = load(fullfile(cachedir, 'mean_pixel.mat'));
     model = build_model(subpose_pa, conf.biposelet_classes, subpose_disps, ...
         conf.cnn, mean_pixels, conf.interval, tsize, conf.memsize);
-%     % add near filed to provide mixture supervision
-%     for ii = 1:numel(pos_val)
-%         % XXX: Really need to add a .near field when I do my clustering :/
-%         % Mine will probably contain *poselets* which are nearby to the
-%         % best poselet (one vector of those for each subpose).
-%         pos_val(ii).near = label_val(ii).near;
-%     end
     model = train(cls, model, pos_val, neg_val, 1);
     parsave([cachedir cls], model);
 end

@@ -30,9 +30,7 @@ opts.chunksz = chunksz;
 % resulted in HUGE amounts of unaccounted space (like 30GiB unaccounted
 % space for 500MiB data).
 % opts.deflate = 5;
-
-assert(isstruct(data.pairs) && isvector(data.pairs));
-num_pairs = length(data.pairs);
+num_pairs = length(dataset.pairs);
 
 for pair_idx=1:num_pairs
     fprintf('Cropping pair %i/%i\n', pair_idx, num_pairs);
