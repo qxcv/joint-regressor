@@ -25,14 +25,19 @@ for i=1:length(filenames)
     total_elems = ds_size(4);
     num_batches = ceil(total_elems / batch_size);
     batch_sizes = batch_size * ones([1 num_batches]);
-    batch_sizes(num_batches) = total_elems - batch_size * (num_batches - 1);
+    batch_sizes(end) = total_elems - batch_size * (num_batches - 1);
     batch_weights = batch_sizes ./ sum(batch_sizes);
+    batch_starts = cumsum([1 batch_sizes]);
+    batch_starts = batch_starts(1:end-1);
+    assert(length(batch_starts) == length(batch_sizes));
+    assert(batch_starts(1) == 1);
+    assert(batch_starts(end) + batch_sizes(end) - 1 == total_elems);
     % batch_results is channels*num_batches matrix
     batch_results = zeros([ds_size(3) num_batches]);
     parfor batch_num=1:num_batches
-        batch_start = (batch_num - 1) * batch_size + 1;
+        batch_start = batch_starts(batch_num);
         start = [1 1 1 batch_start];
-        count = [ds_size(1:3) batch_size];
+        count = [ds_size(1:3) batch_sizes(batch_num)]; %#ok<PFBNS>
         batch_data = h5read(fn, fieldname, start, count);
         % This mean(mean(mean())) looks complicated, but we're just
         % averaging over every dimension that's not a pixel dimension.
