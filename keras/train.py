@@ -4,10 +4,11 @@
 lose your work when you Ctrl + C."""
 
 from argparse import ArgumentParser, ArgumentTypeError
+import datetime
 from itertools import groupby
 import logging
 from logging import info, warn
-from os import path
+from os import path, makedirs
 from multiprocessing import Process, Queue, Event
 from Queue import Full
 from random import randint
@@ -28,6 +29,15 @@ import models
 
 
 INIT = 'glorot_normal'
+
+
+def mkdir_p(dir_path):
+    try:
+        makedirs(dir_path)
+    except OSError as e:
+        # 17 means "already exists"
+        if e.errno != 17:
+            raise e
 
 
 def group_sort_indices(indices):
@@ -408,6 +418,10 @@ def loss_mask_parser(arg):
     return classname, rv_dict
 
 
+def datetime_str():
+    return datetime.datetime.now().isoformat()
+
+
 def get_parser():
     """Grab the ``argparse.ArgumentParser`` for this application. For some
     reason ``argparse`` needs access to ``sys.argv`` to build an
@@ -426,8 +440,8 @@ def get_parser():
         help='h5 file in which validation samples are stored (comma separated)'
     )
     parser.add_argument(
-        'checkpoint_dir', metavar='CHECKPOINTDIR', type=str,
-        help='directory in which to store checkpoint files'
+        'working_dir', metavar='WORKINGDIR', type=str,
+        help='directory in which to store checkpoint files and logs'
     )
 
     # Optargs
@@ -440,7 +454,7 @@ def get_parser():
         help='batch size for both training (backprop) and validation'
     )
     parser.add_argument(
-        '--checkpoint-epochs', dest='checkpoint_epochs', type=int, default=2,
+        '--checkpoint-epochs', dest='checkpoint_epochs', type=int, default=5,
         help='training intervals to wait before writing a checkpoint file'
     )
     parser.add_argument(
@@ -498,9 +512,18 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     parser = get_parser()
     args = parser.parse_args()
+    work_dir = args.working_dir
+    checkpoint_dir = path.join(work_dir, 'checkpoints')
+    mkdir_p(checkpoint_dir)
     if args.log_file is not None:
-        file_handler = logging.FileHandler(args.log_file, mode='a')
-        logging.getLogger().addHandler(file_handler)
+        log_file = args.log_file
+    else:
+        log_dir = path.join(work_dir, 'logs')
+        mkdir_p(log_dir)
+        log_fn = 'log-' + datetime_str() + '.log'
+        log_file = path.join(log_dir, log_fn)
+    file_handler = logging.FileHandler(log_file, mode='a')
+    logging.getLogger().addHandler(file_handler)
     info('Logging started')
 
     # Model-building
@@ -509,11 +532,11 @@ if __name__ == '__main__':
         lr=args.learning_rate, decay=args.decay, momentum=0.9, nesterov=True
     )
     model_to_load = getattr(models, args.model_name)
-    print('Using loader %s' % args.model_name)
+    info('Using loader %s' % args.model_name)
     model = model_to_load(
         ds_shape, solver, INIT
     )
-    print('Loaded model of type {}'.format(type(model)))
+    info('Loaded model of type {}'.format(type(model)))
     if args.finetune_path is not None:
         info("Loading weights from '%s'", args.finetune_path)
         model.load_weights(args.finetune_path)
@@ -573,12 +596,12 @@ if __name__ == '__main__':
                 batches_used += args.train_interval_batches
                 is_checkpoint_epoch = epochs_elapsed % args.checkpoint_epochs == 0
                 if epochs_elapsed > 0 and is_checkpoint_epoch:
-                    save(model, batches_used, args.checkpoint_dir)
+                    save(model, batches_used, checkpoint_dir)
         finally:
             # Always save afterwards, even if we get KeyboardInterrupt'd or
             # whatever
             stdout.write('\n')
-            save(model, batches_used, args.checkpoint_dir)
+            save(model, batches_used, checkpoint_dir)
     finally:
         # Make sure workers shut down gracefully
         end_event.set()
