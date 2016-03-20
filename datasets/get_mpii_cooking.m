@@ -23,7 +23,8 @@
 %      pose(11,:)-> head upper point
 %      pose(12,:)-> head lower point
 
-function [train_dataset, val_dataset] = get_mpii_cooking(dest_dir, cache_dir, dump_thresh)
+function [train_dataset, val_dataset, tsize] = get_mpii_cooking(...
+    dest_dir, cache_dir, dump_thresh, subposes, step, template_scale)
 %GET_MPII_COOKING Fetches continuous pose estimation data from MPII
 MPII_POSE_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallenge-1.1.zip';
 MPII_CONTINUOUS_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallengeContinuous-1.0.zip';
@@ -43,6 +44,16 @@ CONT_EVIL_FRAMES = struct(...
     'start', {'pose_010890_000487.mat', 'pose_002871_001148.mat'}, ...
     'end', {'pose_003474_001093.mat', 'pose_009976_001186.mat'}, ...
     'diff', {606, 38});
+
+data_path = fullfile(cache_dir, 'mpii_data.mat');
+if exist(data_path, 'file')
+    fprintf('Found existing data, so I''ll just use that\n');
+    [train_dataset, val_dataset, tsize] = parload(data_path, ...
+        'train_dataset', 'val_dataset', 'tsize');
+    return
+else
+    fprintf('Need to regenerate all data :(\n');
+end
 
 % First we get the (much larger) continuous pose estimation dataset
 if ~exist(CONTINUOUS_DEST_PATH, 'dir')
@@ -68,47 +79,31 @@ if ~exist(POSE_DEST_PATH, 'dir')
     unzip(POSE_CACHE_PATH, POSE_DEST_PATH);
 end
 
-data_path = fullfile(cache_dir, 'mpii_data.mat');
-% regen_pairs tells us whether we should regenerate pairs regardless of
-% whether the file exists.
-regen_pairs = false;
-if ~exist(data_path, 'file')
-    fprintf('Regenerating data\n');
-    train_data = load_files_continuous(CONTINUOUS_DEST_PATH, CONT_EVIL_FRAMES);
-    val_data = load_files_basic(POSE_DEST_PATH);
-    
-    train_data = split_mpii_scenes(train_data, 0.2);
-    val_data = split_mpii_scenes(val_data, 0.1);
-    
-    save(data_path, 'train_data', 'val_data');
-    regen_pairs = true;
-else
-    fprintf('Loading data from file\n');
-    loaded = load(data_path);
-    train_data = loaded.train_data;
-    val_data = loaded.val_data;
-end
+fprintf('Generating data\n');
+train_data = load_files_continuous(CONTINUOUS_DEST_PATH, CONT_EVIL_FRAMES);
+val_data = load_files_basic(POSE_DEST_PATH);
 
-% Now split into training and validation sets TODO
-pair_path = fullfile(cache_dir, 'mpii_pairs.mat');
-if ~exist(pair_path, 'file') || regen_pairs
-    fprintf('Generating pairs\n');
-    train_pairs = find_pairs(train_data, TRAIN_FRAME_SKIP, dump_thresh);
-    val_pairs = find_pairs(val_data, VAL_FRAME_SKIP, dump_thresh);
-    save(pair_path, 'train_pairs', 'val_pairs');
-else
-    fprintf('Loading pairs from file\n');
-    loaded = load(pair_path);
-    % Yes, I know I could just load() without assigning anything, but I
-    % like this way better.
-    train_pairs = loaded.train_pairs;
-    val_pairs = loaded.val_pairs;
-end
+train_data = split_mpii_scenes(train_data, 0.2);
+val_data = split_mpii_scenes(val_data, 0.1);
+
+fprintf('Generating pairs\n');
+train_pairs = find_pairs(train_data, TRAIN_FRAME_SKIP, dump_thresh);
+val_pairs = find_pairs(val_data, VAL_FRAME_SKIP, dump_thresh);
+
+% Combine into structs with .data and .pairs attributes
 train_dataset = unify_dataset(train_data, train_pairs, 'train_dataset_mpii_cont');
 val_dataset = unify_dataset(val_data, val_pairs, 'val_dataset_mpii_base');
+
+% Write out scale data
+[train_dataset, ~] = mark_scales(train_dataset, subposes, step, ...
+    template_scale);
+[val_dataset, tsize] = mark_scales(val_dataset, subposes, step, ...
+    template_scale, [train_dataset.pairs.scale]);
+
+% Cache
+save(data_path, 'train_dataset', 'val_dataset', 'tsize');
 end
 
-% XXX: This is ugly. I can probably combine load_files_{continuous,basic}.
 function cont_data = load_files_continuous(dest_path, evil_frames)
 pose_dir = fullfile(dest_path, 'data', 'gt_poses');
 pose_fns = dir(pose_dir);

@@ -24,20 +24,22 @@ for pair_idx=1:num_pairs
     snd = dataset.data(pair.snd);
     num_joints = size(fst.joint_locs, 1);
     all_joints = cat(1, fst.joint_locs, snd.joint_locs);
+    assert(size(all_joints, 2) == 2 && numel(all_joints) == 2 * numel(fst.joint_locs));
     subpose_sizes = zeros([1 num_subposes]);
     for subpose_idx=1:num_subposes
         inds = subposes(subpose_idx).subpose;
         all_inds = [inds, inds + num_joints];
         subpose_locs = all_joints(all_inds, :);
         bbox = get_bbox(subpose_locs);
+        assert(numel(bbox) == 4);
         % bbox(3:4) is width and height
-        patch_size = round(template_scale * max(bbox(3:4)));
+        patch_size = max(bbox(3:4));
         assert(patch_size > 1);
         subpose_sizes(subpose_idx) = patch_size;
     end
-    dataset.pairs(pair_idx).scale = max(subpose_sizes);
-    assert(dataset.pairs(pair_idx).scale < 460);
-    assert(isscalar(dataset.pairs(pair_idx).scale));
+    new_scale = round(template_scale * max(subpose_sizes));
+    assert(isscalar(new_scale) && new_scale < 450); % 450 is just sanity check
+    dataset.pairs(pair_idx).scale = new_scale;
 end
 
 all_scales = [[dataset.pairs.scale] other_scales];
