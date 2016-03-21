@@ -6,13 +6,14 @@ lose your work when you Ctrl + C."""
 from argparse import ArgumentParser, ArgumentTypeError
 import datetime
 from itertools import groupby
+from json import dumps
 import logging
 from logging import info, warn
-from os import path, makedirs
-from multiprocessing import Process, Queue, Event
+from os import path, makedirs, environ
+from multiprocessing import Process, Queue, Event, Lock
 from Queue import Full
 from random import randint
-from sys import stdout
+from sys import stdout, argv
 from time import time
 
 import h5py
@@ -38,6 +39,25 @@ def mkdir_p(dir_path):
         # 17 means "already exists"
         if e.errno != 17:
             raise e
+
+
+class NumericLogger(object):
+    def __init__(self, dest):
+        self.dest = dest
+        self.lock = Lock()
+
+    def append(self, data):
+        if 'time' not in data:
+            data['time'] = datetime_str()
+        json_data = dumps(data)
+        # No file-level locking because YOLO
+        with self.lock:
+            with open(self.dest, 'a') as fp:
+                # Should probably use a binary format or something. Oh well.
+                fp.write(json_data + '\n')
+
+# Needs to be set up in main function
+numeric_log = None
 
 
 def group_sort_indices(indices):
@@ -261,6 +281,7 @@ def train(model, queue, iterations, mask_class_name, masks):
     p = Progbar(iterations)
     loss = 0.0
     p.update(0)
+    mean_loss = 0
 
     for iteration in xrange(iterations):
         # First, get some data from the queue
@@ -276,15 +297,32 @@ def train(model, queue, iterations, mask_class_name, masks):
         # Next, do some backprop
         start_time = time()
         loss, = model.train_on_batch(data, sample_weight=sample_weight)
+        loss = float(loss)
         bp_time = time() - start_time
+        learning_rate = model.optimizer.get_config()['lr']
 
         # Finally, write some debugging output
         extra_info = [
             ('loss', loss),
-            ('fetchtime', fetch_time),
-            ('bproptime', bp_time)
+            ('lr', learning_rate),
+            ('fetcht', fetch_time),
+            ('bpropt', bp_time)
         ]
         p.update(iteration + 1, extra_info)
+
+        # Update mean loss
+        mean_loss += float(loss) / iterations
+
+        # Log results to numeric log
+        numlog_data = dict(extra_info)
+        numlog_data['type'] = 'train'
+        numlog_data['bsize'] = len(data[data.keys()[0]])
+        numeric_log.append(numlog_data)
+
+    learning_rate = model.optimizer.get_config()['lr']
+    info('Finished {} training batches, mean loss-per-batch {}, LR {}'.format(
+        iterations, mean_loss, learning_rate
+    ))
 
 
 def validate(model, queue, batches, mask_class_name, masks):
@@ -303,19 +341,32 @@ def validate(model, queue, batches, mask_class_name, masks):
             sample_weight = {}
 
         loss, = model.test_on_batch(data, sample_weight=sample_weight)
+        loss = float(loss)
 
         # Update stats
         sample_size = len(data[data.keys()[0]])
         samples += sample_size
         weighted_loss += sample_size * loss
 
+        numeric_log.append({
+            'type': 'val_batch',
+            'loss': loss,
+            'w_loss': weighted_loss,
+            'bsize': sample_size
+        })
+
         if (batch_num % 10) == 0:
             info('%i validation batches tested', batch_num)
 
+    mean_loss = weighted_loss / max(1, samples)
     info(
         'Finished %i batches (%i samples); mean loss-per-sample %f',
-        batches, samples, weighted_loss / max(1, samples)
+        batches, samples, mean_loss
     )
+    numeric_log.append({
+        'type': 'val_done',
+        'mean_loss': mean_loss
+    })
 
 
 def save(model, iteration_no, dest_dir):
@@ -446,7 +497,7 @@ def get_parser():
 
     # Optargs
     parser.add_argument(
-        '--queued-batches', dest='queued_batches', type=int, default=16,
+        '--queued-batches', dest='queued_batches', type=int, default=32,
         help='number of unused batches stored in processing queue (in memory)'
     )
     parser.add_argument(
@@ -477,16 +528,12 @@ def get_parser():
         '--finetune', dest='finetune_path', type=str, default=None,
         help='finetune from these weights instead of starting again'
     )
-    parser.add_argument(
-        '--logfile', dest='log_file', type=str, default=None,
-        help='path to log messages to (in addition to std{err,out})'
-    )
     # TODO: Add configuration option to just run through the entire validation set
     # like I was doing before. That's a lot faster than using randomly sampled
     # stuff. Edit: I think I pushed down the validaiton block size, so now random
     # selection should be relatively fast.
     parser.add_argument(
-        '--val-batches', dest='val_batches', type=int, default=5,
+        '--val-batches', dest='val_batches', type=int, default=50,
         help='number of batches to run during each validation step'
     )
     parser.add_argument(
@@ -512,19 +559,24 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     parser = get_parser()
     args = parser.parse_args()
+
+    # Set up checkpointing and logging
     work_dir = args.working_dir
     checkpoint_dir = path.join(work_dir, 'checkpoints')
     mkdir_p(checkpoint_dir)
-    if args.log_file is not None:
-        log_file = args.log_file
-    else:
-        log_dir = path.join(work_dir, 'logs')
-        mkdir_p(log_dir)
-        log_fn = 'log-' + datetime_str() + '.log'
-        log_file = path.join(log_dir, log_fn)
+    log_dir = path.join(work_dir, 'logs')
+    mkdir_p(log_dir)
+    t = datetime_str()
+    num_log_fn = path.join(log_dir, 'numlog-' + t + '.log')
+    log_file = path.join(log_dir, 'log-' + t + '.log')
     file_handler = logging.FileHandler(log_file, mode='a')
     logging.getLogger().addHandler(file_handler)
-    info('Logging started')
+    numeric_log = NumericLogger(num_log_fn)
+    info('=' * 80)
+    info('Logging started at ' + datetime_str())
+    info('num_log_fn: {}'.format(num_log_fn))
+    info('argv: {}'.format(argv))
+    info('THEANO_FLAGS: {}'.format(environ.get('THEANO_FLAGS')))
 
     # Model-building
     ds_shape = infer_sizes(args.train_h5s[0])
@@ -583,12 +635,12 @@ if __name__ == '__main__':
         try:
             while True:
                 # Train and validate
+                validate(
+                    model, val_queue, args.val_batches, mask_class_name, masks
+                )
                 train(
                     model, train_queue, args.train_interval_batches,
                     mask_class_name, masks
-                )
-                validate(
-                    model, val_queue, args.val_batches, mask_class_name, masks
                 )
 
                 # Update stats
