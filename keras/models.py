@@ -127,10 +127,10 @@ def vgg16_twin_final(input_shape, init):
     model.add(Flatten())
 
     model.add(Dense(4096, activation='relu', init=init))
-    model.add(Dropout(0.8))
+    model.add(Dropout(0.5))
 
     model.add(Dense(4096, activation='relu', init=init))
-    model.add(Dropout(0.8))
+    model.add(Dropout(0.5))
 
     return model
 
