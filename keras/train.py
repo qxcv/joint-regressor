@@ -473,6 +473,43 @@ def datetime_str():
     return datetime.datetime.now().isoformat()
 
 
+def setup_logging(work_dir):
+    global numeric_log
+    logging.basicConfig(level=logging.DEBUG)
+    log_dir = path.join(work_dir, 'logs')
+    mkdir_p(log_dir)
+    t = datetime_str()
+    num_log_fn = path.join(log_dir, 'numlog-' + t + '.log')
+    log_file = path.join(log_dir, 'log-' + t + '.log')
+    file_handler = logging.FileHandler(log_file, mode='a')
+    logging.getLogger().addHandler(file_handler)
+    numeric_log = NumericLogger(num_log_fn)
+    info('=' * 80)
+    info('Logging started at ' + datetime_str())
+    info('Human-readable log path: {}'.format(log_file))
+    info('Numeric log path: {}'.format(num_log_fn))
+
+
+def load_model(args):
+    ds_shape = infer_sizes(args.train_h5s[0])
+    solver = SGD(
+        lr=args.learning_rate, decay=args.decay, momentum=0.9, nesterov=True
+    )
+    model_to_load = getattr(models, args.model_name)
+    info('Using loader %s' % args.model_name)
+    model = model_to_load(
+        ds_shape, solver, INIT
+    )
+    info('Loaded model of type {}'.format(type(model)))
+    opt_cfg = model.optimizer.get_config()
+    info('Solver data: decay={decay}, lr={lr}, momentum={momentum}, '
+         'nesterov={nesterov}'.format(**opt_cfg))
+    if args.finetune_path is not None:
+        info("Loading weights from '%s'", args.finetune_path)
+        model.load_weights(args.finetune_path)
+    return model
+
+
 def get_parser():
     """Grab the ``argparse.ArgumentParser`` for this application. For some
     reason ``argparse`` needs access to ``sys.argv`` to build an
@@ -556,7 +593,6 @@ def get_parser():
 
 if __name__ == '__main__':
     # Start by parsing arguments and setting up logger
-    logging.basicConfig(level=logging.DEBUG)
     parser = get_parser()
     args = parser.parse_args()
 
@@ -564,35 +600,12 @@ if __name__ == '__main__':
     work_dir = args.working_dir
     checkpoint_dir = path.join(work_dir, 'checkpoints')
     mkdir_p(checkpoint_dir)
-    log_dir = path.join(work_dir, 'logs')
-    mkdir_p(log_dir)
-    t = datetime_str()
-    num_log_fn = path.join(log_dir, 'numlog-' + t + '.log')
-    log_file = path.join(log_dir, 'log-' + t + '.log')
-    file_handler = logging.FileHandler(log_file, mode='a')
-    logging.getLogger().addHandler(file_handler)
-    numeric_log = NumericLogger(num_log_fn)
-    info('=' * 80)
-    info('Logging started at ' + datetime_str())
-    info('num_log_fn: {}'.format(num_log_fn))
+    setup_logging(work_dir)
     info('argv: {}'.format(argv))
     info('THEANO_FLAGS: {}'.format(environ.get('THEANO_FLAGS')))
 
     # Model-building
-    ds_shape = infer_sizes(args.train_h5s[0])
-    solver = SGD(
-        lr=args.learning_rate, decay=args.decay, momentum=0.9, nesterov=True
-    )
-    model_to_load = getattr(models, args.model_name)
-    info('Using loader %s' % args.model_name)
-    model = model_to_load(
-        ds_shape, solver, INIT
-    )
-    info('Loaded model of type {}'.format(type(model)))
-    if args.finetune_path is not None:
-        info("Loading weights from '%s'", args.finetune_path)
-        model.load_weights(args.finetune_path)
-
+    model = load_model(args)
     inputs, outputs = [d.keys() for d in get_model_io(model)]
 
     # Prefetching stuff

@@ -74,7 +74,6 @@ for octave = 1:max_batch_size:max_scale
         scaled_flow_pad = bsxfun(@minus, scaled_flow_pad, flow_mp);
         flow_pyra(sub_scale+1, :, 1:size(scaled_flow_pad,1), 1:size(scaled_flow_pad,2)) = scaled_flow_pad;
         
-        
         % This output size function was used in the original code because
         % it reflects how Caffe computes fully convolutional network output
         % volumes. It turns out that Keras does the same thing (hooray!),
