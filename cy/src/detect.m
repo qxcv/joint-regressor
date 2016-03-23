@@ -147,14 +147,20 @@ for level = levels
             assert(all(size(ovmask) == size(tmpscore)));
             % label supervision
             if label > 0
+                % If a location doesn't overlap enough with the ground
+                % truth, then we set it to -INF
                 tmpscore(~ovmask) = -INF;
-                % mixture part supervision
-                % Disabled for now because I don't have a .defMap
-                %           if isfield(iminfo,'near')
-                %             for n = 1:numel(parts(p).nbh_IDs)
-                %               parts(p).defMap{n}(:,:,~iminfo.near{p}{n}) = -INF;
-                %             end
-                %           end
+                
+                % If a poselet is a long way from the GT poselet, then we
+                % also set it to 0.
+                near_pslts = iminfo.near{subpose_idx};
+                assert(~isempty(near_pslts));
+                assert(all(1 <= near_pslts && near_pslts <= model.K));
+                far_pslts = true([1 K]);
+                far_pslts(near_pslts) = false;
+                assert(sum(far_pslts) == K - length(near_pslts));
+                far_idxs = model.global_IDs{subpose_idx}(far_pslts);
+                components(subpose_idx).appMap(:, :, far_idxs) = -INF;
             elseif label < 0
                 tmpscore(ovmask) = -INF;
             end

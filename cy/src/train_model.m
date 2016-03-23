@@ -1,6 +1,4 @@
 function model = train_model(conf, pos_val, neg_val, subpose_disps, tsize)
-% IMPORTANT: pos_val and neg_val must be structs with .data and .pairs
-% members (probably .name as well), as produced by unify_dataset.m
 cachedir = conf.cache_dir;
 subpose_pa = conf.subpose_pa;
 subposes = conf.subposes;
@@ -8,14 +6,13 @@ cls = 'graphical_model';
 try
     model = parload([cachedir cls], 'model');
 catch
-    % learn clusters, and derive labels
-    % must have already been learnt!
     clusters = parload(fullfile(cachedir, 'centroids.mat'), 'centroids');
-    % label_val = ...
-    % XXX: As far as I can tell, this isn't used except to extract its
-    % .near attribute below (which I'm not calculating at the moment).
-    derive_labels(cachedir, subpose_pa, pos_val, clusters, subposes, ...
-        conf.K);
+    labels = derive_labels(cachedir, subpose_pa, pos_val, clusters, subposes, ...
+        conf.K, conf.cnn.window);
+    for pair_idx=1:length(pos_val.pairs)
+        % We only care about .near because we use that for supervision
+        pos_val.pairs(pair_idx).near = labels(pair_idx).near;
+    end
     
     % XXX: Should pass this in more elegantly. Same goes for clusters.
     mean_pixels = load(fullfile(cachedir, 'mean_pixel.mat'));

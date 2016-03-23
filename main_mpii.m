@@ -34,9 +34,11 @@ fprintf('Calculating mean pixel\n');
 store_mean_pixel(train_patch_dir, conf.cache_dir);
 
 % TODO: Make training automatic. I can do this manually, but people who
-% want to reproduce my results can't. This should just be a call to
-% train.py with the appropriate arguments, although there will be some
-% additional effort involved in activating the virtualenv.
+% want to reproduce my results can't. Roughly, you need to:
+% 1) Activate the virtualenv
+% 2) Run train.py with the appropriate arguments
+% 3) Convert the net to a fully convolutional one and save the weights and
+%    model definition (see debugging-convnet.ipynb).
 if ~(exist(conf.cnn.deploy_json, 'file') && exist(conf.cnn.deploy_weights, 'file'))
     error('jointregressor:nocnn', ...
         ['You need to run train.py to train a network, then use the ' ...

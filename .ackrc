@@ -5,3 +5,4 @@
 --ignore-dir=ext/LDOF_src/
 --ignore-dir=ext/deepmatching_1.2.2_c++/
 --ignore-dir=cache/
+--ignore-file=match:.ipynb

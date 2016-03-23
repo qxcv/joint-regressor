@@ -7,7 +7,7 @@ function model = build_model(subpose_pa, K, subpose_disps, cnn_conf, mean_pixels
 % parameters need for cnn
 model.cnn = cnn_conf;
 model.cnn.mean_pixels = mean_pixels;
-model.cnn.cnn_output_dim = global_IDs{end}(end)+1;   % +1 for background
+model.cnn.cnn_output_dim = global_IDs{end}(end);
 model.cnn.psize = tsize * cnn_conf.step;
 
 model.memsize = memsize;
@@ -40,9 +40,7 @@ model.root = [];
 for subpose_idx = 1:length(subpose_pa)
     child = subpose_idx;
     parent = subpose_pa(child);
-    % XXX: Will need to reinstate following assertion later, once I've
-    % toposorted the parents array.
-    % assert(parent < child);
+    assert(parent < child, 'Parents array should be toposorted');
     % p is a single struct array entry which will get appended to
     % components{1}.
     p.parent = parent;
