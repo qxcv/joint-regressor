@@ -1,4 +1,4 @@
-function pyra = impyra(im, flow, cnn_model, mean_pixels, step, psize, ...
+function pyra = impyra(im, flow, cnn_model, mean_pixels, step, cnn_size, ...
     interval, scale_factor)
 % Compute feature pyramid.
 %
@@ -7,14 +7,9 @@ function pyra = impyra(im, flow, cnn_model, mean_pixels, step, psize, ...
 % pyra.feat{i+interval} is computed at exactly half the resolution of feat{i}.
 % first octave halucinates higher resolution data.
 
-% These next checks might need to changed if it's easier to organise things
-% some other way.
 assert(ndims(im) == 3 && ndims(flow) == 3);
-assert(size(im, 1) == 6, 'Need RGBRGB channels second');
-assert(size(flow, 1) == 2, 'Need uv channels second');
-
-flow_mp = reshape(mean_pixels.flow, [1 2 1 1]);
-image_mp = reshape(mean_pixels.images, [1 6 1 1]);
+assert(size(im, 3) == 6, 'Need RGBRGB channels last');
+assert(size(flow, 3) == 2, 'Need uv channels last');
 
 imsize = size(im);
 flowsize = size(flow);
@@ -24,23 +19,21 @@ im = imresize(im, scale_factor);  % may upscale image to better handle small obj
 flow = smart_resize_flow(flow, scale_factor);
 assert(all(size(im) == size(flow) | [0 0 1]));
 
-% TODO: What is psize?
-% Okay, it's the expected size of part, expressed in the side length of the
+% psize is the expected size of part, expressed in the side length of the
 % region which contains it in the output volume. That's what it's computed
-% as tsize*psize in build_model.m, where tsize is the expected size in
-% input pixels of a part and psize is the downsampling factor (stride) of
+% as tsize*step in build_model.m, where tsize is the expected size in
+% input pixels of a part and step is the downsampling factor (stride) of
 % the fully convolutional network.
 
 % the ceil((x-1)/2) seems to be division by 2 with round-down (and a max to
 % clamp in [0, infty)).
 % The following checks are necessary so that our subsampling is the same in
 % each dimension.
-assert(psize(1) == psize(2));
-assert(step(1) == step(2));
-pad = max(ceil((double(psize(1)-1)/2)), 0);
+assert(isscalar(cnn_size) && isscalar(step));
+pad = max(ceil((double(cnn_size-1)/2)), 0);
 sc = 2 ^(1/interval);
 imsize = [size(im, 1), size(im, 2)];
-max_scale = 1 + floor(log(min(imsize)/max(psize))/log(sc));
+max_scale = 1 + floor(log(min(imsize)/cnn_size)/log(sc));
 
 % pyra is structure
 pyra = struct('feat', cell(max_scale, 1), 'sizs', cell(max_scale, 1), ...
@@ -58,7 +51,7 @@ for octave = 1:max_batch_size:max_scale
     num = min(max_batch_size, max_scale-octave+1);
     % Order for cnn_eval is NCHW
     im_pyra = zeros(...
-        num, 3, size(scaled_im, 1)   + 2*pad, size(scaled_im, 2)   + 2*pad, ...
+        num, 6, size(scaled_im, 1) + 2*pad, size(scaled_im, 2) + 2*pad, ...
         'single');
     flow_pyra = zeros(...
         num, 2, size(scaled_flow, 1) + 2*pad, size(scaled_flow, 2) + 2*pad, ...
@@ -67,19 +60,29 @@ for octave = 1:max_batch_size:max_scale
         % Pad so that we get an output volume covering the whole image
         % Images first
         scaled_im_pad = padarray(scaled_im, [pad, pad, 0], 'replicate');
-        scaled_im_pad = bsxfun(@minus, scaled_im_pad, image_mp);
-        im_pyra(sub_scale+1, :, 1:size(scaled_im_pad,1), 1:size(scaled_im_pad,2)) = scaled_im_pad;
+        height = size(scaled_im_pad, 1);
+        width = size(scaled_im_pad, 2);
+        % Move into channels-first order
+        scaled_im_shuf = permute(scaled_im_pad, [3 1 2]);
+        % scaled_im_shuf = reshape(scaled_im_shuf, [1 size(scaled_im_shuf)]);
+        im_pyra(sub_scale+1, :, 1:height, 1:width) = scaled_im_shuf;
+        
         % Flow second
         scaled_flow_pad = padarray(scaled_flow, [pad, pad, 0], 'replicate');
-        scaled_flow_pad = bsxfun(@minus, scaled_flow_pad, flow_mp);
-        flow_pyra(sub_scale+1, :, 1:size(scaled_flow_pad,1), 1:size(scaled_flow_pad,2)) = scaled_flow_pad;
+        assert(size(scaled_flow_pad, 1) == height ...
+            && size(scaled_flow_pad, 2) == width);
+        scaled_flow_shuf = permute(scaled_flow_pad, [3 1 2]);
+        % scaled_flow_shuf = reshape(scaled_flow_shuf, [1 size(scaled_flow_shuf)]);
+        flow_pyra(sub_scale+1, :, 1:height, 1:width) = scaled_flow_shuf;
         
         % This output size function was used in the original code because
         % it reflects how Caffe computes fully convolutional network output
         % volumes. It turns out that Keras does the same thing (hooray!),
         % so I can keep it :)
-        pyra(octave+sub_scale).sizs = floor([size(scaled_im_pad, 1) - psize(1), ...
-                                size(scaled_im_pad, 2) - psize(2)] / step) + 1;
+        % TODO: Should this be floor(x) + 1 or ceil(x)? Only makes a
+        % difference when x is whole, but could still be problematic.
+        pyra(octave+sub_scale).sizs = floor([height - cnn_size, ...
+                                             width - cnn_size] / step) + 1;
         
         pyra(octave+sub_scale).scale = step / (scale_factor * 1/sc^(octave-1+sub_scale));
         pyra(octave+sub_scale).pad = pad / step;
@@ -92,8 +95,16 @@ for octave = 1:max_batch_size:max_scale
     % outputs).
     resp = cnn_eval(cnn_model, im_pyra, flow_pyra, mean_pixels);
     for sub_scale = 0:num-1
-        pyra(octave+sub_scale).feat = resp(sub_scale+1, :, ...
+        feat = resp(sub_scale+1, :, ...
             1:pyra(octave + sub_scale).sizs(1), ...
             1:pyra(octave + sub_scale).sizs(2));
+        assert(ndims(feat) == 4);
+        assert(size(feat, 1) == 1);
+        feat_size = size(feat);
+        % Get rid of singleton leading dimension
+        feat = reshape(feat, feat_size(2:end));
+        % Put channels last
+        feat = permute(feat, [2 3 1]);
+        pyra(octave+sub_scale).feat = feat;
     end
 end

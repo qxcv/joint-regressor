@@ -11,11 +11,12 @@ maxes = max(joints, [], 1);
 mins = min(joints, [], 1);
 assert(numel(maxes) == 2 && numel(mins == 2));
 midpoint = mins + (maxes - mins) ./ 2;
-anchor = midpoint - scale;
+anchor = midpoint - scale / 2;
 trans_joint_locs = bsxfun(@minus, joints, reshape(anchor, [1 2]));
 scale_factors = cnn_window ./ scale;
 normed_locs = bsxfun(@times, trans_joint_locs, reshape(scale_factors, [1 2]));
-assert(all(normed_locs >= 0));
-assert(all(bsxfun(@lt, normed_locs, reshape(cnn_window, [1 2]))));
+assert(all(normed_locs(:) >= 0));
+in_range_mat = bsxfun(@lt, normed_locs, reshape(cnn_window, [1 2]));
+assert(all(in_range_mat(:)));
 assert(all(size(normed_locs) == size(joints)));
 end

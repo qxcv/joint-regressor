@@ -1,10 +1,13 @@
 function configure_env
 %CONFIGURE_ENV Activate virtualenv for Keras, initialising if necessary
+
+force_pygc();
+
 if ~exist('./keras/env', 'dir')
     fprintf('Installing virtualenv in keras/env\n');
     init_command = ['virtualenv --system-site-packages ./keras/env '...
         '&& source ./keras/env/bin/activate '...
-        '&& pip install -r ./keras/requirements.txt']
+        '&& pip install -r ./keras/requirements.txt'];
     rv = system(init_command, '-echo');
     assert(rv == 0, 'Python package install failed');
 end

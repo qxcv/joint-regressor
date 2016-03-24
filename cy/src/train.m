@@ -153,15 +153,14 @@ for pair_num = 1:num_pairs
     fprintf('%s: iter %d: latent positive: %d/%d\n', name, t, pair_num, num_pairs);
     % skip small examples
     pair = pos.pairs(pair_num);
-    scale_x = pair.scale_x; scale_y = pair.scale_y;
+    scale = pair.scale;
+    bbox_side = scale / 2;
     d1 = pos.data(pair.fst);
     d2 = pos.data(pair.snd);
-    all_joints = cat(2, d1, d2);
+    all_joints = cat(1, d1.joint_locs, d2.joint_locs);
     assert(ismatrix(all_joints) && size(all_joints, 2) == 2);
-    % keep in mind that scale_x/scale_y measure joint position (so the
-    % below is actually a big matrix with one row per joint).
-    bbox.xy = [all_joints(:,1)-scale_x, all_joints(:,2)-scale_y, ...
-        all_joints(:,1)+scale_x, all_joints(:,2)+scale_y];
+    bbox.xy = [all_joints(:,1)-bbox_side, all_joints(:,2)-bbox_side, ...
+        all_joints(:,1)+bbox_side, all_joints(:,2)+bbox_side];
     area = (bbox.xy(:,3)-bbox.xy(:,1)+1).*(bbox.xy(:,4)-bbox.xy(:,2)+1);
     if any(area < minsize/1.5)
         % skip only when exmaple are too small

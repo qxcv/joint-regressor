@@ -8,7 +8,7 @@ try
 catch
     clusters = parload(fullfile(cachedir, 'centroids.mat'), 'centroids');
     labels = derive_labels(cachedir, subpose_pa, pos_val, clusters, subposes, ...
-        conf.K, conf.cnn.window);
+        conf.biposelet_classes, conf.cnn.window);
     for pair_idx=1:length(pos_val.pairs)
         % We only care about .near because we use that for supervision
         pos_val.pairs(pair_idx).near = labels(pair_idx).near;

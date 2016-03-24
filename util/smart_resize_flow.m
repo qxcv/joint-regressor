@@ -13,9 +13,11 @@ old_size = old_size(1:2);
 
 if isscalar(new_size_in)
     new_flow = imresize(flow_data, new_size_in);
-elseif ndims(new_size_in) == 3
+elseif numel(new_size_in) == 3
     new_size_trunc = new_size_in(1:2);
     new_flow = imresize(flow_data, new_size_trunc);
+else
+    assert(false, 'Should never reach this :/');
 end
 
 new_size = size(new_flow);

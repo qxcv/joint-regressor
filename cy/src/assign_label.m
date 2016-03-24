@@ -1,5 +1,5 @@
 function labels = assign_label(all_data, pa, clusters, subposes, K, cnn_window)
-
+%ASSIGN_LABEL Associate training data with subpose clusters
 % add mix field to imgs
 subpose_no = numel(pa);
 get_cell = @() cell(all_data.num_pairs, 1);
@@ -37,7 +37,7 @@ for pair_idx = 1:all_data.num_pairs
         
         % Now record clusters which are close, but not necessarily the
         % nearest (used for poselet supervision in SVM training code).
-        all_near = find(dists < best_dist);
+        all_near = find(dists <= 1.3 * best_dist);
         assert(~isempty(all_near));
         labels(pair_idx).near{subpose_idx} = all_near;
     end

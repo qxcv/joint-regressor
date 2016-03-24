@@ -54,7 +54,6 @@ im2 = readim(im2_info);
 flow = imflow(im1_info.image_path, im2_info.image_path);
 im_stack = cat(3, im1, im2);
 % if has box information, crop it
-assert(false, 'Need to fix the rest of detect');
 if latent && label > 0
     % crop positive images to speed up latent search
     [im_stack, flow, bbox] = cropscale_pos(im_stack, flow, bbox, model.cnn.psize);
@@ -170,6 +169,7 @@ for level = levels
     end
     
     % Walk from leaves to root of tree, passing message to parent
+    assert(false, 'Need to fix the rest of detect');
     for subpose_idx = num_subposes:-1:2
         child = components(subpose_idx);
         par_idx = components(subpose_idx).parent;

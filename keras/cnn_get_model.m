@@ -3,6 +3,7 @@ function model = cnn_get_model(def_path, weights_path)
 %trained weights.
 
 % Monkey patch in my custom activation
+configure_env;
 utils = cnn_get_module('utils');
 utils.register_activation.feval(utils.convolution_softmax, 'convolution_softmax');
 
