@@ -3,6 +3,14 @@ function configure_env
 
 force_pygc();
 
+persistent configured;
+if isempty(configured)
+    configured = true;
+else
+    assert(configured);
+    return
+end
+
 if ~exist('./keras/env', 'dir')
     fprintf('Installing virtualenv in keras/env\n');
     init_command = ['virtualenv --system-site-packages ./keras/env '...

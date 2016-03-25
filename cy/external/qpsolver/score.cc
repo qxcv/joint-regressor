@@ -26,6 +26,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
                   int nrhs, const mxArray *prhs[] )
 {
 
+  if (nrhs < 3) mexErrMsgTxt("Incorrect number of arguments (need 3)");
   if (mxIsDouble(prhs[0]) == false) mexErrMsgTxt("Arguement 1 is not double");
   if (mxIsSingle(prhs[1]) == false) mexErrMsgTxt("Arguement 2 is not single");
   if (mxIsDouble(prhs[2]) == false) mexErrMsgTxt("Arguement 3 is not double");

@@ -55,11 +55,17 @@ for subpose_idx = 1:length(subpose_pa)
     % Will be K*K*2 matrix; use like disp = p.subpose_disps(child_type,
     % parent_type, :) to get child_center - parent_center (IIRC)
     if parent ~= 0
-        p.subpose_disps = squeeze(subpose_disps(subpose_idx, :, :, :));
-        assert(ndims(p.subpose_disps) == 3);
-        assert(size(p.subpose_disps, 3) == 2);
+        disps = squeeze(subpose_disps(subpose_idx, :, :, :));
+        child_K = size(disps, 1);
+        parent_K = size(disps, 2);
+        p.subpose_disps = cell([1 child_K]);
+        % Slow, but whatever
+        for child_type=1:child_K
+            p.subpose_disps{child_type} = mat2cell(....
+                squeeze(disps(child_type, :, :)), ones([1 parent_K]), 2);
+        end
     else
-        p.subpose_disps = [];
+        p.subpose_disps = {};
     end
     
     % add bias (only to root, i.e. parent == 0)

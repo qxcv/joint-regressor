@@ -171,7 +171,7 @@ for pair_num = 1:num_pairs
     % note that detect is updating qp using ii and the label which we supply
     % it at the end, as above (but the label is 1 this time since we have a
     % positive)
-    box = detect(d1, d2, model, 0, bbox, overlap, pair_num, 1);
+    box = detect(d1, d2, pair, model, 0, bbox, overlap, pair_num, 1);
     if ~isempty(box)
         fprintf(' (comp=%d,sc=%.3f)\n', box(1, end-1), box(1, end));
         c = box(1,end-1);

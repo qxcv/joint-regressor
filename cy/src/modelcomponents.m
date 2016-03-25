@@ -2,8 +2,6 @@
 function [components, apps] = modelcomponents(model)
 cell_components = cell(1, 1);
 
-assert(false, 'Need to fix modelcomponents');
-
 for subpose_idx = 1:length(model.components)
     subpose = model.components(subpose_idx); % has nbh_IDs
     nbh_N = numel(subpose.nbh_IDs);
@@ -18,22 +16,25 @@ for subpose_idx = 1:length(model.components)
     
     x = model.apps(subpose.appid);
     
-    subpose.sizy = model.tsize(1);
-    subpose.sizx = model.tsize(2);
+    % XXX: This is stupid/broken. Not even sure what tsize is helpful for
+    % now.
+    subpose.sizy = model.tsize;
+    subpose.sizx = model.tsize;
     subpose.appI = x.i;
     
-    for d = 1:nbh_N
-        for m = 1:numel(subpose.gauid{d})
-            x = model.gaus(subpose.gauid{d}(m));
-            subpose.gauw{d}(m,:)  = x.w;
-            subpose.gauI{d}(m) = x.i;
-            mean_x = x.mean(1);
-            mean_y = x.mean(2);
-            
-            subpose.mean_x{d}(m) = mean_x;
-            subpose.mean_y{d}(m) = mean_y;
-        end
+    % Remember that means are already in subpose.subpose_disps (see
+    % build_model for more).
+    if subpose_idx ~= model.root
+        gauid = subpose.gauid;
+        assert(isscalar(gauid));
+        gau = model.gaus(gauid);
+        subpose.gauw = gau.w;
+        subpose.gauI = gau.i;
+    else
+        subpose.gauw = [];
+        subpose.gauI = [];
     end
+   
     cell_components{1}(subpose_idx) = subpose;
 end
 apps = cell(length(model.apps), 1);

@@ -1,4 +1,4 @@
-function [boxes,model,ex] = detect(im1_info, im2_info, model, thresh, ...
+function [boxes,model,ex] = detect(im1_info, im2_info, pair, model, thresh, ...
     bbox, overlap, id, label)
 % Detect objects in image using a model and a score threshold.
 % Higher threshold leads to fewer detections.
@@ -31,11 +31,12 @@ function [boxes,model,ex] = detect(im1_info, im2_info, model, thresh, ...
 % 2) In passmsg, I'll have to figure out how to compute displacements
 % correctly. In particular, I'll have to make sure that displacement sign
 % is correct and that the displacement is scaled correctly so that it is in
-% "heatmap coordinates".
+% "heatmap coordinates". All of the extra parameters to shiftdt (e.g. dlen)
+% will be helpful here.
 % 3) There are a few places where I need to find bounding boxes for parts
 % (well, sub-poses in my model). I should do that by using the CNN
-% receptive field corresponding to each sub-pose, instead of whatever
-% heuristic measure is currently used.
+% receptive field corresponding to each sub-pose (as stored in .scale),
+% instead of whatever heuristic measure is currently used.
 
 INF = 1e10;
 
@@ -67,7 +68,9 @@ levels = 1:length(pyra);
 % Randomize order to increase effectiveness of model updating
 write = false;
 if nargin > 5
-    global qp;
+    % Matlab was giving a warning that having global inside a block could
+    % be "very inefficient" (might be about loops or something?)
+    global qp; %#ok<TLEV>
     write  = true;
     levels = levels(randperm(length(levels)));
 end
@@ -128,21 +131,22 @@ for level = levels
         % this subpose
         f = components(subpose_idx).appid;
         assert(isscalar(f), 'Should have only one weight ID');
-        assert(isscalar(apps{f}, 'Should have only one weight for that ID'));
+        assert(isscalar(apps{f}), 'Should have only one weight for that ID');
         % .score will now be h*w*K for each part
         weighted_apps = components(subpose_idx).appMap * apps{f};
         assert(ndims(weighted_apps) == 3);
-        assert(size(weihted_apps, 3) == model.K);
+        assert(size(weighted_apps, 3) == model.K);
         components(subpose_idx).score = weighted_apps;
         components(subpose_idx).level = level;
         
         if latent
-            assert(false, 'Need to fix this check to deal with bigger unaries');
             ovmask = testoverlap(components(subpose_idx).sizx, components(subpose_idx).sizy, ...
                 sizs(1), sizs(2), pyra(level), bbox.xy(subpose_idx,:), overlap);
             assert(ismatrix(ovmask));
             tmpscore = components(subpose_idx).score;
-            ovmask = repmat(ovmask, 1, 1, size(tmpscore, 3));
+            tmpscore_K = size(tmpscore, 3);
+            assert(tmpscore_K == model.K);
+            ovmask = repmat(ovmask, 1, 1, tmpscore_K);
             assert(all(size(ovmask) == size(tmpscore)));
             % label supervision
             if label > 0
@@ -152,12 +156,12 @@ for level = levels
                 
                 % If a poselet is a long way from the GT poselet, then we
                 % also set it to 0.
-                near_pslts = iminfo.near{subpose_idx};
+                near_pslts = pair.near{subpose_idx};
                 assert(~isempty(near_pslts));
-                assert(all(1 <= near_pslts && near_pslts <= model.K));
-                far_pslts = true([1 K]);
+                assert(all(1 <= near_pslts & near_pslts <= model.K));
+                far_pslts = true([1 model.K]);
                 far_pslts(near_pslts) = false;
-                assert(sum(far_pslts) == K - length(near_pslts));
+                assert(sum(far_pslts) == model.K - length(near_pslts));
                 far_idxs = model.global_IDs{subpose_idx}(far_pslts);
                 components(subpose_idx).appMap(:, :, far_idxs) = -INF;
             elseif label < 0
@@ -169,17 +173,18 @@ for level = levels
     end
     
     % Walk from leaves to root of tree, passing message to parent
-    assert(false, 'Need to fix the rest of detect');
     for subpose_idx = num_subposes:-1:2
         child = components(subpose_idx);
         par_idx = components(subpose_idx).parent;
+        assert(0 < par_idx && par_idx < subpose_idx);
         parent = components(par_idx);
         
         [msg, components(subpose_idx).Ix, components(subpose_idx).Iy, ...
-            components(subpose_idx).Im{limb_to_parent}, ...
-            components(par_idx).Im{limb_to_child}] ...
+            to_parent_im, ... components(subpose_idx).Im{limb_to_parent}, ...
+            to_child_im] ... components(par_idx).Im{limb_to_child}] ...
             = passmsg(child, parent);
         components(par_idx).score = components(par_idx).score + msg;
+        assert(false, 'Seriously? That *worked*?');
     end
     
     % Add bias to root score

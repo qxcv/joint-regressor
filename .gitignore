@@ -1,4 +1,5 @@
 *.m~
+*.cpp~
 *.swp
 cache/
 train-patches.txt

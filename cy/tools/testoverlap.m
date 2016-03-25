@@ -4,8 +4,7 @@
 function ov = testoverlap(sizx, sizy, ud1, ud2, pyra, bbox, overlap)
 scale = pyra.scale;
 % ---------- TODO -----------
-padx  = pyra.padx;
-pady  = pyra.pady;
+pad  = pyra.pad;
 dimy = ud1; % size(pyra.impatch{level},4);
 dimx = ud2; % size(pyra.impatch{level},5);
 
@@ -15,8 +14,8 @@ bx2 = bbox(3);
 by2 = bbox(4);
 
 % Index windows evaluated by filter (in image coordinates)
-x1 = double(((1:dimx) - padx - 1)*scale + 1);
-y1 = double(((1:dimy) - pady - 1)*scale + 1);
+x1 = double(((1:dimx) - pad - 1)*scale + 1);
+y1 = double(((1:dimy) - pad - 1)*scale + 1);
 x2 = x1 + double(sizx*scale) - 1;
 y2 = y1 + double(sizy*scale) - 1;
 
