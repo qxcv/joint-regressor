@@ -112,5 +112,5 @@ for subpose_idx = 1:length(subpose_pa)
 end
 
 assert(isscalar(model.root), 'Could not find root part');
-% assert(model.root == 1, 'Root should be first element'); XXX
+assert(model.root == 1, 'Root should be first element');
 end

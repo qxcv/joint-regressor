@@ -89,11 +89,6 @@ class BatchReader(object):
         :param bool shuffle: Should data be shuffled?
         :param dict mean_pixels: Dictionary giving mean pixels for each
             channel."""
-        # TODO: What are the pros and cons of having a manual way of destroying
-        # these open files? Originally I tried to re-open files regularly to
-        # refresh the metadata in case more data had been written, but writing
-        # while reading only works when SWMR is on (in which case it may not be
-        # necessary to re-open the file!)
         self.h5_files = [h5py.File(path, 'r') for path in h5_paths]
         self.inputs = inputs
         self.outputs = outputs

@@ -22,18 +22,12 @@ function [boxes,model,ex] = detect(im1_info, im2_info, pair, model, thresh, ...
 % 2) box = detect(pos(ii), model, 0, bbox, overlap, ii, 1);
 
 % XXX: List of things I've found which are broken and will need changing:
-% 1) Need to change message-passing code to account for types of each node.
-% This probably means that some previously 2D arrays used in message
-% passing become 3D, or even higher-dimensional (because now we need to
-% remember which type of each part yielded the highest score). Remember
-% that I need to recover joint locations at the end of this process, and
-% that will require access to type information!
-% 2) In passmsg, I'll have to figure out how to compute displacements
+% 1) In passmsg, I'll have to figure out how to compute displacements
 % correctly. In particular, I'll have to make sure that displacement sign
 % is correct and that the displacement is scaled correctly so that it is in
 % "heatmap coordinates". All of the extra parameters to shiftdt (e.g. dlen)
 % will be helpful here.
-% 3) There are a few places where I need to find bounding boxes for parts
+% 2) There are a few places where I need to find bounding boxes for parts
 % (well, sub-poses in my model). I should do that by using the CNN
 % receptive field corresponding to each sub-pose (as stored in .scale),
 % instead of whatever heuristic measure is currently used.
@@ -84,7 +78,9 @@ end
 % Cache various statistics derived from model
 [components, apps] = modelcomponents(model);
 
-boxes = zeros(100000, 4 * length(components) + 2);
+num_subposes = length(components);
+assert(num_subposes > 1, 'Only %d parts?\n', num_subposes);
+boxes = zeros(100000, 4 * length(components) + num_subposes + 1);
 cnt = 0;
 
 ex.blocks = [];
@@ -100,8 +96,6 @@ end
 for level = levels
     % Iterate through mixture components
     sizs = pyra(level).sizs;
-    num_subposes = length(components);
-    assert(num_subposes > 1, 'Only %d parts?\n', num_subposes);
     
     % Skip if there is no overlap of root filter with bbox
     if latent
@@ -184,7 +178,7 @@ for level = levels
         % matrix is of size H*W*K (so each entry corresponds to a single
         % parent configuration).
         [msg, components(subpose_idx).Ix, components(subpose_idx).Iy, ...
-            components(subpose_idx).Im] = passmsg(child, parent);
+         components(subpose_idx).Im] = passmsg(child, parent, model.sbin);
         components(par_idx).score = components(par_idx).score + msg;
     end
     
@@ -208,12 +202,10 @@ for level = levels
         y = Y(i);
         t = T(i);
         
-        % TODO: I also need to recover part types, since they'll be needed
-        % later in the pipeline.
-        [box, ex] = backtrack(x, y, t, components, pyra(level), ex, write);
+        [box, types, ex] = backtrack(x, y, t, components, pyra(level), ex, write);
         
         % 1 used to be c (which is always 1 anyway, WTF)
-        boxes(cnt,:) = [box 1 rscore(y, x, t)];
+        boxes(cnt,:) = [box types rscore(y, x, t)];
         if write && (~latent || label < 0)
             qp_write(ex);
             qp.ub = qp.ub + qp.Cneg*max(1+rscore(y, x, t),0);
@@ -257,24 +249,26 @@ end
 
 % Backtrack through dynamic programming messages to estimate part locations
 % and the associated feature vector
-function [box,ex] = backtrack(x,y,t,parts,pyra,ex,write)
-assert(false, 'backtrack is broken (no t yet)');
+function [box,types,ex] = backtrack(x,y,t,parts,pyra,ex,write)
 numparts = length(parts);
 ptr = zeros(numparts,3);
 box = zeros(numparts,4);
+types = zeros(1, numparts);
 k   = 1;
 p   = parts(k);
 ptr(k, :) = [x, y, t];
 scale = pyra.scale;
-x1  = (x - 1 - pyra.padx)*scale+1;
-y1  = (y - 1 - pyra.pady)*scale+1;
+x1  = (x - 1 - pyra.pad)*scale+1;
+y1  = (y - 1 - pyra.pad)*scale+1;
 x2  = x1 + p.sizx*scale - 1;
 y2  = y1 + p.sizy*scale - 1;
 
 box(k,:) = [x1 y1 x2 y2];
+types(k) = t;
 
+% XXX: Need to verify usage of .blocks
 if write
-    ex.id(3:5) = [p.level round(x+p.sizx/2) round(y+p.sizy/2)];
+    ex.id(3:6) = [p.level round(x+p.sizx/2) round(y+p.sizy/2) t];
     ex.blocks = [];
     ex.blocks(end+1).i = p.biasI;
     ex.blocks(end).x   = 1;
@@ -289,40 +283,31 @@ for k = 2:numparts
     x   = ptr(par,1);
     y   = ptr(par,2);
     t   = ptr(par,3);
+    assert(min([x y t]) > 0);
     
     ptr(k,1) = p.Ix(y,x,t);
     ptr(k,2) = p.Iy(y,x,t);
+    ptr(k,3) = p.Im(y,x,t);
     
-    x1  = (ptr(k,1) - 1 - pyra.padx)*scale+1;
-    y1  = (ptr(k,2) - 1 - pyra.pady)*scale+1;
+    x1  = (ptr(k,1) - 1 - pyra.pad)*scale+1;
+    y1  = (ptr(k,2) - 1 - pyra.pad)*scale+1;
     x2  = x1 + p.sizx*scale - 1;
     y2  = y1 + p.sizy*scale - 1;
     box(k,:) = [x1 y1 x2 y2];
+    types(k) = ptr(k,3);
     
-    if write
-        cbid = find(p.nbh_IDs == parts(par).pid);
-        pbid = find(parts(par).nbh_IDs == p.pid);
+    if write        
+        % deformation
+        assert(isscalar(p.gauI));
+        ex.blocks(end+1).i = p.gauI;
+        ex.blocks(end).x   = defvector(p, ptr(k,1), ptr(k,2), x, y, ptr(k, 1), t);
         
-        cm = p.Im{cbid}(y,x);
-        pm = parts(par).Im{pbid}(y,x);
-        
-        % two prior of deformation
-        ex.blocks(end+1).i = p.pdefI(cbid);
-        ex.blocks(end).x = p.defMap{cbid}(ptr(k,2),ptr(k,1),cm);
-        
-        % two deformations
-        % XXX: This may be incorrect.
-        ex.blocks(end+1).i = p.gauI{cbid}(cm);
-        ex.blocks(end).x   = defvector(p, ptr(k,1),ptr(k,2),x,y,cm,cbid);
-        
-        ex.blocks(end+1).i = parts(par).gauI{pbid}(pm);
-        ex.blocks(end).x   = defvector(parts(par),x,y,ptr(k,1),ptr(k,2),pm,pbid);
-        
-        x = ptr(k,1);
-        y = ptr(k,2);
+        c_x = ptr(k,1);
+        c_y = ptr(k,2);
+        c_t = ptr(k,3);
         
         % unary
-        f = parts(k).appMap(y, x);
+        f = parts(k).appMap(c_y, c_x, c_t);
         ex.blocks(end+1).i = p.appI;
         ex.blocks(end).x = f;
     end

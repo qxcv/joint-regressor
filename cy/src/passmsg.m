@@ -1,4 +1,4 @@
-function [score, Ix, Iy, Im] = passmsg(child, parent)
+function [score, Ix, Iy, Im] = passmsg(child, parent, scale)
 % Pass a message from child component to parent componoent, returning four
 % H*W*K matrices. In each matrix, the (h, w, k)-th entry corresponds to a
 % parent of type k at location (h, w). The matrices can be interpreted as
@@ -32,7 +32,7 @@ for parent_type = 1:parent_K
         %     direction for shiftdt.
         [score(:, :, parent_type, child_type), Ix0(:, :, parent_type, child_type), ...
             Iy0(:, :, parent_type, child_type)] = shiftdt(fixed_score_map, ...
-            child.gauw, int32(mean_disp), int32([width, height]), 1);
+            child.gauw, int32(mean_disp), int32([width, height]), scale);
         
         % If there was a prior-of-deformation (like the image evidence in
         % Chen & Yuille's model), then I would add it in here.

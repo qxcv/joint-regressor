@@ -60,7 +60,7 @@ global qp;
 % qp.d(i)   = ||qp.x(:,i)||^2
 % qp.a(i)   = ith dual variable
 qp.x   = zeros(len, nmax, 'single');
-qp.i   = zeros(5, nmax, 'int32');
+qp.i   = zeros(6, nmax, 'int32');
 qp.b   = ones(nmax, 1, 'single');
 qp.d   = zeros(nmax, 1, 'double');
 qp.a   = zeros(nmax, 1, 'double');
@@ -79,9 +79,7 @@ for iter_idx=1:num_iters,
     qp.n = 0;
     numpositives = poslatent(name, iter_idx, model, pos, overlap);
     
-    for i = 1:length(numpositives),
-        fprintf('component %d got %d positives\n', i, numpositives(i));
-    end
+    fprintf('got %d positives\n', numpositives);
     assert(qp.n <= nmax);
     
     % Fix positive examples as permanent support vectors
@@ -146,7 +144,7 @@ num_pairs = pos.num_pairs;
 % numpositives was length(model.components), which I think would have been
 % 1 before I changed model.components from a 1x1 cell array containing a
 % single struct array to just a struct array itself.
-numpositives = [];
+numpositives = 0;
 minsize = prod(double(model.tsize*model.sbin));
 
 for pair_num = 1:num_pairs
@@ -173,9 +171,8 @@ for pair_num = 1:num_pairs
     % positive)
     box = detect(d1, d2, pair, model, 0, bbox, overlap, pair_num, 1);
     if ~isempty(box)
-        fprintf(' (comp=%d,sc=%.3f)\n', box(1, end-1), box(1, end));
-        c = box(1,end-1);
-        numpositives(c) = numpositives(c)+1; %#ok<AGROW>
+        fprintf(' (sc=%.3f)\n', box(1, end));
+        numpositives = numpositives+1;
     end
 end
 end
