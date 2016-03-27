@@ -1,4 +1,14 @@
-function [score, Ix, Iy, Imc, Imp] = passmsg(child, parent)
+function [score, Ix, Iy, Im] = passmsg(child, parent)
+% Pass a message from child component to parent componoent, returning four
+% H*W*K matrices. In each matrix, the (h, w, k)-th entry corresponds to a
+% parent of type k at location (h, w). The matrices can be interpreted as
+% follows:
+% - score gives score of best subpose in which parent has specified
+%   location and type
+% - Ix gives the x location of the current child in the best subpose that
+%   has parent in specified configuration
+% - Iy is the same but for child y location
+% - Im is the same but for child type
 height = size(parent.score, 1);
 width = size(parent.score, 2);
 % Number of parent and child types, respectively
@@ -24,36 +34,21 @@ for parent_type = 1:parent_K
             Iy0(:, :, parent_type, child_type)] = shiftdt(fixed_score_map, ...
             child.gauw, int32(mean_disp), int32([width, height]), 1);
         
-%   double *vals = (double *)mxGetPr(prhs[0]);
-%   int sizx  = mxGetN(prhs[0]);
-%   int sizy  = mxGetM(prhs[0]);
-%   double ax = -mxGetScalar(prhs[1]);
-%   double bx = -mxGetScalar(prhs[2]);
-%   double ay = -mxGetScalar(prhs[3]);
-%   double by = -mxGetScalar(prhs[4]);
-%   int offx  = (int)mxGetScalar(prhs[5])-1;
-%   int offy  = (int)mxGetScalar(prhs[6])-1;
-%   int lenx  = (int)mxGetScalar(prhs[7]);
-%   int leny  = (int)mxGetScalar(prhs[8]);
-%   double step = mxGetScalar(prhs[9]);
-        
         % If there was a prior-of-deformation (like the image evidence in
         % Chen & Yuille's model), then I would add it in here.
     end
 end
-[score, Imcp] = max(score, [], 4);
-assert(ndims(score) == 3 && ndims(Imcp) == 3);
-% XXX: Everything below is hopelessly broken. Firstly, I don't think it
-% works at all (the ind2sub call simply doesn't make sense). Secondly, I'm
-% not sure how it will let me recover type information.
-% Some basic experiments suggest that Imp will be all ones. Why is this
-% even useful?
-[Imc, Imp] = ind2sub([child_K, parent_K], Imcp);
-[Ix, Iy] = deal(zeros(height, width));
+[score, Im] = max(score, [], 4);
+assert(ndims(score) == 3 && ndims(Im) == 3);
+[Ix, Iy] = deal(zeros(height, width, parent_K));
 for row = 1:height
     for col = 1:width
-        Ix(row, col) = Ix0(row, col, Imc(row, col), Imp(row, col));
-        Iy(row, col) = Iy0(row, col, Imc(row, col), Imp(row, col));
+        for ptype = 1:parent_K
+            ctype = Im(row, col, ptype);
+            assert(isscalar(ctype));
+            Ix(row, col, ptype) = Ix0(row, col, ptype, ctype);
+            Iy(row, col, ptype) = Iy0(row, col, ptype, ctype);
+        end
     end
 end
 % "score" is a message that will be added to the parent's total score in

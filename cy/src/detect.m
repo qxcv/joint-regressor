@@ -179,45 +179,49 @@ for level = levels
         assert(0 < par_idx && par_idx < subpose_idx);
         parent = components(par_idx);
         
+        % msg is for score; Ix, Iy and Im are for x location, y location
+        % and part type (*m*ixture?) backtracking, respectively. Each
+        % matrix is of size H*W*K (so each entry corresponds to a single
+        % parent configuration).
         [msg, components(subpose_idx).Ix, components(subpose_idx).Iy, ...
-            to_parent_im, ... components(subpose_idx).Im{limb_to_parent}, ...
-            to_child_im] ... components(par_idx).Im{limb_to_child}] ...
-            = passmsg(child, parent);
+            components(subpose_idx).Im] = passmsg(child, parent);
         components(par_idx).score = components(par_idx).score + msg;
-        assert(false, 'Seriously? That *worked*?');
     end
     
     % Add bias to root score
-    % XXX: Will also need to account for root node type and its
-    % corresponding appearance map.
     components(model.root).score = ...
         components(model.root).score + components(model.root).b;
     rscore = components(model.root).score;
+    assert(ndims(rscore) == 3);
     
     % keep the positive example with the highest score in latent mode
     if latent && label > 0
-        thresh = max(thresh,max(rscore(:)));
+        thresh = max(thresh, max(rscore(:)));
     end
     
-    [Y, X] = find(rscore >= thresh);
+    [Y, X, T] = ndfind(rscore >= thresh);
     % Walk back down tree following pointers
     % (DEBUG) Assert extracted feature re-produces score
     for i = 1:length(X)
         cnt = cnt + 1;
         x = X(i);
         y = Y(i);
+        t = T(i);
         
-        [box, ex] = backtrack(x, y, components, pyra(level), ex, write);
+        % TODO: I also need to recover part types, since they'll be needed
+        % later in the pipeline.
+        [box, ex] = backtrack(x, y, t, components, pyra(level), ex, write);
         
-        boxes(cnt,:) = [box c rscore(y,x)];
+        % 1 used to be c (which is always 1 anyway, WTF)
+        boxes(cnt,:) = [box 1 rscore(y, x, t)];
         if write && (~latent || label < 0)
             qp_write(ex);
-            qp.ub = qp.ub + qp.Cneg*max(1+rscore(y,x),0);
+            qp.ub = qp.ub + qp.Cneg*max(1+rscore(y, x, t),0);
         elseif latent && label > 0
             if isempty(best_box)
                 best_box = boxes(cnt,:);
                 best_ex = ex;
-            elseif best_box(end) < rscore(y,x)
+            elseif best_box(end) < rscore(y, x, t)
                 % update best
                 best_box = boxes(cnt,:);
                 best_ex = ex;
@@ -253,13 +257,14 @@ end
 
 % Backtrack through dynamic programming messages to estimate part locations
 % and the associated feature vector
-function [box,ex] = backtrack(x,y,parts,pyra,ex,write)
+function [box,ex] = backtrack(x,y,t,parts,pyra,ex,write)
+assert(false, 'backtrack is broken (no t yet)');
 numparts = length(parts);
-ptr = zeros(numparts,2);
+ptr = zeros(numparts,3);
 box = zeros(numparts,4);
 k   = 1;
 p   = parts(k);
-ptr(k, :) = [x, y];
+ptr(k, :) = [x, y, t];
 scale = pyra.scale;
 x1  = (x - 1 - pyra.padx)*scale+1;
 y1  = (y - 1 - pyra.pady)*scale+1;
@@ -273,7 +278,7 @@ if write
     ex.blocks = [];
     ex.blocks(end+1).i = p.biasI;
     ex.blocks(end).x   = 1;
-    f = parts(k).appMap(y, x);
+    f = parts(k).appMap(y, x, t);
     ex.blocks(end+1).i = p.appI;
     ex.blocks(end).x   = f;
 end
@@ -283,9 +288,10 @@ for k = 2:numparts
     
     x   = ptr(par,1);
     y   = ptr(par,2);
+    t   = ptr(par,3);
     
-    ptr(k,1) = p.Ix(y,x);
-    ptr(k,2) = p.Iy(y,x);
+    ptr(k,1) = p.Ix(y,x,t);
+    ptr(k,2) = p.Iy(y,x,t);
     
     x1  = (ptr(k,1) - 1 - pyra.padx)*scale+1;
     y1  = (ptr(k,2) - 1 - pyra.pady)*scale+1;
