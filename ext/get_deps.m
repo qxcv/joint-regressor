@@ -1,7 +1,6 @@
 % Grab deepflow and whatever else we need
-function get_deps(ext_dir, cache_dir)
-
-% First, build my little OpenCV CUDA Brox wrapper
+function get_deps
+% Build my little OpenCV CUDA Brox wrapper
 this_file = mfilename('fullpath');
 [this_dir, ~, ~] = fileparts(this_file);
 flow_dir = fullfile(this_dir, 'flow');
@@ -14,12 +13,7 @@ end
 addpath(flow_dir);
 cd(old_dir);
 
-caffe_matlab_path = fullfile(ext_dir, 'conscaffe', 'matlab');
-if ~exist(fullfile(caffe_matlab_path), 'dir')
-    error(['Please download https://github.com/qxcv/conscaffe, build ' ...
-           'matcaffe in that repository, then put (or link to) the entire ' ...
-           'repo at ' fullfile(ext_dir, 'conscaffe')]);
-end
-
-addpath(caffe_matlab_path);
+% Add some other junk from the file exchange
+misc_dir = fullfile(this_dir, 'misc');
+addpath(misc_dir);
 end

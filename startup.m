@@ -19,4 +19,4 @@ if ~exist(conf.cache_dir, 'dir')
     mkdir(conf.cache_dir);
 end
 addpath(conf.ext_dir);
-get_deps(conf.ext_dir, conf.cache_dir);
+get_deps;

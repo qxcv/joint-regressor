@@ -1,11 +1,11 @@
 function model = train(name, model, pos, neg, num_iters, C, wpos, maxsize, overlap)
 % Train a structured SVM with latent assignement of positive variables
-%                      1     2      3    4    5     6  7     8        9
-% pos  = list of positive images with part annotations
-% neg  = list of negative images
-% iter is the number of training iterations
-%   C  = scale factor for slack loss
-% wpos =  amount to weight errors on positives
+%                      1     2      3    4    5          6  7     8        9
+% pos     = list of positive images with part annotations
+% neg     = list of negative images
+% iter    = number of training iterations
+% C       = scale factor for slack loss
+% wpos    =  amount to weight errors on positives
 % maxsize = maximum size of the training data cache (in GB)
 % overlap =  minimum overlap in latent positive search
 %
@@ -13,7 +13,7 @@ function model = train(name, model, pos, neg, num_iters, C, wpos, maxsize, overl
 % In train_model.m, this is called as train(cls, model, pos_val, neg_val, 1);
 % Originally I thought this was called recursively (I think it might be in
 % Y&R's code?), but a quick grep indicates that the only call is in
-% train_model. This raises the question of why the functino takes nine
+% train_model. This raises the question of why the function takes nine
 % arguments but only ever gets five of them.
 
 model.name = name;
@@ -122,9 +122,10 @@ for neg_num = 1:neg.num_pairs
     fprintf('\n Image(%d/%d)', neg_num, neg.num_pairs);
     % last argument is a label for the pose. detect() will use this to update the
     % global qp (ugh).
-    d1 = neg.data(neg.pairs(neg_num).fst);
-    d2 = neg.data(neg.pairs(neg_num).snd);
-    [box, model] = detect(d1, d2, model, -1, [], 0, neg_num, -1);
+    pair = neg.pairs(neg_num);
+    d1 = neg.data(pair.fst);
+    d2 = neg.data(pair.snd);
+    [box, model] = detect(d1, d2, pair, model, -1, [], 0, neg_num, -1);
     numnegatives = numnegatives + size(box,1);
     fprintf(' #cache+%d=%d/%d, #sv=%d, #sv>0=%d, (est)UB=%.4f, LB=%.4f', ...
         size(box,1), qp.n, nmax, sum(qp.sv), sum(qp.a>0), qp.ub, qp.lb);
