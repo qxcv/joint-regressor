@@ -19,7 +19,7 @@ for pair_idx = 1:all_data.num_pairs
         subpose = subposes(subpose_idx).subpose;
         normed_locs = norm_subpose(d1, d2, this_pair.scale, cnn_window, subpose);
         % Flatten because centroids are flat
-        joint_locs = normed_locs(:);
+        joint_locs = flatten_coords(normed_locs);
         subpose_centroids = clusters{subpose_idx};
         assert(ismatrix(subpose_centroids) && size(subpose_centroids, 2) == length(joint_locs));
         diffs = bsxfun(@minus, ...

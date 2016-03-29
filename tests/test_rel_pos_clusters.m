@@ -10,7 +10,7 @@ conf = get_conf_mpii;
 num_sp = length(conf.subpose_pa);
 K = size(disps, 2);
 assert(ndims(disps) == 4 && size(disps, 1) == num_sp && size(disps, 4) == 2);
-colours = {'green', 'red', 'blue'};
+colours = {'green', 'blue', 'red'};
 
 % Choose some random types for our subposes
 types = randi([1 K], [1 num_sp]);

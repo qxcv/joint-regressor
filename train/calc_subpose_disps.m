@@ -17,7 +17,6 @@ function pairwise_means = calc_subpose_disps(centroids, subpose_graph, shared_pa
 % gives you a 1x1x1xN array, which you then have to sqeeze & transpose to
 % use.
 num_poselets = length(centroids{1});
-recover_coords = @(centroid) reshape(centroid, [2, size(centroids{1}, 2)/2])';
 rv_size = [length(subpose_graph), num_poselets, num_poselets, 2];
 % Initialise return value to all nans so that I can figure out when I've
 % messed up :)
@@ -36,11 +35,11 @@ for child=1:length(subpose_graph)
     
     for child_poselet=1:length(centroids{child})
         % Joint coordinates associated with child poselet
-        child_coords = recover_coords(child_centroids(child_poselet, :));
+        child_coords = unflatten_coords(child_centroids(child_poselet, :));
         child_end = average_shareds(child_coords, child_shareds);
         for parent_poselet=1:length(centroids{parent})
             % Joint coordinates associated with parent centroid
-            parent_coords = recover_coords(parent_centroids(parent_poselet, :));
+            parent_coords = unflatten_coords(parent_centroids(parent_poselet, :));
             parent_end = average_shareds(parent_coords, parent_shareds);
             % disp is the amount by which the child has to be moved to
             % match the parent
