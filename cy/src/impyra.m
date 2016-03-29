@@ -38,7 +38,8 @@ max_scale = 1 + floor(log(min(imsize)/cnn_size)/log(sc));
 % pyra is structure
 pyra = struct('feat', cell(max_scale, 1), 'sizs', cell(max_scale, 1), ...
     'scale', cell(max_scale, 1), 'padx', cell(max_scale, 1), ...
-    'pady', cell(max_scale, 1));
+    'pady', cell(max_scale, 1), ...
+    'in_rgb', cell(max_scale, 1), 'in_flow', cell(max_scale, 1));
 
 % Change down max_batch_size if you don't have enough memory for your
 % choice of scales
@@ -86,6 +87,8 @@ for octave = 1:max_batch_size:max_scale
         
         pyra(octave+sub_scale).scale = step / (scale_factor * 1/sc^(octave-1+sub_scale));
         pyra(octave+sub_scale).pad = pad / step;
+        pyra(octave+sub_scale).in_rgb = scaled_im_shuf;
+        pyra(octave+sub_scale).in_flow = scaled_flow_shuf;
         
         scaled_im = imresize(scaled_im, 1/sc);
         scaled_flow = smart_resize_flow(flow, size(scaled_im));

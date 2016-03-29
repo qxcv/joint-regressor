@@ -1,5 +1,5 @@
-function [boxes,model,ex] = detect(im1_info, im2_info, pair, model, thresh, ...
-    bbox, overlap, id, label)
+function [boxes,model,ex] = detect(im1_info, im2_info, pair, cnn_save_path, ...
+    model, thresh, bbox, overlap, id, label)
 % Detect objects in image using a model and a score threshold.
 % Higher threshold leads to fewer detections.
 %
@@ -55,6 +55,11 @@ if latent && label > 0
 end
 
 [pyra, unary_map] = imCNNdet(im_stack, flow, model);
+
+if ~isempty(cnn_save_path)
+    fprintf('Saving image pyramid and unary map to "%s"\n', cnn_save_path);
+    save(cnn_save_path, 'pyra', 'unary_map');
+end
 
 levels = 1:length(pyra);
 
@@ -204,7 +209,6 @@ for level = levels
         
         [box, types, ex] = backtrack(x, y, t, components, pyra(level), ex, write);
         
-        % 1 used to be c (which is always 1 anyway, WTF)
         boxes(cnt,:) = [box types rscore(y, x, t)];
         if write && (~latent || label < 0)
             qp_write(ex);
@@ -226,7 +230,7 @@ for level = levels
     % score (see qp_writ.m for computing original score)
     if write && (~latent || label < 0) && ~isempty(X) && qp.n < length(qp.a)
         w = -(qp.w + qp.w0.*qp.wreg) / qp.Cneg;
-        assert(abs(score(w,qp.x,qp.n) - rscore(y,x)) < 1e-5);
+        assert(abs(score(w,qp.x,qp.n) - rscore(y,x,t)) < 1e-5);
     end
     
     % Optimize qp with coordinate descent, and update model
