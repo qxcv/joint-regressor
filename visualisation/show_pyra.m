@@ -4,7 +4,7 @@ function show_pyra(pyra_path)
 % Current idea: in one figure, display first frame, second frame, and flow.
 % Then at the end display one unary map feature. Specific feature should be
 % selectable with a slider.
-DEFAULT_PATH = 'cache/pos-pyra/pos-pyra-1-iter-1.mat';
+DEFAULT_PATH = 'cache/pos-pyra/pos-pyra-10-iter-1.mat';
 if ~exist('pyra_path', 'var');
     fprintf('Using default path of %s\n', DEFAULT_PATH);
     pyra_path = DEFAULT_PATH;
@@ -107,7 +107,7 @@ if redraw_input
     imshow(pretty_flow(flow));
 end
 
-% Heatmap 2 (all poselets)
+% Heatmap 1 (max over all poselets)
 subtightplot(1,5,4);
 colormap('hot');
 all_maps = unary_map{scale}{subpose};
@@ -117,12 +117,22 @@ bm_range = [min(best_map(:)) max(best_map(:))];
 fprintf('Best range (all poselets): %f->%f\n', bm_range);
 axis image off
 axis equal;
+best_xy = squeeze(max(max(all_maps, [], 1), [], 2));
+[best_vals, best_idxs] = sort(exp(best_xy), 'descend');
+num_results = min(5, length(best_xy));
+res = cell([1 num_results]);
+for i=1:num_results
+    res{i} = sprintf('#%i (%.2f)', best_idxs(i), best_vals(i));
+end
+res_string = strjoin(res, ', ');
+fprintf('Top %d poselet scores: %s\n', num_results, res_string);
 
+% Heatmap 2 (selected poselet)
 subtightplot(1,5,5);
 heatmap = pretty_heatmap(all_maps(:, :, map_idx), im_size(1:2));
 imagesc(heatmap, [0 exp(best_act)]);
-hm_range = [min(heatmap(:)) max(heatmap(:))];
-fprintf('Poselet range: %f->%f\n', hm_range);
+% hm_range = [min(heatmap(:)) max(heatmap(:))];
+% fprintf('Poselet range: %f->%f\n', hm_range);
 axis image off;
 axis equal;
 end
