@@ -53,7 +53,8 @@ for subpose_idx = 1:length(subpose_pa)
     end
     
     % Will be K*K*2 matrix; use like disp = p.subpose_disps(child_type,
-    % parent_type, :) to get child_center - parent_center (IIRC)
+    % parent_type, :) to get child_shared_endpoint_loc -
+    % parent_shared_endpoint_loc
     if parent ~= 0
         disps = squeeze(subpose_disps(subpose_idx, :, :, :));
         child_K = size(disps, 1);

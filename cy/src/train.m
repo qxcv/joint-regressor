@@ -141,8 +141,9 @@ end
 end
 
 % get positive examples using latent detections
-% we create virtual examples by flipping each image left to right
-% XXX: where is the flipping part?
+% Original code said "we create virtual examples by flipping each image
+% left to right", but I didn't see them doing that anywhere and am not
+% doing it myself.
 function numpositives = poslatent(name, t, model, pos, overlap)
 num_pairs = pos.num_pairs;
 % numpositives was length(model.components), which I think would have been

@@ -52,8 +52,6 @@ subpose_disps = save_centroid_pairwise_means(...
     conf.cache_dir, conf.subpose_pa, conf.shared_parts);
 
 fprintf('Training graphical model\n');
-% XXX: This is woefully unscientific and needs to be changed as soon as I
-% can figure out a uniform-scale training protocol
 [~] = train_model(conf, val_dataset, neg_dataset, subpose_disps, tsize);
 
 assert(false, 'You need to write the rest of this');
