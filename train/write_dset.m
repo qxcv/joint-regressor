@@ -55,7 +55,7 @@ for start_index = 1:batch_size:length(rem_pairs)
     fprintf('Augmenting samples %i to %i\n', ...
         start_index, start_index + true_batch_size - 1);
     ds_data = dataset.data;
-    parfor result_index=1:true_batch_size % XXX: Should be parfor!
+    parfor result_index=1:true_batch_size
         mpii_index = start_index + result_index - 1;
         pair = rem_pairs(mpii_index); %#ok<PFBNS>
         fst = ds_data(pair.fst); %#ok<PFBNS>
