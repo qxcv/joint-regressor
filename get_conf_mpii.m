@@ -1,4 +1,5 @@
 function conf = get_conf_mpii
+%GET_CONF_MPII MPII-specific config (extends generic conf from get_conf)
 conf = get_conf;
 
 conf.num_hdf5s = 1;

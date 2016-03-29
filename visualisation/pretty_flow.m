@@ -10,7 +10,5 @@ saturation = min(10 * mags / size(mags, 1), 1);
 value = 0.5 * ones(size(hue));
 hsv = cat(3, hue, saturation, value);
 prettified = rgb2hsv(hsv);
-max(hsv(:))
-min(hsv(:))
 end
 
