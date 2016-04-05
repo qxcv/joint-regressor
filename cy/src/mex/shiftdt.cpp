@@ -34,6 +34,9 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len,
      * dlen: size of destination array (might be bigger or smaller than
      *       source array, which allows for {super,sub}sampling)
      */
+    // v[k] gives root of k-th parabola included in lower envelope
+    // [z[k], z[k+1]] is the region in which parabola k of the lower
+    // envelope actually "counts" towards the lower envelope
     int   *v = new int[len];
     double *z = new double[len+1];
     int k = 0;
@@ -43,18 +46,37 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len,
     z[1] = +INF;
     
     for (q = 1; q <= len-1; q++) {
-        auto intersect = [&](int k) {return
+        // For all locations in the source grid (except the first)...
+        auto intersect = [&src,&v,q,step,a,b,mean](int k) {return
+            // Calculates where k-th parabola in the lower envelope
+            // (located at v[k]) intersections with parabola at q
             ((src[q*step] - src[v[k]*step])
               - b*(q - v[k])
-              + a*(square(q) - square(v[k]))
-              + 2*a*mean*(q - v[k]))
-            / (2*a*(q-v[k]));
+              + a*(square(q) - square(v[k])))
+            / (2*a*(q-v[k])) + mean;
         };
+        
+        // while the intersection of the last (k-th) parabola in the lower
+        // envelope with the parabola we are currently considering (at q)
+        // is to the left of the last parabola's root (i.e. the current
+        // parabola is strictly lower than the last parabola in the lower
+        // envelope at all points in which the last parabola in the lower
+        // envelope actually counts towards the lower envelope), we delete
+        // the last parabola from the array of parabolas which define the
+        // lower envelope (effectively replacing it with the current
+        // parabola)
         double s = intersect(k);
         while (s <= z[k]) {
             k--;
             s  = intersect(k);
         }
+        // Now append the current parabola to the lowest envelope. It's the
+        // farthest to the right of any parabola we've considered so far,
+        // so we know it will eventually form a part of the lower envelope
+        // if we go right far enough. Of course, we might consider another
+        // parabola later which removes the supersedes the one we're about
+        // to add, but we'll remove the current parabola when/if that
+        // happens.
         k++;
         v[k]   = q;
         z[k]   = s;
@@ -62,9 +84,11 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len,
     }
     
     k = 0;
-    
     for (q=0; q <= dlen-1; q++) {
+        // Now, for each output location q...
         while (z[k+1] < q)
+            // skip forward to find the parabola which forms the lower
+            // envelope at q (which will be rooted at v[k])
             k++;
         dst[q*step] = a*square(q - v[k] - mean) + b*(q - v[k] - mean) + src[v[k]*step];
         ptr[q*step] = v[k];

@@ -288,38 +288,38 @@ if write
 end
 
 for k = 2:numparts
-    p_k   = parts(k);
+    p_k = parts(k);
     par = p_k.parent;
     
-    x   = ptr(par,1);
-    y   = ptr(par,2);
-    t   = ptr(par,3);
-    assert(min([x y t]) > 0);
+    par_x = ptr(par,1);
+    par_y = ptr(par,2);
+    par_t = ptr(par,3);
+    assert(min([par_x par_y par_t]) > 0);
     
-    ptr(k,1) = p_k.Ix(y,x,t);
-    ptr(k,2) = p_k.Iy(y,x,t);
-    ptr(k,3) = p_k.Im(y,x,t);
+    ptr(k,1) = p_k.Ix(par_y,par_x,par_t);
+    ptr(k,2) = p_k.Iy(par_y,par_x,par_t);
+    ptr(k,3) = p_k.Im(par_y,par_x,par_t);
     
-    x1  = (ptr(k,1) - 1 - pyra.pad)*scale+1;
-    y1  = (ptr(k,2) - 1 - pyra.pad)*scale+1;
+    x1 = (ptr(k,1) - 1 - pyra.pad)*scale+1;
+    y1 = (ptr(k,2) - 1 - pyra.pad)*scale+1;
     % XXX: sizx thing is wrong
-    x2  = x1 + p_k.sizx*scale - 1;
-    y2  = y1 + p_k.sizy*scale - 1;
+    x2 = x1 + p_k.sizx*scale - 1;
+    y2 = y1 + p_k.sizy*scale - 1;
     box(k,:) = [x1 y1 x2 y2];
     types(k) = ptr(k,3);
     
-    if write        
+    if write
+        child_x = ptr(k,1);
+        child_y = ptr(k,2);
+        child_t = ptr(k,3);
+        
         % deformation
         assert(isscalar(p_k.gauI));
         ex.blocks(end+1).i = p_k.gauI;
-        ex.blocks(end).x   = defvector(p_k, ptr(k,1), ptr(k,2), x, y, ptr(k, 3), t, sbin);
-        
-        c_x = ptr(k,1);
-        c_y = ptr(k,2);
-        c_t = ptr(k,3);
+        ex.blocks(end).x = defvector(p_k, child_x, child_y, par_x, par_y, child_t, par_t, sbin);
         
         % unary
-        f = parts(k).appMap(c_y, c_x, c_t);
+        f = parts(k).appMap(child_y, child_x, child_t);
         ex.blocks(end+1).i = p_k.appI;
         ex.blocks(end).x = f;
     end

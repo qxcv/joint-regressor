@@ -8,6 +8,7 @@ end
 function buildfile(src_path)
 mexcmd = 'mex -outdir bin';
 mexcmd = [mexcmd ' -O'];
+mexcmd = [mexcmd ' CXXFLAGS=''$CXXFLAGS -std=gnu++11'''];
 mexcmd = [mexcmd ' -L/usr/lib -L/usr/local/lib'];
 
 [~, fn, ~] = fileparts(src_path);
