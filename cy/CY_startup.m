@@ -4,8 +4,7 @@ if ~exist('./bin', 'dir')
 end
 
 if ~isdeployed
-  addpaths({'dataio', 'bin', 'evaluation', 'src', 'tools', 'external',... 
-            'external/qpsolver'});
+  addpaths({'dataio', 'bin', 'src', 'tools', 'external', 'external/qpsolver'});
 end
 end
 

@@ -10,10 +10,10 @@ if ~exist('.built', 'file');
     mex('mex_broxOpticalFlow.cpp', '-lopencv_core', '-lopencv_cudaoptflow');
     fclose(fopen('.built', 'w'));
 end
-addpath(flow_dir);
+addpath_full(flow_dir);
 cd(old_dir);
 
 % Add some other junk from the file exchange
 misc_dir = fullfile(this_dir, 'misc');
-addpath(misc_dir);
+addpath_full(misc_dir);
 end
