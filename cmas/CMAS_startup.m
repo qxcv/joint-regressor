@@ -1,19 +1,16 @@
-% set some paths!
-if ~exist('first_time', 'var')    
-    % addpaths!
-    addpath(genpath('./YR/'));
-    addpath ./utils/;
-    addpath ./mex/;
-    addpath ./eval/;
-    addpath(genpath('./flow/'));    
-    addpath ./detect/;
-    
-    LDOF_startup; % compile LDOF c files    
-    YR_compile; % compile YR c files.
-    CY_startup;
-    CY_compile;
-    mex ./mex/ksp.cpp -outdir ./mex/;                      
-    mex ./mex/mymax.cpp -outdir ./mex;
-        
-    first_time = 1;
+% addpaths!
+% addpath_full(genpath('./YR/'));
+% addpath_full ./utils/;
+addpath_full ./mex/;
+addpath_full ./eval/;  
+addpath_full ./detect/;
+
+mex_fns = {'ksp', 'mymax'};
+for i=1:length(mex_fns)
+    fn = mex_fns{i};
+    src_path = fullfile('./mex', [fn '.cpp']);
+    dest_path = fullfile('./mex', [fn '.' mexext]);
+    if shouldrebuild(src_path, dest_path)
+        mex(src_path, '-output', dest_path);
+    end
 end

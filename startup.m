@@ -9,9 +9,16 @@ addpath_full ./visualisation/;
 addpath_full ./tests/;
 addpath_full ./keras/;
 addpath_full ./cy/;
+
+% Chen & Yuille code
 old = cd('./cy');
 CY_startup;
 CY_compile;
+cd(old);
+
+% Cherian et al. code
+old = cd('./cmas');
+CMAS_startup;
 cd(old);
 
 conf = get_conf();
