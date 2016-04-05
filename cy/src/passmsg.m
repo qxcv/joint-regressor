@@ -17,7 +17,7 @@ child_K = size(child.score, 3);
 assert(child_K == parent_K);
 
 [score0, Ix0, Iy0] = deal(zeros(height, width, parent_K, child_K));
-for parent_type = 1:parent_K
+parfor parent_type = 1:parent_K
     for child_type = 1:child_K
         fixed_score_map = double(child.score(:, :, child_type)); %#ok<PFBNS>
         % this is child_center - parent_center, IIRC
@@ -45,8 +45,7 @@ for parent_type = 1:parent_K
         %     direction for shiftdt.
         [score0(:, :, parent_type, child_type), Ix0(:, :, parent_type, child_type), ...
             Iy0(:, :, parent_type, child_type)] = shiftdt(...
-                fixed_score_map, child.gauw, mean_disp, ...
-                int32([width, height]));
+                fixed_score_map, child.gauw, mean_disp, int32([width, height]));
         
         % If there was a prior-of-deformation (like the image evidence in
         % Chen & Yuille's model), then I would add it in here.
@@ -59,7 +58,7 @@ for row = 1:height
     for col = 1:width
         for ptype = 1:parent_K
             ctype = Im(row, col, ptype);
-            assert(isscalar(ctype));
+            assert(isscalar(ctype) && 1 <= ctype && ctype <= child_K);
             Ix(row, col, ptype) = Ix0(row, col, ptype, ctype);
             Iy(row, col, ptype) = Iy0(row, col, ptype, ctype);
         end

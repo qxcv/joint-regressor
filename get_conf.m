@@ -17,13 +17,12 @@ conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 % GPU ID for testing (negative to disable)
 conf.cnn.gpu_id = 0;
 % Stride at which fully convolutional network slides over the input
-% XXX: Need to confirm that my step actually is 32!
 conf.cnn.step = 32;
 
 %% Inference stuff
 % Levels of the feature pyramid in each octave. Might have to turn this
-% down, since 10 is insane.
-conf.interval = 10;
+% down, since 10 (former value) is insane.
+conf.interval = 8;
 % Not even sure what this is for. Number of support vectors or something?
 % Should remove it if it turns out not to be needed.
 conf.memsize = 16;

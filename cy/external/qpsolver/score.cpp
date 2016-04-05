@@ -6,8 +6,6 @@
 // score(w,qp.x,inds)
 // scores a weight vector 'w' on a set of sparse examples in qp.x at the columns specified by 'inds'
 
-#define MAX(A,B) ((A) < (B) ? (B) : (A))
-
 static inline double score(const double *W, const float* x) {
   double y  = 0;
   int    xp = 1;
@@ -27,9 +25,9 @@ void mexFunction( int nlhs, mxArray *plhs[],
 {
 
   if (nrhs < 3) mexErrMsgTxt("Incorrect number of arguments (need 3)");
-  if (mxIsDouble(prhs[0]) == false) mexErrMsgTxt("Arguement 1 is not double");
-  if (mxIsSingle(prhs[1]) == false) mexErrMsgTxt("Arguement 2 is not single");
-  if (mxIsDouble(prhs[2]) == false) mexErrMsgTxt("Arguement 3 is not double");
+  if (mxIsDouble(prhs[0]) == false) mexErrMsgTxt("Argument 1 is not double");
+  if (mxIsSingle(prhs[1]) == false) mexErrMsgTxt("Argument 2 is not single");
+  if (mxIsDouble(prhs[2]) == false) mexErrMsgTxt("Argument 3 is not double");
   
   const double *W = (double  *)mxGetPr(prhs[0]);
   const float  *X = (float  *)mxGetPr(prhs[1]);
@@ -47,18 +45,3 @@ void mexFunction( int nlhs, mxArray *plhs[],
   plhs[0] = mxY;
   return;
 }
-
-/*
-n = 10000;
-x = single(rand(n));
-I = randperm(n);
-I = I(1:n/5);
-mask = logical(zeros(n,1));
-mask(I) = 1;
-
-tic; res = addcols(x,I); toc;
-
-tic; res2 = double(x)*mask; toc;
-
-tic; res3 = sum(double(x(:,I)),2); toc;
-*/
