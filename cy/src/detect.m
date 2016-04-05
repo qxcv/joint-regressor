@@ -229,7 +229,12 @@ for level = levels
     % score (see qp_writ.m for computing original score)
     if write && (~latent || label < 0) && ~isempty(X) && qp.n < length(qp.a)
         w = -(qp.w + qp.w0.*qp.wreg) / qp.Cneg;
-        assert(abs(score(w,qp.x,qp.n) - rscore(y,x,t)) < 1e-5);
+        sv_score = score(w,qp.x,qp.n);
+        sv_rscore = rscore(y,x,t);
+        delta = abs(sv_score - sv_rscore);
+        errmsg = sprintf('Delta %f = |%f (SV score) - %f (rscore)| too big', ...
+            delta, sv_score, sv_rscore);
+        assert(delta < 1e-5, errmsg);
     end
     
     % Optimize qp with coordinate descent, and update model
