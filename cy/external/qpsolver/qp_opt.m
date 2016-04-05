@@ -9,7 +9,7 @@ if nargin < 1,
 end
 
 if nargin < 2,
-  iter = 30;
+  iter = 3000;
 end
 
 % Recompute qp.w in case of numerical precision issues
