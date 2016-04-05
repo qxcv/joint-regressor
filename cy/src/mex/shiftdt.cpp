@@ -17,7 +17,7 @@ static inline int square(int x) { return x*x; }
 // dt1d(source,destination_val,destination_ptr,source_step,source_length,
 //      a,b,dest_shift,dest_length,dest_step)
 void dt1d(double *src, double *dst, int *ptr, int step, int len,
-          double a, double b, double dshift, int dlen, double dstep) {
+          double a, double b, double mean, int dlen) {
     /* Informal documentation: This function computes a single 1D distance
      * transform, with several parameters for controlling array access
      * strides (useful for processing matrices where you want to do several
@@ -30,15 +30,12 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len,
      * step: stride to use when accessing src.
      * len: number of cells in the 1D array you want to distance transform.
      * a, b: parameters for deformation quadratic ax^2 + bx
-     **** WARNING: Next three definitions could be totally wrong. ****
-     * dshift: initial shift for output grid. Useful with dstep.
+     * mean: mean displacement for limb in current dimension
      * dlen: size of destination array (might be bigger or smaller than
      *       source array, which allows for {super,sub}sampling)
-     * dstep: lets you adapt for subsampling of output grid or something.
-     *        Can't think of a practical goal this would achieve.
      */
     int   *v = new int[len];
-    float *z = new float[len+1];
+    double *z = new double[len+1];
     int k = 0;
     int q = 0;
     v[0] = 0;
@@ -46,10 +43,17 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len,
     z[1] = +INF;
     
     for (q = 1; q <= len-1; q++) {
-        float s = ((src[q*step] - src[v[k]*step]) - b*(q - v[k]) + a*(square(q) - square(v[k]))) / (2*a*(q-v[k]));
+        auto intersect = [&](int k) {return
+            ((src[q*step] - src[v[k]*step])
+              - b*(q - v[k])
+              + a*(square(q) - square(v[k]))
+              + 2*a*mean*(q - v[k]))
+            / (2*a*(q-v[k]));
+        };
+        double s = intersect(k);
         while (s <= z[k]) {
             k--;
-            s  = ((src[q*step] - src[v[k]*step]) - b*(q - v[k]) + a*(square(q) - square(v[k]))) / (2*a*(q-v[k]));
+            s  = intersect(k);
         }
         k++;
         v[k]   = q;
@@ -58,26 +62,22 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len,
     }
     
     k = 0;
-    double dq = dshift;
     
-    for (int i=0; i <= dlen-1; i++) {
-        while (z[k+1] < dq)
+    for (q=0; q <= dlen-1; q++) {
+        while (z[k+1] < q)
             k++;
-        dst[i*step] = a*square(dq-v[k]) + b*(dq-v[k]) + src[v[k]*step];
-        ptr[i*step] = v[k];
-        dq += dstep;
+        dst[q*step] = a*square(q - v[k] - mean) + b*(q - v[k] - mean) + src[v[k]*step];
+        ptr[q*step] = v[k];
     }
     
     delete [] v;
     delete [] z;
 }
 
-
-
 // matlab entry point
 // [M, Ix, Iy] = shiftdt(score, ax, bx, ay, by, offx, offy, lenx, leny, step)
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
-    if (nrhs != 5)
+    if (nrhs != 4)
         mexErrMsgTxt("Wrong number of inputs");
     if (nlhs != 3)
         mexErrMsgTxt("Wrong number of outputs");
@@ -88,7 +88,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         mexErrMsgTxt("Invalid Gaussian weights");
     if (mxGetClassID(prhs[2]) != mxDOUBLE_CLASS
             || mxGetNumberOfElements(prhs[2]) != 2)
-        mexErrMsgTxt("Invalid offsets");
+        mexErrMsgTxt("Invalid means");
     if (mxGetClassID(prhs[3]) != mxINT32_CLASS
             || mxGetNumberOfElements(prhs[3]) != 2)
         mexErrMsgTxt("Invalid lengths");
@@ -103,13 +103,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     double bx = -gauw[1];
     double ay = -gauw[2];
     double by = -gauw[3];
-    double *offs = mxGetPr(prhs[2]);
+    double *means = mxGetPr(prhs[2]);
+    double meanx  = means[0];
+    double meany  = means[1];
     int *lens = (int *)mxGetData(prhs[3]);
-    double offx  = offs[0] - 1;
-    double offy  = offs[1] - 1;
     int lenx  = lens[0];
     int leny  = lens[1];
-    double step = mxGetScalar(prhs[4]);
     
     mxArray  *mxM = mxCreateNumericMatrix(leny,lenx,mxDOUBLE_CLASS, mxREAL);
     mxArray *mxIy = mxCreateNumericMatrix(leny,lenx,mxINT32_CLASS, mxREAL);
@@ -121,15 +120,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     double   *tmpM =  (double *)mxCalloc(leny*sizx, sizeof(double));
     int32_t *tmpIy = (int32_t *)mxCalloc(leny*sizx, sizeof(int32_t));
     
-    //printf("(%d,%d),(%d,%d),(%d,%d)\n",offx,offy,lenx,leny,sizx,sizy);
-    
     // dt1d(source,destination_val,destination_ptr,source_step,source_length,
-    //      a,b,dest_shift,dest_length,dest_step)
+    //      a,b,mean_disp,dest_length)
     for (int x = 0; x < sizx; x++)
-        dt1d(vals+x*sizy, tmpM+x*leny, tmpIy+x*leny, 1, sizy, ay, by, offy, leny, step);
+        dt1d(vals+x*sizy, tmpM+x*leny, tmpIy+x*leny, 1, sizy, ay, by, meany, leny);
     
     for (int y = 0; y < leny; y++)
-        dt1d(tmpM+y, M+y, Ix+y, leny, sizx, ax, bx, offx, lenx, step);
+        dt1d(tmpM+y, M+y, Ix+y, leny, sizx, ax, bx, meanx, lenx);
     
     // get argmins and adjust for matlab indexing from 1
     for (int x = 0; x < lenx; x++) {
