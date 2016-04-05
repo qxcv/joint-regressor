@@ -53,3 +53,12 @@ conf.shared_parts = {
 % retains ~99% of the data. The rest are probably mislabelled or
 % incorrectly classified as being in the same scene.
 conf.pair_mean_dist_thresh = 50;
+
+% conf.stitching.* holds parameters for producing sequence of poses from
+% per-pair pose sets
+conf.stitching.app_weights = [1 1 1];
+conf.stitching.dist_weights = [1 1 1];
+% Grab the best poses_per_pair biposelets from each pair of frames for
+% stitching. Remember stitching is O(poses_per_pair^2), so this can't be
+% too large.
+conf.stitching.poses_per_pair = 100;

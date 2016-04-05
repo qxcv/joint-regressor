@@ -54,17 +54,8 @@ subpose_disps = save_centroid_pairwise_means(...
 fprintf('Training graphical model\n');
 [~] = train_model(conf, val_dataset, neg_dataset, subpose_disps, tsize);
 
-assert(false, 'You need to write the rest of this');
+fprintf('Running bipose detections on validation set\n');
+all_detections = detect_on_ds
 
-% TODO: remember that I need to copy the evaluation code out of my own
-% project, since that does the stitching thing properly (much easier here
-% since I don't really need flow consistency).
-%
-% This is really tricky, since the training process for the graphical model
-% requires working detection code as well (for hard negative mining, I
-% think), which I will have to re-adapt to work with all of Chen & Yuille's
-% parts.
-%
-% Since I'm not learning weights for recombination, I don't have to port
-% the recombination code to work with C&Y's stuff. Just my own fully
-% convolutional network code (in detect_fast?).
+fprintf('Stitching detections into sequence');
+assert(false, 'You need to write this');
