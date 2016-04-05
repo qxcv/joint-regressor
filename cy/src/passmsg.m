@@ -16,29 +16,43 @@ parent_K = size(parent.score, 3);
 child_K = size(child.score, 3);
 assert(child_K == parent_K);
 
-[score, Ix0, Iy0] = deal(zeros(height, width, parent_K, child_K));
+[score0, Ix0, Iy0] = deal(zeros(height, width, parent_K, child_K));
 for parent_type = 1:parent_K
     for child_type = 1:child_K
-        fixed_score_map = double(child.score(:, :, child_type));
+        fixed_score_map = double(child.score(:, :, child_type)); %#ok<PFBNS>
         % this is child_center - parent_center, IIRC
-        mean_disp = child.subpose_disps{child_type}{parent_type};
+        mean_disp = child.subpose_disps{child_type}{parent_type} / scale;
         assert(isvector(mean_disp) && length(mean_disp) == 2);
-        % TODO: Two problems here:
+        % XXX: Two problems here:
         % (1) Displacements are at CNN-receptive-field-relative scale, but
         %     heatmap is clearly not at the same scale due to inherent
         %     downsampling. Probably need to use step argument of shiftdt
         %     to fix this.
+        %
+        %     Edit: using dshift in dt1d (what step controls in shiftdt)
+        %     will not achieve this. It should be possible to achieve it by
+        %     dividing mean_disp by the scale, but even that may not work
+        %     because of the float -> int -> float conversion process which
+        %     we need to carry out in shiftdt calls (i.e. displacements get
+        %     converted to int before being passed to shiftdt, but dt1d
+        %     treats them as floats).
+        %
+        %     When working through shiftdt, remember that it negates gauw
+        %     when reading in inputs, and subtracts 1 from the offsets. Not
+        %     sure why that is.
+        %
         % (2) Not sure whether mean_disp is pointing in the right
         %     direction for shiftdt.
-        [score(:, :, parent_type, child_type), Ix0(:, :, parent_type, child_type), ...
-            Iy0(:, :, parent_type, child_type)] = shiftdt(fixed_score_map, ...
-            child.gauw, int32(mean_disp), int32([width, height]), scale);
+        [score0(:, :, parent_type, child_type), Ix0(:, :, parent_type, child_type), ...
+            Iy0(:, :, parent_type, child_type)] = shiftdt(...
+                fixed_score_map, child.gauw, mean_disp, ...
+                int32([width, height]), 1);
         
         % If there was a prior-of-deformation (like the image evidence in
         % Chen & Yuille's model), then I would add it in here.
     end
 end
-[score, Im] = max(score, [], 4);
+[score, Im] = max(score0, [], 4);
 assert(ndims(score) == 3 && ndims(Im) == 3);
 [Ix, Iy] = deal(zeros(height, width, parent_K));
 for row = 1:height

@@ -17,7 +17,26 @@ static inline int square(int x) { return x*x; }
 // dt1d(source,destination_val,destination_ptr,source_step,source_length,
 //      a,b,dest_shift,dest_length,dest_step)
 void dt1d(double *src, double *dst, int *ptr, int step, int len,
-        double a,double b, int dshift, int dlen, double dstep) {
+          double a, double b, double dshift, int dlen, double dstep) {
+    /* Informal documentation: This function computes a single 1D distance
+     * transform, with several parameters for controlling array access
+     * strides (useful for processing matrices where you want to do several
+     * 1D distance transforms) and steps for subsampled grids. Parameters:
+     *
+     * src: original function value at each location (for PSM, this will be
+     *      the value of the unary).
+     * dst: value of lower envelope at each location.
+     * ptr: pointer to parabola which forms lower envelope at location
+     * step: stride to use when accessing src.
+     * len: number of cells in the 1D array you want to distance transform.
+     * a, b: parameters for deformation quadratic ax^2 + bx
+     **** WARNING: Next three definitions could be totally wrong. ****
+     * dshift: initial shift for output grid. Useful with dstep.
+     * dlen: size of destination array (might be bigger or smaller than
+     *       source array, which allows for {super,sub}sampling)
+     * dstep: lets you adapt for subsampling of output grid or something.
+     *        Can't think of a practical goal this would achieve.
+     */
     int   *v = new int[len];
     float *z = new float[len+1];
     int k = 0;
@@ -39,14 +58,14 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len,
     }
     
     k = 0;
-    q = dshift;
+    double dq = dshift;
     
     for (int i=0; i <= dlen-1; i++) {
-        while (z[k+1] < q)
+        while (z[k+1] < dq)
             k++;
-        dst[i*step] = a*square(q-v[k]) + b*(q-v[k]) + src[v[k]*step];
+        dst[i*step] = a*square(dq-v[k]) + b*(dq-v[k]) + src[v[k]*step];
         ptr[i*step] = v[k];
-        q += dstep;
+        dq += dstep;
     }
     
     delete [] v;
@@ -67,7 +86,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     if (mxGetClassID(prhs[1]) != mxDOUBLE_CLASS
             || mxGetNumberOfElements(prhs[1]) != 4)
         mexErrMsgTxt("Invalid Gaussian weights");
-    if (mxGetClassID(prhs[2]) != mxINT32_CLASS
+    if (mxGetClassID(prhs[2]) != mxDOUBLE_CLASS
             || mxGetNumberOfElements(prhs[2]) != 2)
         mexErrMsgTxt("Invalid offsets");
     if (mxGetClassID(prhs[3]) != mxINT32_CLASS
@@ -76,18 +95,18 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     
     // Read in deformation coefficients, negating to define a cost
     // Read in offsets for output grid, fixing MATLAB 0-1 indexing
-    double *vals = (double *)mxGetPr(prhs[0]);
+    double *vals = mxGetPr(prhs[0]);
     int sizx  = mxGetN(prhs[0]);
     int sizy  = mxGetM(prhs[0]);
-    double *gauw = (double *)mxGetPr(prhs[1]);
+    double *gauw = mxGetPr(prhs[1]);
     double ax = -gauw[0];
     double bx = -gauw[1];
     double ay = -gauw[2];
     double by = -gauw[3];
-    int *offs = (int *)mxGetData(prhs[2]);
+    double *offs = mxGetPr(prhs[2]);
     int *lens = (int *)mxGetData(prhs[3]);
-    int offx  = (int)offs[0] - 1;
-    int offy  = (int)offs[1] - 1;
+    double offx  = offs[0] - 1;
+    double offy  = offs[1] - 1;
     int lenx  = lens[0];
     int leny  = lens[1];
     double step = mxGetScalar(prhs[4]);

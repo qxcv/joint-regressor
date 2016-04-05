@@ -21,16 +21,10 @@ function [boxes,model,ex] = detect(im1_info, im2_info, pair, cnn_save_path, ...
 %                 1        2      3  4     5        6   7
 % 2) box = detect(pos(ii), model, 0, bbox, overlap, ii, 1);
 
-% XXX: List of things I've found which are broken and will need changing:
-% 1) In passmsg, I'll have to figure out how to compute displacements
-% correctly. In particular, I'll have to make sure that displacement sign
-% is correct and that the displacement is scaled correctly so that it is in
-% "heatmap coordinates". All of the extra parameters to shiftdt (e.g. dlen)
-% will be helpful here.
-% 2) There are a few places where I need to find bounding boxes for parts
-% (well, sub-poses in my model). I should do that by using the CNN
-% receptive field corresponding to each sub-pose (as stored in .scale),
-% instead of whatever heuristic measure is currently used.
+% XXX: Need to fix bounding boxes (sixz/sixy don't make sense any more, so
+% I'll have to rethink how this is done; in heatmap, bbox edge for a part
+% will probably just be center+-cnn_scale/(2*32)) and also fix all of the
+% problems in passmsg.
 
 INF = 1e10;
 
@@ -107,6 +101,8 @@ for level = levels
         skipflag = 0;
         for subpose_idx = 1:num_subposes
             % because all mixtures for one part is the same size, we only need to do this once
+            % XXX: This doesn't make sense now that sixz/sixy don't make
+            % sense.
             ovmask = testoverlap(components(subpose_idx).sizx(1), ...
                 components(subpose_idx).sizy(1), sizs(1), sizs(2), ...
                 pyra(level), bbox.xy(subpose_idx,:), overlap);
@@ -182,8 +178,10 @@ for level = levels
         % and part type (*m*ixture?) backtracking, respectively. Each
         % matrix is of size H*W*K (so each entry corresponds to a single
         % parent configuration).
-        [msg, components(subpose_idx).Ix, components(subpose_idx).Iy, ...
-         components(subpose_idx).Im] = passmsg(child, parent, model.sbin);
+        [msg, components(subpose_idx).Ix, ...
+              components(subpose_idx).Iy, ...
+              components(subpose_idx).Im] ...
+            = passmsg(child, parent, model.sbin);
         components(par_idx).score = components(par_idx).score + msg;
     end
     
@@ -207,7 +205,8 @@ for level = levels
         y = Y(i);
         t = T(i);
         
-        [box, types, ex] = backtrack(x, y, t, components, pyra(level), ex, write);
+        [box, types, ex] = ...
+            backtrack(x, y, t, components, pyra(level), ex, write, model.sbin);
         
         boxes(cnt,:) = [box types rscore(y, x, t)];
         if write && (~latent || label < 0)
@@ -253,58 +252,62 @@ end
 
 % Backtrack through dynamic programming messages to estimate part locations
 % and the associated feature vector
-function [box,types,ex] = backtrack(x,y,t,parts,pyra,ex,write)
+function [box,types,ex] = backtrack(x,y,t,parts,pyra,ex,write,sbin)
 numparts = length(parts);
 ptr = zeros(numparts,3);
 box = zeros(numparts,4);
 types = zeros(1, numparts);
-k   = 1;
-p   = parts(k);
-ptr(k, :) = [x, y, t];
+root = 1;
+p = parts(root);
+ptr(root, :) = [x, y, t];
 scale = pyra.scale;
-x1  = (x - 1 - pyra.pad)*scale+1;
-y1  = (y - 1 - pyra.pad)*scale+1;
-x2  = x1 + p.sizx*scale - 1;
-y2  = y1 + p.sizy*scale - 1;
+% XXX: siz{x,y} thing is wrong
+bb_start = [(x - 1 - pyra.pad)*scale+1, (y - 1 - pyra.pad)*scale+1];
+bb_end = bb_start + [p.sizx*scale - 1, p.sizy*scale - 1];
 
-box(k,:) = [x1 y1 x2 y2];
-types(k) = t;
+box(root,:) = [bb_start bb_end];
+types(root) = t;
 
 % XXX: Need to verify usage of .blocks
+% Pretty sure this is okay, since .blocks is just used in qp_write and the
+% blocks are associated with a specific weight index (which I think is set
+% correctly) so order shouldn't matter.
 if write
     ex.id(3:6) = [p.level round(x+p.sizx/2) round(y+p.sizy/2) t];
     ex.blocks = [];
     ex.blocks(end+1).i = p.biasI;
     ex.blocks(end).x   = 1;
-    f = parts(k).appMap(y, x, t);
+    f = parts(root).appMap(y, x, t);
     ex.blocks(end+1).i = p.appI;
     ex.blocks(end).x   = f;
 end
+
 for k = 2:numparts
-    p   = parts(k);
-    par = p.parent;
+    p_k   = parts(k);
+    par = p_k.parent;
     
     x   = ptr(par,1);
     y   = ptr(par,2);
     t   = ptr(par,3);
     assert(min([x y t]) > 0);
     
-    ptr(k,1) = p.Ix(y,x,t);
-    ptr(k,2) = p.Iy(y,x,t);
-    ptr(k,3) = p.Im(y,x,t);
+    ptr(k,1) = p_k.Ix(y,x,t);
+    ptr(k,2) = p_k.Iy(y,x,t);
+    ptr(k,3) = p_k.Im(y,x,t);
     
     x1  = (ptr(k,1) - 1 - pyra.pad)*scale+1;
     y1  = (ptr(k,2) - 1 - pyra.pad)*scale+1;
-    x2  = x1 + p.sizx*scale - 1;
-    y2  = y1 + p.sizy*scale - 1;
+    % XXX: sizx thing is wrong
+    x2  = x1 + p_k.sizx*scale - 1;
+    y2  = y1 + p_k.sizy*scale - 1;
     box(k,:) = [x1 y1 x2 y2];
     types(k) = ptr(k,3);
     
     if write        
         % deformation
-        assert(isscalar(p.gauI));
-        ex.blocks(end+1).i = p.gauI;
-        ex.blocks(end).x   = defvector(p, ptr(k,1), ptr(k,2), x, y, ptr(k, 1), t);
+        assert(isscalar(p_k.gauI));
+        ex.blocks(end+1).i = p_k.gauI;
+        ex.blocks(end).x   = defvector(p_k, ptr(k,1), ptr(k,2), x, y, ptr(k, 3), t, sbin);
         
         c_x = ptr(k,1);
         c_y = ptr(k,2);
@@ -312,7 +315,7 @@ for k = 2:numparts
         
         % unary
         f = parts(k).appMap(c_y, c_x, c_t);
-        ex.blocks(end+1).i = p.appI;
+        ex.blocks(end+1).i = p_k.appI;
         ex.blocks(end).x = f;
     end
 end
