@@ -257,71 +257,71 @@ end
 
 % Backtrack through dynamic programming messages to estimate part locations
 % and the associated feature vector
-function [box,types,ex] = backtrack(x,y,t,parts,pyra,ex,write,sbin)
+function [box,types,ex] = backtrack(root_x,root_y,root_t,parts,pyra,ex,write,sbin)
 numparts = length(parts);
 ptr = zeros(numparts,3);
 box = zeros(numparts,4);
 types = zeros(1, numparts);
 root = 1;
-p = parts(root);
-ptr(root, :) = [x, y, t];
+root_p = parts(root);
+ptr(root, :) = [root_x, root_y, root_t];
 scale = pyra.scale;
 % XXX: siz{x,y} thing is wrong
-bb_start = [(x - 1 - pyra.pad)*scale+1, (y - 1 - pyra.pad)*scale+1];
-bb_end = bb_start + [p.sizx*scale - 1, p.sizy*scale - 1];
+bb_start = [(root_x - 1 - pyra.pad)*scale+1, (root_y - 1 - pyra.pad)*scale+1];
+bb_end = bb_start + [root_p.sizx*scale - 1, root_p.sizy*scale - 1];
 
 box(root,:) = [bb_start bb_end];
-types(root) = t;
+types(root) = root_t;
 
 % XXX: Need to verify usage of .blocks
 % Pretty sure this is okay, since .blocks is just used in qp_write and the
 % blocks are associated with a specific weight index (which I think is set
 % correctly) so order shouldn't matter.
 if write
-    ex.id(3:6) = [p.level round(x+p.sizx/2) round(y+p.sizy/2) t];
+    ex.id(3:6) = [root_p.level round(root_x+root_p.sizx/2) round(root_y+root_p.sizy/2) root_t];
     ex.blocks = [];
-    ex.blocks(end+1).i = p.biasI;
-    ex.blocks(end).x   = 1;
-    f = parts(root).appMap(y, x, t);
-    ex.blocks(end+1).i = p.appI;
-    ex.blocks(end).x   = f;
+    ex.blocks(end+1).i = root_p.biasI;
+    ex.blocks(end).x = 1;
+    root_app = parts(root).appMap(root_y, root_x, root_t);
+    ex.blocks(end+1).i = root_p.appI;
+    ex.blocks(end).x = root_app;
 end
 
-for k = 2:numparts
-    p_k = parts(k);
-    par = p_k.parent;
+for child_k = 2:numparts
+    child = parts(child_k);
+    par_k = child.parent;
     
-    par_x = ptr(par,1);
-    par_y = ptr(par,2);
-    par_t = ptr(par,3);
+    par_x = ptr(par_k,1);
+    par_y = ptr(par_k,2);
+    par_t = ptr(par_k,3);
     assert(min([par_x par_y par_t]) > 0);
     
-    ptr(k,1) = p_k.Ix(par_y,par_x,par_t);
-    ptr(k,2) = p_k.Iy(par_y,par_x,par_t);
-    ptr(k,3) = p_k.Im(par_y,par_x,par_t);
+    ptr(child_k,1) = child.Ix(par_y,par_x,par_t);
+    ptr(child_k,2) = child.Iy(par_y,par_x,par_t);
+    ptr(child_k,3) = child.Im(par_y,par_x,par_t);
     
-    x1 = (ptr(k,1) - 1 - pyra.pad)*scale+1;
-    y1 = (ptr(k,2) - 1 - pyra.pad)*scale+1;
+    x1 = (ptr(child_k,1) - 1 - pyra.pad)*scale+1;
+    y1 = (ptr(child_k,2) - 1 - pyra.pad)*scale+1;
     % XXX: sizx thing is wrong
-    x2 = x1 + p_k.sizx*scale - 1;
-    y2 = y1 + p_k.sizy*scale - 1;
-    box(k,:) = [x1 y1 x2 y2];
-    types(k) = ptr(k,3);
+    x2 = x1 + child.sizx*scale - 1;
+    y2 = y1 + child.sizy*scale - 1;
+    box(child_k,:) = [x1 y1 x2 y2];
+    types(child_k) = ptr(child_k,3);
     
     if write
-        child_x = ptr(k,1);
-        child_y = ptr(k,2);
-        child_t = ptr(k,3);
+        child_x = ptr(child_k,1);
+        child_y = ptr(child_k,2);
+        child_t = ptr(child_k,3);
         
         % deformation
-        assert(isscalar(p_k.gauI));
-        ex.blocks(end+1).i = p_k.gauI;
-        ex.blocks(end).x = defvector(p_k, child_x, child_y, par_x, par_y, child_t, par_t, sbin);
+        assert(isscalar(child.gauI));
+        ex.blocks(end+1).i = child.gauI;
+        ex.blocks(end).x = defvector(child, child_x, child_y, par_x, par_y, child_t, par_t, sbin);
         
         % unary
-        f = parts(k).appMap(child_y, child_x, child_t);
-        ex.blocks(end+1).i = p_k.appI;
-        ex.blocks(end).x = f;
+        child_app = parts(child_k).appMap(child_y, child_x, child_t);
+        ex.blocks(end+1).i = child.appI;
+        ex.blocks(end).x = child_app;
     end
 end
 box = reshape(box', 1, 4*numparts);

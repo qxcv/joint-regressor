@@ -14,14 +14,12 @@
 
 static inline int square(int x) { return x*x; }
 
-// dt1d(source,destination_val,destination_ptr,source_step,source_length,
-//      a,b,dest_shift,dest_length,dest_step)
 void dt1d(double *src, double *dst, int *ptr, int step, int len,
           double a, double b, double mean, int dlen) {
     /* Informal documentation: This function computes a single 1D distance
      * transform, with several parameters for controlling array access
      * strides (useful for processing matrices where you want to do several
-     * 1D distance transforms) and steps for subsampled grids. Parameters:
+     * 1D distance transforms) and parabola parameters. Arguments:
      *
      * src: original function value at each location (for PSM, this will be
      *      the value of the unary).
@@ -68,7 +66,7 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len,
         double s = intersect(k);
         while (s <= z[k]) {
             k--;
-            s  = intersect(k);
+            s = intersect(k);
         }
         // Now append the current parabola to the lowest envelope. It's the
         // farthest to the right of any parabola we've considered so far,
@@ -78,8 +76,8 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len,
         // to add, but we'll remove the current parabola when/if that
         // happens.
         k++;
-        v[k]   = q;
-        z[k]   = s;
+        v[k] = q;
+        z[k] = s;
         z[k+1] = +INF;
     }
     
@@ -134,9 +132,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     int lenx  = lens[0];
     int leny  = lens[1];
     
-    mxArray  *mxM = mxCreateNumericMatrix(leny,lenx,mxDOUBLE_CLASS, mxREAL);
-    mxArray *mxIy = mxCreateNumericMatrix(leny,lenx,mxINT32_CLASS, mxREAL);
-    mxArray *mxIx = mxCreateNumericMatrix(leny,lenx,mxINT32_CLASS, mxREAL);
+    mxArray  *mxM = mxCreateNumericMatrix(leny, lenx, mxDOUBLE_CLASS, mxREAL);
+    mxArray *mxIy = mxCreateNumericMatrix(leny, lenx, mxINT32_CLASS, mxREAL);
+    mxArray *mxIx = mxCreateNumericMatrix(leny, lenx, mxINT32_CLASS, mxREAL);
     double   *M = (double *)mxGetPr(mxM);
     int32_t *Iy = (int32_t *)mxGetPr(mxIy);
     int32_t *Ix = (int32_t *)mxGetPr(mxIx);
@@ -144,12 +142,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     double   *tmpM =  (double *)mxCalloc(leny*sizx, sizeof(double));
     int32_t *tmpIy = (int32_t *)mxCalloc(leny*sizx, sizeof(int32_t));
     
-    // dt1d(source,destination_val,destination_ptr,source_step,source_length,
-    //      a,b,mean_disp,dest_length)
     for (int x = 0; x < sizx; x++)
+        // 1D distance transform on each column
         dt1d(vals+x*sizy, tmpM+x*leny, tmpIy+x*leny, 1, sizy, ay, by, meany, leny);
     
     for (int y = 0; y < leny; y++)
+        // 1D distance transform on each row
         dt1d(tmpM+y, M+y, Ix+y, leny, sizx, ax, bx, meanx, lenx);
     
     // get argmins and adjust for matlab indexing from 1
