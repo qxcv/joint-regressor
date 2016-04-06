@@ -2,8 +2,7 @@
 
 startup;
 conf = get_conf_mpii;
-[mpii_data, train_pairs, val_pairs] = get_mpii_cooking(conf.dataset_dir, ...
-                                                       conf.cache_dir);
+[mpii_data, ~, ~] = get_mpii_cooking(conf.dataset_dir, conf.cache_dir);
 % Skippety                                                
 mpii_data = mpii_data(1:3:end);
 

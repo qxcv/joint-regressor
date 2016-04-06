@@ -18,7 +18,7 @@ if isempty(cnn_model)
             'Need "%s" and "%s" to initialise CNN', cnnpar.deploy_json, ...
             cnnpar.deploy_weights);
     end
-    cnn_model = cnn_get_model(cnnpar.deploy_json, cnnpar.deploy_weights);
+    cnn_model = cnn_get_model(cnnpar.deploy_json, cnnpar.deploy_weights, cnnpar);
 end
 assert(~isempty(cnn_model));
 

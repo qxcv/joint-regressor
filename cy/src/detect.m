@@ -1,5 +1,5 @@
 function [boxes,model,ex] = detect(im1_info, im2_info, pair, cnn_save_path, ...
-    model, thresh, bbox, overlap, id, label)
+    model, thresh, bbox, overlap, id, label, cache_dir)
 % Detect objects in image using a model and a score threshold.
 % Higher threshold leads to fewer detections.
 %
@@ -40,7 +40,11 @@ end
 % Compute the feature pyramid and prepare filter
 im1 = readim(im1_info);
 im2 = readim(im2_info);
-flow = imflow(im1_info.image_path, im2_info.image_path);
+if exist('cache_dir', 'var')
+    flow = cached_imflow(im1_info, im2_info, cache_dir);
+else
+    flow = imflow(im1_info.image_path, im2_info.image_path);
+end
 im_stack = cat(3, im1, im2);
 % if has box information, crop it
 if latent && label > 0
@@ -77,7 +81,7 @@ end
 
 num_subposes = length(components);
 assert(num_subposes > 1, 'Only %d parts?\n', num_subposes);
-boxes = zeros(100000, 4 * length(components) + num_subposes + 1);
+boxes = struct('boxes', {}, 'types', {}, 'rscore', {});
 cnt = 0;
 
 ex.blocks = [];
@@ -183,7 +187,7 @@ for level = levels
         components(par_idx).score = components(par_idx).score + msg;
     end
     
-    % Add bias to root score
+    % Add bias to root score (model.root == 1)
     components(model.root).score = ...
         components(model.root).score + components(model.root).b;
     rscore = components(model.root).score;
@@ -207,18 +211,23 @@ for level = levels
         [box, types, ex] = ...
             backtrack(x, y, t, components, pyra(level), ex, write, model.sbin);
         
-        boxes(cnt,:) = [box types rscore(y, x, t)];
+        this_rscore = rscore(y, x, t);
+        b.boxes = num2cell(box, 2);
+        b.types = num2cell(types);
+        b.rscore = this_rscore;
+        boxes(end+1) = b; %#ok<AGROW>
+        assert(length(boxes) == cnt);
         if write && (~latent || label < 0)
             qp_write(ex);
             num_written = num_written + 1;
-            qp.ub = qp.ub + qp.Cneg*max(1+rscore(y, x, t),0);
+            qp.ub = qp.ub + qp.Cneg*max(1+this_rscore, 0);
         elseif latent && label > 0
             if isempty(best_box)
-                best_box = boxes(cnt,:);
+                best_box = boxes(end);
                 best_ex = ex;
-            elseif best_box(end) < rscore(y, x, t)
+            elseif best_box(end).rscore < this_rscore
                 % update best
-                best_box = boxes(cnt,:);
+                best_box = boxes(end);
                 best_ex = ex;
             end
         end
@@ -230,7 +239,7 @@ for level = levels
     if write && (~latent || label < 0) && ~isempty(X) && qp.n < length(qp.a)
         % If we don't write an example then qp.n-th SV won't refer to
         % rscore(y,x,t)
-        assert(num_written > 1, 'Should have written at least one example');
+        % assert(num_written > 1, 'Should have written at least one example');
         
         w = -(qp.w + qp.w0.*qp.wreg) / qp.Cneg;
         sv_score = score(w,qp.x,qp.n);
@@ -250,8 +259,6 @@ for level = levels
         [components, apps] = modelcomponents(model);
     end
 end
-
-boxes = boxes(1:cnt,:);
 
 if latent && ~isempty(boxes) && label > 0
     boxes = best_box;

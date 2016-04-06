@@ -14,8 +14,10 @@ conf.cnn.window = [224 224];
 conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights
 conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
-% GPU ID for testing (negative to disable)
-conf.cnn.gpu_id = 0;
+% GPU ID for testing
+conf.cnn.gpu = 2;
+% lib.cnmem flag for Theano
+conf.cnn.cnmem = 0.5;
 % Stride at which fully convolutional network slides over the input
 conf.cnn.step = 32;
 

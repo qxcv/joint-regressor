@@ -4,6 +4,7 @@
 addpath_full ./mex/;
 addpath_full ./eval/;  
 addpath_full ./detect/;
+addpath_full ./;
 
 mex_fns = {'ksp', 'mymax'};
 for i=1:length(mex_fns)

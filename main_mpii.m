@@ -51,11 +51,15 @@ fprintf('Computing ideal poselet displacements\n');
 subpose_disps = save_centroid_pairwise_means(...
     conf.cache_dir, conf.subpose_pa, conf.shared_parts);
 
+fprintf('Caching flow for positive validation pairs\n');
+cache_all_flow(val_dataset, conf.cache_dir);
+fprintf('Caching flow for negative pairs\n');
+cache_all_flow(neg_dataset, conf.cache_dir);
+
 fprintf('Training graphical model\n');
 [~] = train_model(conf, val_dataset, neg_dataset, subpose_disps, tsize);
 
 fprintf('Running bipose detections on validation set\n');
-all_detections = detect_on_ds
 
 fprintf('Stitching detections into sequence');
 assert(false, 'You need to write this');

@@ -128,7 +128,7 @@ for neg_num = 1:neg.num_pairs
 %     cnn_save_fn = sprintf('neg-pyra-%i.mat', neg_num);
 %     cnn_save_path = fullfile('cache', 'neg-pyra', cnn_save_fn);
     cnn_save_path = [];
-    [box, model] = detect(d1, d2, pair, cnn_save_path, model, -1, [], 0, neg_num, -1);
+    [box, model] = detect(d1, d2, pair, cnn_save_path, model, -1, [], 0, neg_num, -1, 'cache');
     numnegatives = numnegatives + size(box,1);
     fprintf(' #cache+%d=%d/%d, #sv=%d, #sv>0=%d, (est)UB=%.4f, LB=%.4f', ...
         size(box,1), qp.n, nmax, sum(qp.sv), sum(qp.a>0), qp.ub, qp.lb);
@@ -177,9 +177,9 @@ for pair_num = 1:num_pairs
 %     cnn_save_fn = sprintf('pos-pyra-%i-iter-%i.mat', pair_num, t);
 %     cnn_save_path = fullfile('cache', 'pos-pyra', cnn_save_fn);
     cnn_save_path = [];
-    box = detect(d1, d2, pair, cnn_save_path, model, 0, bbox, overlap, pair_num, 1);
+    box = detect(d1, d2, pair, cnn_save_path, model, 0, bbox, overlap, pair_num, 1, 'cache');
     if ~isempty(box)
-        fprintf(' (sc=%.3f)\n', box(1, end));
+        fprintf(' (sc=%.3f)\n', box(1).rscore);
         numpositives = numpositives+1;
     end
 end
