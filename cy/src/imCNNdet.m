@@ -1,4 +1,5 @@
 function [pyra, unary_map] = imCNNdet(im_stack, flow, model, upS)
+%IMCNNDET Build and marginalise over feature pyramid
 if ~exist('upS', 'var')
     upS = 1; % by default, we do not upscale the image
 end

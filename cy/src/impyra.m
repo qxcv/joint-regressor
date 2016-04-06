@@ -43,7 +43,8 @@ pyra = struct('feat', cell(max_scale, 1), 'sizs', cell(max_scale, 1), ...
 
 % Change down max_batch_size if you don't have enough memory for your
 % choice of scales
-max_batch_size = interval;
+max_batch_size = 4; % TODO: Intelligently decide what this should be based
+                    % approximate memory constraints
 for octave = 1:max_batch_size:max_scale
     scaled_im = imresize(im, 1/sc^(octave-1));
     scaled_flow = smart_resize_flow(flow, size(scaled_im));
