@@ -23,7 +23,8 @@
 %      pose(11,:)-> head upper point
 %      pose(12,:)-> head lower point
 
-function [train_dataset, val_dataset, tsize] = get_mpii_cooking(...
+% TODO: hack test_seqs out of the last few scenes of continuous dataset
+function [train_dataset, val_dataset, test_seqs, tsize] = get_mpii_cooking(...
     dest_dir, cache_dir, dump_thresh, subposes, step, template_scale)
 %GET_MPII_COOKING Fetches continuous pose estimation data from MPII
 MPII_POSE_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallenge-1.1.zip';
@@ -48,8 +49,8 @@ CONT_EVIL_FRAMES = struct(...
 data_path = fullfile(cache_dir, 'mpii_data.mat');
 if exist(data_path, 'file')
     fprintf('Found existing data, so I''ll just use that\n');
-    [train_dataset, val_dataset, tsize] = parload(data_path, ...
-        'train_dataset', 'val_dataset', 'tsize');
+    [train_dataset, val_dataset, test_seqs, tsize] = parload(data_path, ...
+        'train_dataset', 'val_dataset', 'test_seqs', 'tsize');
     return
 else
     fprintf('Need to regenerate all data :(\n');
@@ -100,8 +101,11 @@ val_dataset = unify_dataset(val_data, val_pairs, 'val_dataset_mpii_base');
 [val_dataset, tsize] = mark_scales(val_dataset, subposes, step, ...
     template_scale, [train_dataset.pairs.scale]);
 
+% Grab sequences and split out a test set
+test_seqs = pairs2seqs(train_dataset);
+
 % Cache
-save(data_path, 'train_dataset', 'val_dataset', 'tsize');
+save(data_path, 'train_dataset', 'val_dataset', 'test_seqs', 'tsize');
 end
 
 function cont_data = load_files_continuous(dest_path, evil_frames)
@@ -110,20 +114,20 @@ pose_fns = dir(pose_dir);
 pose_fns = pose_fns(3:end); % Remove . and ..
 
 cont_data = struct(); % Silences Matlab warnings about growing arrays
-for i=1:length(pose_fns)
-    data_fn = pose_fns(i).name;
+for fn_idx=1:length(pose_fns)
+    data_fn = pose_fns(fn_idx).name;
     [track_index, index] = parse_continuous_fn(data_fn);
     % "track_index" is the index within the dataset for the action
     % track. "index" is the index within the dataset. They really could
     % have picked a more optimal name :/
-    cont_data(i).frame_no = index;
-    cont_data(i).action_track_index = track_index;
+    cont_data(fn_idx).frame_no = index;
+    cont_data(fn_idx).action_track_index = track_index;
     file_name = sprintf('img_%06i_%06i.jpg', track_index, index);
-    cont_data(i).image_path = fullfile(dest_path, 'data', 'images', file_name);
-    cont_data(i).pose_fn = data_fn;
+    cont_data(fn_idx).image_path = fullfile(dest_path, 'data', 'images', file_name);
+    cont_data(fn_idx).pose_fn = data_fn;
     loaded = load(fullfile(pose_dir, data_fn), 'pose');
-    cont_data(i).joint_locs = loaded.pose;
-    cont_data(i).is_val = false;
+    cont_data(fn_idx).joint_locs = loaded.pose;
+    cont_data(fn_idx).is_val = false;
 end
 cont_data = sort_by_frame(cont_data);
 
@@ -157,15 +161,15 @@ pose_dir = fullfile(dest_path, 'data', 'train_data', 'gt_poses');
 pose_fns = dir(pose_dir);
 pose_fns = pose_fns(3:end);
 basic_data = struct(); % Silences Matlab warnings about growing arrays
-for i=1:length(pose_fns)
-    data_fn = pose_fns(i).name;
+for fn_idx=1:length(pose_fns)
+    data_fn = pose_fns(fn_idx).name;
     frame_no = parse_basic_fn(data_fn);
-    basic_data(i).frame_no = frame_no;
+    basic_data(fn_idx).frame_no = frame_no;
     file_name = sprintf('img_%06i.jpg', frame_no);
-    basic_data(i).image_path = fullfile(dest_path, 'data', 'train_data', 'images', file_name);
+    basic_data(fn_idx).image_path = fullfile(dest_path, 'data', 'train_data', 'images', file_name);
     loaded = load(fullfile(pose_dir, data_fn), 'pose');
-    basic_data(i).joint_locs = loaded.pose;
-    basic_data(i).is_val = true;
+    basic_data(fn_idx).joint_locs = loaded.pose;
+    basic_data(fn_idx).is_val = true;
 end
 basic_data = sort_by_frame(basic_data);
 end
@@ -189,6 +193,47 @@ tokens = regexp(fn, '[^\d]*(\d+)', 'tokens');
 assert(length(tokens) >= 1);
 assert(length(tokens{1}) == 1);
 index = str2double(tokens{1}{1});
+end
+
+function seqs = pairs2seqs(dataset)
+% Use known pair numbers to find contiguous sequences for same scene.
+% Assumes that pairs were generated with a frame skip of 1, and accounting
+% for scenes (so there are no pairs which cross scene boundaries). This is
+% a safe assumption for this data, in this file, but may not hold
+% elsewhere.
+pair_idxs = [[dataset.pairs.fst]; [dataset.pairs.snd]]';
+assert(ismatrix(pair_idxs) && size(pair_idxs, 2) == 2);
+assert(all(pair_idxs(:, 1) + 1 == pair_idxs(:, 2)), ...
+    'Can only deal with frame skip of 1');
+sorted_idxs = sortrows(pairs_idxs);
+
+% Now extract sorted pair indices into datum ranges
+% XXX: This isn't working, because my frame skip is > 1. I still need to
+% output something for which the frame skip is equal to the original frame
+% skip at which pairs were produced, but that's a harder problem. In
+% particular, I need to decide whether I want to drop intermediate frames
+% entirely or split them out into their own sequences. Former solution
+% should be sufficient for now.
+seqs = {};
+this_range = [];
+for i=1:size(sorted_idxs, 1)-1
+    if sorted_idxs(i,2) == sorted_idxs(i+1,1)
+        if isempty(this_range)
+            this_range = sorted_idxs(i, :);
+        else
+            this_range = [this_range sorted_idxs(i, 2)]; %#ok<AGROW>
+        end
+    else
+        if ~isempty(this_range)
+            seqs{end+1} = [this_range sorted_idxs(i, 2)]; %#ok<AGROW>
+            this_range = [];
+        end
+    end
+end
+
+if ~isempty(this_range)
+    seqs{end+1} = [this_range sorted_idxs(end, 2)];
+end
 end
 
 function pairs = find_pairs(data, frame_skip, dump_thresh)
