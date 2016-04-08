@@ -1,5 +1,7 @@
-function [boxes,model,ex] = detect(im1_info, im2_info, pair, cnn_save_path, ...
+function [boxes, model, ex] = detect(im1_info, im2_info, pair, cnn_save_path, ...
     model, thresh, bbox, overlap, id, label, cache_dir)
+% TODO: Use Matlab's optargs instead of the current clusterfuck of names
+%
 % Detect objects in image using a model and a score threshold.
 % Higher threshold leads to fewer detections.
 %
@@ -28,7 +30,7 @@ function [boxes,model,ex] = detect(im1_info, im2_info, pair, cnn_save_path, ...
 
 INF = 1e10;
 
-if nargin > 3 && ~isempty(bbox)
+if nargin > 6 && ~isempty(bbox)
     latent = true;
     if label > 0
         thresh = -INF;
@@ -64,15 +66,15 @@ levels = 1:length(pyra);
 % Define global QP if we are writing features
 % Randomize order to increase effectiveness of model updating
 write = false;
-if nargin > 5
+if nargin > 8
     global qp; %#ok<TLEV>
     write  = true;
     levels = levels(randperm(length(levels)));
 end
-if nargin < 6
+if nargin < 8
     id = 0;
 end
-if nargin < 7
+if nargin < 10
     label = 0;
 end
 

@@ -60,6 +60,7 @@ fprintf('Training graphical model\n');
 ssvm_model = train_model(conf, val_dataset, neg_dataset, subpose_disps, tsize);
 
 fprintf('Running bipose detections on validation set\n');
+pair_dets = get_test_detections(test_seqs, ssvm_model, 0);
 
 fprintf('Stitching detections into sequence\n');
 assert(false, 'You need to write this');
