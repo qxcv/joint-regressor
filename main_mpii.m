@@ -2,7 +2,7 @@
 
 startup;
 conf = get_conf_mpii;
-[train_dataset, val_dataset, tsize] = get_mpii_cooking(...
+[train_dataset, val_dataset, test_seqs, tsize] = get_mpii_cooking(...
     conf.dataset_dir, conf.cache_dir, conf.pair_mean_dist_thresh, ...
     conf.subposes, conf.cnn.step, conf.template_scale);
 % INRIAPerson data is only used for training the graphical model; I used
@@ -57,9 +57,9 @@ fprintf('Caching flow for negative pairs\n');
 cache_all_flow(neg_dataset, conf.cache_dir);
 
 fprintf('Training graphical model\n');
-[~] = train_model(conf, val_dataset, neg_dataset, subpose_disps, tsize);
+ssvm_model = train_model(conf, val_dataset, neg_dataset, subpose_disps, tsize);
 
 fprintf('Running bipose detections on validation set\n');
 
-fprintf('Stitching detections into sequence');
+fprintf('Stitching detections into sequence\n');
 assert(false, 'You need to write this');

@@ -23,7 +23,6 @@
 %      pose(11,:)-> head upper point
 %      pose(12,:)-> head lower point
 
-% TODO: hack test_seqs out of the last few scenes of continuous dataset
 function [train_dataset, val_dataset, test_seqs, tsize] = get_mpii_cooking(...
     dest_dir, cache_dir, dump_thresh, subposes, step, template_scale)
 %GET_MPII_COOKING Fetches continuous pose estimation data from MPII
@@ -101,11 +100,45 @@ val_dataset = unify_dataset(val_data, val_pairs, 'val_dataset_mpii_base');
 [val_dataset, tsize] = mark_scales(val_dataset, subposes, step, ...
     template_scale, [train_dataset.pairs.scale]);
 
-% Grab sequences and split out a test set
-test_seqs = pairs2seqs(train_dataset);
+% Grab sequences and split out a test set. Sequences must have 10 frames or
+% more.
+all_seqs = pairs2seqs(train_dataset, 10);
+
+% Arbitrarily pick last 15 sequences as test set (should be enough? Maybe
+% 200-300 frames in that lot)
+num_test_seqs = 15; % TODO make this configurable
+test_part = all_seqs(end-num_test_seqs+1:end);
+lowest_frame = min([test_part{:}]);
+highest_frame = max([test_part{:}]);
+
+fprintf('Test set has %i seqs and %i frames\n', ...
+    length(test_part), sum(cellfun(@length, test_part)));
+test_seqs = make_test_set(train_dataset, test_part);
+
+fprintf('Removing frames %i to %i (%i frames) from train set\n', ...
+    lowest_frame, highest_frame, highest_frame - lowest_frame + 1);
+old_np = train_dataset.num_pairs;
+train_dataset = remove_pairs(train_dataset, lowest_frame, highest_frame);
+fprintf('Went from %i training pairs to %i training pairs\n', ...
+    old_np, train_dataset.num_pairs);
 
 % Cache
 save(data_path, 'train_dataset', 'val_dataset', 'test_seqs', 'tsize');
+end
+
+function rv = make_test_set(some_dataset, test_seqs)
+rv = some_dataset;
+rv.seqs = test_seqs;
+rv = rmfield(rv, {'pairs', 'num_pairs'});
+rv.name = [rv.name '_seqs_for_test'];
+end
+
+function ds = remove_pairs(ds, rstart, rend)
+% Remove pairs from dataset ds between frame rstart and frame rend
+in_range = @(vec) vec >= rstart & vec <= rend;
+to_remove = in_range([ds.pairs.fst]) | in_range([ds.pairs.snd]);
+ds.pairs = ds.pairs(~to_remove);
+ds.num_pairs = length(ds.pairs);
 end
 
 function cont_data = load_files_continuous(dest_path, evil_frames)
@@ -195,7 +228,7 @@ assert(length(tokens{1}) == 1);
 index = str2double(tokens{1}{1});
 end
 
-function seqs = pairs2seqs(dataset)
+function seqs = pairs2seqs(dataset, min_length)
 % Use known pair numbers to find contiguous sequences for same scene.
 % Assumes that pairs were generated with a frame skip of 1, and accounting
 % for scenes (so there are no pairs which cross scene boundaries). This is
@@ -203,37 +236,64 @@ function seqs = pairs2seqs(dataset)
 % elsewhere.
 pair_idxs = [[dataset.pairs.fst]; [dataset.pairs.snd]]';
 assert(ismatrix(pair_idxs) && size(pair_idxs, 2) == 2);
-assert(all(pair_idxs(:, 1) + 1 == pair_idxs(:, 2)), ...
-    'Can only deal with frame skip of 1');
-sorted_idxs = sortrows(pairs_idxs);
+sorted_idxs = sortrows(pair_idxs);
+assert(all(unique(sorted_idxs(:, 1)) == sorted_idxs(:, 1)), ...
+    'Cannot have duplicate pair starts');
+% Following should succeed because the frame skip is uniform
+assert(all(unique(sorted_idxs(:, 2)) == sorted_idxs(:, 2)), ...
+    'Cannot have duplicate pair ends');
+assert(all(sorted_idxs(:, 1) < sorted_idxs(:, 2)), ...
+    'First frame must have lower ID than second');
 
-% Now extract sorted pair indices into datum ranges
-% XXX: This isn't working, because my frame skip is > 1. I still need to
-% output something for which the frame skip is equal to the original frame
-% skip at which pairs were produced, but that's a harder problem. In
-% particular, I need to decide whether I want to drop intermediate frames
-% entirely or split them out into their own sequences. Former solution
-% should be sufficient for now.
+% Indexes from frame number to sequence number
+seq_map = containers.Map('KeyType', 'double', 'ValueType', 'double');
+seq_num = 1;
 seqs = {};
-this_range = [];
-for i=1:size(sorted_idxs, 1)-1
-    if sorted_idxs(i,2) == sorted_idxs(i+1,1)
-        if isempty(this_range)
-            this_range = sorted_idxs(i, :);
-        else
-            this_range = [this_range sorted_idxs(i, 2)]; %#ok<AGROW>
-        end
+for i=1:size(sorted_idxs, 1)
+    start = sorted_idxs(i, 1);
+    finish = sorted_idxs(i, 2);
+    if seq_map.isKey(start)
+        this_seq = seq_map(start);
+        seq_map(finish) = seq_map(start);
     else
-        if ~isempty(this_range)
-            seqs{end+1} = [this_range sorted_idxs(i, 2)]; %#ok<AGROW>
-            this_range = [];
-        end
+        this_seq = seq_num;
+        seq_map(finish) = this_seq;
+        seqs{this_seq} = start; %#ok<AGROW>
+        seq_num = seq_num + 1;
+    end
+    seqs{this_seq} = [seqs{this_seq} finish]; %#ok<AGROW>
+end
+
+% Trim out sequences that are too small, assert that everything is sorted
+% and sane.
+is_sane = @(arr) ~isempty(arr) && all(arr == unique(arr));
+assert(all(cellfun(is_sane, seqs)));
+% Turns out that to do logical indexing into a cell array, you need to use
+% parentheses. Huh.
+seqs = seqs(cellfun(@length, seqs) >= min_length);
+
+% Where sequences overlap, always choose the largest one
+starts = cellfun(@min, seqs);
+ends = cellfun(@max, seqs);
+lengths = cellfun(@length, seqs);
+should_keep = true([1 length(seqs)]);
+
+for seq_num=1:length(starts)
+    start = starts(seq_num);
+    finish = ends(seq_num);
+    this_length = lengths(seq_num);
+    collides = (start <= ends) & (finish >= starts);
+    collides(seq_num) = false;
+    
+    % Give priority to sequences which (a) are longer or (b) are equal
+    % length and come before this one
+    if any(lengths(collides) > this_length) ...
+            || any(find(lengths == this_length & collides) < seq_num)
+        should_keep(seq_num) = false;
     end
 end
 
-if ~isempty(this_range)
-    seqs{end+1} = [this_range sorted_idxs(end, 2)];
-end
+seqs = seqs(should_keep);
 end
 
 function pairs = find_pairs(data, frame_skip, dump_thresh)

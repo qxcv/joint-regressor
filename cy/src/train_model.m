@@ -4,7 +4,7 @@ subpose_pa = conf.subpose_pa;
 subposes = conf.subposes;
 cls = 'graphical_model';
 try
-    model = parload([cachedir cls], 'model');
+    model = parload(fullfile(cachedir, cls), 'model');
 catch
     clusters = parload(fullfile(cachedir, 'centroids.mat'), 'centroids');
     labels = derive_labels(cachedir, subpose_pa, pos_val, clusters, subposes, ...
@@ -19,5 +19,5 @@ catch
     model = build_model(subpose_pa, conf.biposelet_classes, subpose_disps, ...
         conf.cnn, mean_pixels, conf.interval, tsize, conf.memsize);
     model = train(cls, model, pos_val, neg_val, 1);
-    parsave([cachedir cls], model);
+    parsave(fullfile(cachedir, cls), model);
 end

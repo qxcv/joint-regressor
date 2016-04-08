@@ -14,16 +14,23 @@ function pose = boxes2pose(detected_boxes, centroids, centroid_size, subpose_idx
 
 all_pose_locs = nan([2 * num_joints, 2, length(subpose_idxs)]);
 for subpose_idx=1:length(subpose_idxs)
-    % box has format [x1 y1 x2 y2]
+    % Grab bbox (has format [x1 y1 x2 y2])
     bbox = detected_boxes.boxes{subpose_idx};
     bbox_wh = bbox(3:4) - bbox(1:2);
     assert(abs(bbox_wh(1) - bbox_wh(2)) < 1e-5);
     bbox_size = mean(bbox_wh);
+    
+    % Recover centroid and realign to detection center and scale
     type = detected_boxes.types{subpose_idx};
     centroid = centroids{subpose_ix}{type};
     joint_locs = centroid * bbox_size / centroid_size + bbox(1:2);
+    
+    % Now save locations into relevant joint blocks
     assert(isvector(joint_locs) && size(joint_locs, 2) == 2);
-    all_pose_locs(:, :, subpose_idx) = joint_locs;
+    joint_idxs = subpose_idxs(subpose_idx);
+    assert(isrow(joint_idxs));
+    pair_idxs = [joint_idxs, joint_idxs + num_joints];
+    all_pose_locs(pair_idxs, :, subpose_idx) = joint_locs;
 end
 
 % Now average-out shared joints
