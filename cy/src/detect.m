@@ -1,9 +1,6 @@
-function [boxes, model, ex] = detect(im1_info, im2_info, pair, cnn_save_path, ...
-    model, thresh, bbox, overlap, id, label, cache_dir)
-% TODO: Use Matlab's optargs instead of the current clusterfuck of names
-%
-% Detect objects in image using a model and a score threshold.
-% Higher threshold leads to fewer detections.
+function [boxes, model, ex] = detect(im1_info, im2_info, model, varargin)
+% Detect objects in image using a model (SSVM + CNN) and either a score
+% threshold or fixed number of boxes to return.
 %
 % The function returns a matrix with one row per detected object.  The
 % last column of each row gives the score of the detection.  The
@@ -15,24 +12,58 @@ function [boxes, model, ex] = detect(im1_info, im2_info, pair, cnn_save_path, ..
 %
 % This function updates the model (by running the QP solver) if upper and
 % lower bound differs
-%
-% detect() is called from two places in train.m. The signatures of those
-% calls are:
-%                         1       2      3   4   5  6  7
-% 1) [box,model] = detect(neg(i), model, -1, [], 0, i, -1);
-%                 1        2      3  4     5        6   7
-% 2) box = detect(pos(ii), model, 0, bbox, overlap, ii, 1);
 
 % XXX: Need to fix bounding boxes (sixz/sixy don't make sense any more, so
 % I'll have to rethink how this is done; in heatmap, bbox edge for a part
 % will probably just be center+-cnn_scale/(2*32)) and also fix all of the
 % problems in passmsg.
 
+% MathWorks: "Hey, you know what would be a great idea? Not adding default
+% arguments to our language! Think of how elegant Matlab would be without
+% that cruft!"
+parser = inputParser;
+parser.CaseSensitive = true;
+parser.StructExpand = false;
+parser.addRequired('im1_info', @isstruct); % im1_info (supplied)
+parser.addRequired('im2_info', @isstruct); % im2_info (supplied)
+parser.addRequired('model', @isstruct); % model (supplied)
+parser.addOptional('PairInfo', [], @isstruct); % pair
+parser.addOptional('CNNSavePath', [], @isstr); % cnn_save_path
+parser.addOptional('Thresh', [], @isscalar); % thresh
+parser.addOptional('NumResults', [], @isscalar); % num_results
+parser.addOptional('BBox', [], @isvector); % bbox
+parser.addOptional('Overlap', [], @isscalar); % overlap
+parser.addOptional('ID', [], @isscalar); % id
+parser.addOptional('Label', [], @isscalar); % label
+parser.addOptional('CacheDir', [], @isstr); % cache_dir
+parser.parse(im1_info, im2_info, model, varargin{:});
+r = parser.Results;
+pair = r.PairInfo;
+cnn_save_path = r.CNNSavePath;
+thresh = r.Thresh;
+num_results = r.NumResults;
+bbox = r.BBox;
+overlap = r.Overlap;
+id = r.ID;
+label = r.Label;
+cache_dir = r.CacheDir;
+% Now some sanity checks on arguments
+assert(xor(isempty(thresh), isempty(num_results)), ...
+    'Can take detection return threshold xor number of results to return');
+train_args_supplied = ~cellfun(@isempty, {overlap, id, label});
+% is_train_call implies we're being called from train()
+is_train_call = all(train_args_supplied);
+assert(is_train_call || ~any(train_args_supplied), ...
+    'If you''re calling from train(), make sure you include everything needed');
+assert(~is_train_call || label < 0 || (~isempty(bbox) && ~isempty(pair)), ...
+    'If you have a positive, you need a bbox and pair info for supervision');
+
 INF = 1e10;
 
-if nargin > 6 && ~isempty(bbox)
+if is_train_call && ~isempty(bbox)
     latent = true;
     if label > 0
+        assert(isempty(thresh));
         thresh = -INF;
     end
 else
@@ -42,7 +73,7 @@ end
 % Compute the feature pyramid and prepare filter
 im1 = readim(im1_info);
 im2 = readim(im2_info);
-if exist('cache_dir', 'var')
+if ~isempty(cache_dir)
     flow = cached_imflow(im1_info, im2_info, cache_dir);
 else
     flow = imflow(im1_info.image_path, im2_info.image_path);
@@ -66,16 +97,10 @@ levels = 1:length(pyra);
 % Define global QP if we are writing features
 % Randomize order to increase effectiveness of model updating
 write = false;
-if nargin > 8
+if is_train_call
     global qp; %#ok<TLEV>
     write  = true;
     levels = levels(randperm(length(levels)));
-end
-if nargin < 8
-    id = 0;
-end
-if nargin < 10
-    label = 0;
 end
 
 % Cache various statistics derived from model
@@ -199,8 +224,16 @@ for level = levels
     if latent && label > 0
         thresh = max(thresh, max(rscore(:)));
     end
-    
-    [Y, X, T] = ndfind(rscore >= thresh);
+
+    if ~isempty(thresh)
+        [Y, X, T] = ndfind(rscore >= thresh);
+    else
+        % TODO: If some of our num_results boxes have rscores below those
+        % of the boxes we've seen already (at other levels), then they will
+        % be ignored, so we should not both backtracking to fetch them.
+        [Y, X, T] = ndbestn(rscore, num_results);
+    end
+
     % Walk back down tree following pointers
     % (DEBUG) Assert extracted feature re-produces score
     num_written = 0;
@@ -267,6 +300,17 @@ if latent && ~isempty(boxes) && label > 0
     if write
         qp_write(best_ex);
     end
+end
+
+% Sort by root score, best-first
+if length(boxes) > 1
+    [~, best_idxs] = sort([boxes.rscore], 'Descend');
+    boxes = boxes(best_idxs);
+end
+
+% Make sure we only return num_results results (if NumResults supplied)
+if ~isempty(num_results) && length(boxes) > num_results
+    boxes = boxes(1:num_results);
 end
 end
 
@@ -335,7 +379,9 @@ for child_k = 2:numparts
         ex.blocks(end).x = child_app;
     end
 end
-box = reshape(box', 1, 4*numparts);
+% Used to have this (will be necessary for compat with older code,
+% probably):
+% box = reshape(box', 1, 4*numparts);
 end
 
 % Update QP with coordinate descent

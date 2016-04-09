@@ -1,4 +1,4 @@
-function cluster_h5s(num_classes, subposes, train_patch_dir, val_patch_dir, cache_dir)
+function biposelets = cluster_h5s(num_classes, subposes, train_patch_dir, val_patch_dir, cache_dir)
 %CLUSTER_H5S Add a "biposelet" dataset to each HDF5 in the cache
 
 % Collect paths
@@ -72,4 +72,7 @@ for fn_no=1:num_fns
     h5create(fn, '/poselet', size(one_of_k_clusters), 'DataType', 'int32');
     h5write(fn, '/poselet', one_of_k_clusters);
 end
+
+% Return value
+biposelets = centroids;
 end

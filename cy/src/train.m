@@ -125,10 +125,12 @@ for neg_num = 1:neg.num_pairs
     pair = neg.pairs(neg_num);
     d1 = neg.data(pair.fst);
     d2 = neg.data(pair.snd);
+%   If you want to save CNN results, you can use CNNSavePath optarg
 %     cnn_save_fn = sprintf('neg-pyra-%i.mat', neg_num);
 %     cnn_save_path = fullfile('cache', 'neg-pyra', cnn_save_fn);
-    cnn_save_path = [];
-    [box, model] = detect(d1, d2, pair, cnn_save_path, model, -1, [], 0, neg_num, -1, 'cache');
+    [box, model] = detect(d1, d2, model, 'PairInfo', pair, 'Thresh', -1, ...
+        'BBox', [], 'Overlap', 0, 'ID', neg_num, 'Label', -1, ...
+        'CacheDir', 'cache');
     numnegatives = numnegatives + size(box,1);
     fprintf(' #cache+%d=%d/%d, #sv=%d, #sv>0=%d, (est)UB=%.4f, LB=%.4f', ...
         size(box,1), qp.n, nmax, sum(qp.sv), sum(qp.a>0), qp.ub, qp.lb);
@@ -170,14 +172,13 @@ for pair_num = 1:num_pairs
         continue;
     end
     
-    % get example
-    % note that detect is updating qp using ii and the label which we supply
-    % it at the end, as above (but the label is 1 this time since we have a
-    % positive)
+%     Again, you can supply CNNSavePath to detect() to save your image
+%     pyramids for later analysis.
 %     cnn_save_fn = sprintf('pos-pyra-%i-iter-%i.mat', pair_num, t);
 %     cnn_save_path = fullfile('cache', 'pos-pyra', cnn_save_fn);
-    cnn_save_path = [];
-    box = detect(d1, d2, pair, cnn_save_path, model, 0, bbox, overlap, pair_num, 1, 'cache');
+    box = detect(d1, d2, model, 'PairInfo', pair, 'Thresh', 0, ...
+        'BBox', bbox, 'Overlap', overlap, 'ID', pair_num, 'Label', 1, ...
+        'CacheDir', 'cache');
     if ~isempty(box)
         fprintf(' (sc=%.3f)\n', box(1).rscore);
         numpositives = numpositives+1;

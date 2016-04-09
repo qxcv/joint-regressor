@@ -1,4 +1,5 @@
 function conf = get_conf
+% Global configuration
 %% Paths
 % Caching flow/detections/Caffe models/whatever
 conf.cache_dir = 'cache/';
@@ -28,6 +29,8 @@ conf.interval = 8;
 % Not even sure what this is for. Number of support vectors or something?
 % Should remove it if it turns out not to be needed.
 conf.memsize = 16;
+% Number of biposes to fetch for each frame pair
+conf.num_dets = 300;
 
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 

@@ -9,6 +9,8 @@ conf.num_val_hdf5s = 1;
 % and "right" are preserved when doing flip augmentations.
 conf.right_parts = [3, 5, 7, 9];
 conf.left_parts = [4, 6, 8, 10];
+% Number of joints in the model; we don't use all of these
+conf.num_joints = 12;
 
 %% STUFF FOR MULTI-POSELET CODE BELOW HERE
 % Rough guide for MPII

@@ -5,6 +5,9 @@ conf = get_conf_mpii;
 [train_dataset, val_dataset, test_seqs, tsize] = get_mpii_cooking(...
     conf.dataset_dir, conf.cache_dir, conf.pair_mean_dist_thresh, ...
     conf.subposes, conf.cnn.step, conf.template_scale);
+% Check that conf.num_joints is consistent with data
+sizes_okay = @(ds) all(cellfun(@length, {ds.data.joint_locs}) == conf.num_joints);
+assert(sizes_okay(train_dataset) && sizes_okay(val_dataset));
 % INRIAPerson data is only used for training the graphical model; I used
 % person-free crops of MPII cooking to train the CNN to recognise
 % background.
@@ -27,8 +30,8 @@ write_negatives(train_dataset, conf.cache_dir, train_patch_dir, ...
     conf.cnn.window, conf.aug.negs, conf.train_chunksz, conf.subposes);
 
 fprintf('Writing cluster information\n');
-cluster_h5s(conf.biposelet_classes, conf.subposes, train_patch_dir, ...
-    val_patch_dir, conf.cache_dir);
+biposelets = cluster_h5s(conf.biposelet_classes, conf.subposes, ...
+    train_patch_dir, val_patch_dir, conf.cache_dir);
 
 fprintf('Calculating mean pixel\n');
 store_mean_pixel(train_patch_dir, conf.cache_dir);
@@ -60,7 +63,8 @@ fprintf('Training graphical model\n');
 ssvm_model = train_model(conf, val_dataset, neg_dataset, subpose_disps, tsize);
 
 fprintf('Running bipose detections on validation set\n');
-pair_dets = get_test_detections(test_seqs, ssvm_model, 0);
+pair_dets = get_test_detections(test_seqs, ssvm_model, biposelets, ...
+    conf.subposes, conf.num_joints, conf.num_dets);
 
 fprintf('Stitching detections into sequence\n');
 assert(false, 'You need to write this');
