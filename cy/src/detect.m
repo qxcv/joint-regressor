@@ -63,7 +63,8 @@ INF = 1e10;
 if is_train_call && ~isempty(bbox)
     latent = true;
     if label > 0
-        assert(isempty(thresh));
+        assert(~isempty(thresh));
+        % XXX: Is this broken? Why would it overwrite thresh?
         thresh = -INF;
     end
 else

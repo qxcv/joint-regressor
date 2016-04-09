@@ -129,8 +129,7 @@ for neg_num = 1:neg.num_pairs
 %     cnn_save_fn = sprintf('neg-pyra-%i.mat', neg_num);
 %     cnn_save_path = fullfile('cache', 'neg-pyra', cnn_save_fn);
     [box, model] = detect(d1, d2, model, 'PairInfo', pair, 'Thresh', -1, ...
-        'BBox', [], 'Overlap', 0, 'ID', neg_num, 'Label', -1, ...
-        'CacheDir', 'cache');
+        'Overlap', 0, 'ID', neg_num, 'Label', -1, 'CacheDir', 'cache');
     numnegatives = numnegatives + size(box,1);
     fprintf(' #cache+%d=%d/%d, #sv=%d, #sv>0=%d, (est)UB=%.4f, LB=%.4f', ...
         size(box,1), qp.n, nmax, sum(qp.sv), sum(qp.a>0), qp.ub, qp.lb);
