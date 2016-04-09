@@ -13,6 +13,10 @@ function pose = boxes2pose(detection, biposelets, biposelet_scale, ...
 % subpose_idxs: cell array giving original joint indices of parts
 % num_joints: number of joints in complete skeleton
 
+assert(all(biposelet_scale == biposelet_scale(1)));
+biposelet_scale = biposelet_scale(1);
+assert(isscalar(biposelet_scale));
+
 all_pose_locs = nan([2 * num_joints, 2, length(subposes)]);
 for subpose_idx=1:length(subposes)
     % Grab bbox (has format [x1 y1 x2 y2])
@@ -36,14 +40,17 @@ end
 
 % Now average-out shared joints
 mean_pose_locs = nan([2 * num_joints, 2]);
-for joint_idx=1:length(num_joints)
+for joint_idx=1:2*num_joints
     pred_mask = find(~isnan(squeeze(all_pose_locs(joint_idx, 1, :))));
     assert(isvector(pred_mask));
     if isempty(pred_mask)
         continue
     end
-    % TODO: Weight mean according to rscore (higher rscore should count
-    % more). Maybe weights should be exp(rscore(i)) / sum(exp(rscore))?
+    % TODO: Need to look back at CNN output and figure out what the actual
+    % distribution over types was at this location. Should probably average
+    % over types (or maybe average over types "near" the detected one) to
+    % get a better score. May have to be careful not to average over
+    % everything, lest I mix incompatible types for neighbouring parts.
     mean_pose_locs(joint_idx, :) = ...
         squeeze(mean(all_pose_locs(joint_idx, :, pred_mask), 3));
 end
