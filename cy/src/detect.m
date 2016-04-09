@@ -281,11 +281,11 @@ for level = levels
         sv_score = score(w,qp.x,qp.n);
         sv_rscore = rscore(y,x,t);
         delta = abs(sv_score - sv_rscore);
-        errmsg = sprintf('Delta %f = |%f (SV score) - %f (rscore)| too big', ...
-            delta, sv_score, sv_rscore);
-        % assert(delta < 1e-5, errmsg);
-        warning('stupid:mlint', ['Skipping debug assertion for now. ' ...
-            'Your error message would have been: %s'], errmsg);
+        if delta >= 1e-5
+            warning('JointRegressor:detect:inconsistentScore', ...
+                'Delta %f = |%f (SV score) - %f (rscore)| too big', ...
+                delta, sv_score, sv_rscore);
+        end
     end
     
     % Optimize qp with coordinate descent, and update model

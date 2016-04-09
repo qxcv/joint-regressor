@@ -13,18 +13,22 @@ end
 for x = model.apps
   j = x.i:x.i+numel(x.w)-1;
   w(j) = x.w;
-  % Enforce
-  w0(j) = .001;
-  noneg = [noneg uint32(j)];
+  % Ensures that our appearance terms are at least positive. They don't
+  % have to be huge, though :-)
+  % w0(j) = 1e-10; % was 0.001 in CY code
+  noneg = [noneg uint32(j)]; %#ok<AGROW>
 end
 
 for x = model.gaus
   j = x.i:x.i+numel(x.w)-1;
   w(j) = x.w;
-  % Enforce minimum quadratic deformation cost of 0.01
+  % Enforce minimum quadratic deformation cost
   j = [j(1),j(3)];
-  w0(j) = .001;
-  noneg = [noneg uint32(j)];
+  % We actually need a minimum for these terms, because otherwise we will
+  % get degenerate deformation parabolas which cause the distance transform
+  % to crash (it divides by the weights of the squared terms).
+  w0(j) = 1e-10; % was 0.001 in CY code
+  noneg = [noneg uint32(j)]; %#ok<AGROW>
 end
 
 % Regularize root biases differently

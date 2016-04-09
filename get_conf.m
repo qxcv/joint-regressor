@@ -26,9 +26,9 @@ conf.cnn.step = 32;
 % Levels of the feature pyramid in each octave. Might have to turn this
 % down, since 10 (former value) is insane.
 conf.interval = 8;
-% Not even sure what this is for. Number of support vectors or something?
-% Should remove it if it turns out not to be needed.
-conf.memsize = 16;
+% This defines the maximum size for the QP solver's support vector cache
+% (in GiB).
+conf.memsize = 0.5;
 % Number of biposes to fetch for each frame pair
 conf.num_dets = 300;
 

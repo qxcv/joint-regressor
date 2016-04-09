@@ -38,8 +38,6 @@ if ~exist('maxsize', 'var')
   maxsize = min(max(maxsize, model.memsize),7.5);
 end
 
-fprintf('Using %.3f GB\n', maxsize);
-
 if ~exist('overlap', 'var')
   overlap = 0.6; % at least 0.6 overlap to be positive
 end
@@ -47,6 +45,8 @@ end
 % Vectorize the model
 len  = sparselen(model);
 nmax = round(maxsize*.25e9/len);
+
+fprintf('Using %.3f GB, nmax=%i\n', maxsize, nmax);
 
 % reset random seed to reproduce result
 rng(0);
@@ -79,7 +79,7 @@ for iter_idx=1:num_iters,
     qp.n = 0;
     numpositives = poslatent(name, iter_idx, model, pos, overlap);
     
-    fprintf('got %d positives\n', numpositives);
+    fprintf('got %d positives, qp.n = %i\n', numpositives, qp.n);
     assert(qp.n <= nmax);
     
     % Fix positive examples as permanent support vectors
@@ -93,7 +93,8 @@ for iter_idx=1:num_iters,
     model = vec2model(qp_w(), model);
     
     % grab negative examples from negative images
-    mining_onneg(model, neg, nmax)
+    mining_onneg(model, neg, nmax);
+    fprintf('\nFinished mining negatives, qp.n = %i\n', qp.n);
     
     % One final pass of optimization
     qp_opt();
