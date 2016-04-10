@@ -29,6 +29,7 @@ conf.num_joints = 12;
 subpose_indices = {[3 4 11 12], [4 6 8 10], [3 5 7 9]};
 subpose_names = {'head', 'left', 'right'};
 conf.subposes = struct('name', subpose_names, 'subpose', subpose_indices);
+conf.valid_parts = unique([subpose_indices{:}]);
 % Tells us which subpose is the parent of which (0 for root)
 conf.subpose_pa = [0 1 1];
 % shared_parts{c} is a two-element cell array in which the first element is

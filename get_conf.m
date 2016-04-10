@@ -31,6 +31,10 @@ conf.interval = 8;
 conf.memsize = 0.5;
 % Number of biposes to fetch for each frame pair
 conf.num_dets = 300;
+% Weights for stitching biposelet sequences. rscore is root score of
+% biposelet, dist is L2 distance between neighbouring poses
+conf.stitch_weights.rscore = 1;
+conf.stitch_weights.dist = 1;
 
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 

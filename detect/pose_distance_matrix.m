@@ -1,5 +1,5 @@
 function distance_matrix = pose_distance_matrix(f1_poses, f2_poses)
-%BIPOSELET_DISTANCE_MATRIX Compute distance matrix between possible poses
+%POSE_DISTANCE_MATRIX Compute distance matrix between possible poses
 % Think matrix will be like distance_matrix(f1_pose, f2_pose) = distance
 % between f1_poses(f1_pose) and f2_poses(f2_pose)
 lf1 = length(f1_poses);
