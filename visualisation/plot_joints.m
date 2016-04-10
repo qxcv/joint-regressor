@@ -1,10 +1,12 @@
 function plot_joints(locs, colour)
 % Plot an N * 2 array of joints
 if nargin < 2
-    extra_args = {};
-else
-    extra_args = {'MarkerEdgeColor', colour, 'MarkerFaceColor', colour};
+    chosen_col = randi([1 7]);
+    l = lines;
+    colour = l(chosen_col, :);
 end
+
+extra_args = {'MarkerEdgeColor', colour, 'MarkerFaceColor', colour};
 
 for i=1:size(locs, 1);
     x = locs(i, 1);
