@@ -1,5 +1,5 @@
 function detections = get_seq_detections(dataset, seq_num, ssvm_model, ...
-    biposelets, subposes, num_joints, num_results)
+    biposelets, subposes, num_joints, num_results, cache_dir)
 %GET_SEQ_DETECTIONS Evaluate on a single test sequence
 % Differs from get_test_detections in that this only works on a single
 % sequence, whereas get_test_detections works on a whole set of detections
@@ -14,7 +14,8 @@ for pair_idx = 1:num_pairs
     im1_info = dataset.data(idx1);
     im2_info = dataset.data(idx2);
     start = tic;
-    [boxes, ~, ~] = detect(im1_info, im2_info, ssvm_model, 'NumResults', num_results);
+    [boxes, ~, ~] = detect(im1_info, im2_info, ssvm_model, ...
+        'NumResults', num_results, 'CacheDir', cache_dir);
     assert(length(boxes) == num_results, ...
         'Expected %i detections, got %i', num_results, length(boxes));
     time_taken = toc(start);

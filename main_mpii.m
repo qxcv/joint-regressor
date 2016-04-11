@@ -63,8 +63,14 @@ fprintf('Training graphical model\n');
 ssvm_model = train_model(conf, val_dataset, neg_dataset, subpose_disps, tsize);
 
 fprintf('Running bipose detections on validation set\n');
-pair_dets = get_test_detections(test_seqs, ssvm_model, biposelets, ...
-    conf.subposes, conf.num_joints, conf.num_dets);
+pair_dets = get_pair_dets(conf.cache_dir, test_seqs, ssvm_model, ...
+    biposelets, conf.subposes, conf.num_joints, conf.num_dets);
 
 fprintf('Stitching detections into sequence\n');
-assert(false, 'You need to write this');
+stitcher = @(pairs) stitch_seq(pairs, conf.stitch_weights, conf.valid_parts);
+pose_dets = cellfun(stitcher, pair_dets, 'UniformOutput', false);
+% TODO: visualise detected poses
+
+fprintf('Calculating statistics\n');
+
+fprintf('Done!\n');

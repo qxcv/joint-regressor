@@ -74,9 +74,15 @@ end
 % Compute the feature pyramid and prepare filter
 im1 = readim(im1_info);
 im2 = readim(im2_info);
+persistent warned_about_cache;
 if ~isempty(cache_dir)
     flow = cached_imflow(im1_info, im2_info, cache_dir);
 else
+    if isempty(warned_about_cache)
+        warning('JointRegressor:detect:nocache', ...
+            'Recomputing image flow! (will only warn once)\n');
+        warned_about_cache = true;
+    end
     flow = imflow(im1_info.image_path, im2_info.image_path);
 end
 im_stack = cat(3, im1, im2);
