@@ -67,10 +67,14 @@ pair_dets = get_pair_dets(conf.cache_dir, test_seqs, ssvm_model, ...
     biposelets, conf.subposes, conf.num_joints, conf.num_dets);
 
 fprintf('Stitching detections into sequence\n');
-stitcher = @(pairs) stitch_seq(pairs, conf.stitch_weights, conf.valid_parts);
-pose_dets = cellfun(stitcher, pair_dets, 'UniformOutput', false);
+pose_dets = stitch_all_seqs(pair_dets, conf.stitch_weights, ...
+    conf.valid_parts, conf.cache_dir);
+pose_gts = get_gts(test_seqs);
 % TODO: visualise detected poses
 
 fprintf('Calculating statistics\n');
+flat_dets = cat(2, pose_dets{:});
+flat_gts = cat(2, pose_gts{:});
+all_pcks = pck(flat_dets, flat_gts, conf.pck_thresholds);
 
 fprintf('Done!\n');

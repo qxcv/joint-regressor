@@ -13,13 +13,22 @@ for pair_idx = 1:num_pairs
     idx2 = seq(pair_idx+1);
     im1_info = dataset.data(idx1);
     im2_info = dataset.data(idx2);
+    
+    % Run the detector
     start = tic;
     [boxes, ~, ~] = detect(im1_info, im2_info, ssvm_model, ...
         'NumResults', num_results, 'CacheDir', cache_dir);
+    time_taken = toc(start);
+    
+    % Debugging output
     assert(length(boxes) == num_results, ...
         'Expected %i detections, got %i', num_results, length(boxes));
-    time_taken = toc(start);
-    fprintf(' took %fs\n', time_taken);
+    p95_score = prctile([boxes.rscore], 0.95);
+    max_score = max([boxes.rscore]);
+    fprintf(' took %fs (95%% score %.4f, best %.4f)\n', ...
+        time_taken, p95_score, max_score);
+    
+    % Recover poses from biposelet detections
     detections(pair_idx).raw = boxes;
     recovered = cell([1 length(boxes)]);
     for det=1:length(boxes)

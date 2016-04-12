@@ -96,3 +96,6 @@ conf.biposelet_classes = 100;
 % Multiply bounding box sides by this factor to get a CNN crop size
 % (ensures that entire bounding box is in view)
 conf.template_scale = 1.15;
+
+%% Evaluation config
+conf.pck_thresholds = 0:2.5:100;
