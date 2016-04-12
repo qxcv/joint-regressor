@@ -52,7 +52,12 @@ function qp_write(ex)
     i2 = i1 + n - 1;
     is = i1:i2;
     x  = reshape(b.x,n,1);
-    if ~label,
+    if ~all(abs(x) < 1e4)
+        warning('JointRegressor:qp_write:bigblock', ...
+            'Huge block detected (max val %f):\n  "%s"', ...
+             max(abs(x)), b.debug);
+    end
+    if ~label
       x = -x;
     end
 

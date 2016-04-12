@@ -2,7 +2,7 @@ function model = build_model(subpose_pa, K, subpose_disps, cnn_conf, mean_pixels
     interval, tsize, memsize)
 % This function merges together separate part models into a tree structure
 
-[nbh_IDs, global_IDs, target_IDs] = get_IDs(subpose_pa, K);
+[~, global_IDs, ~] = get_IDs(subpose_pa, K);
 
 % parameters need for cnn
 model.cnn = cnn_conf;
@@ -13,9 +13,6 @@ model.cnn.psize = tsize * cnn_conf.step;
 model.memsize = memsize;
 
 model.tsize = tsize;
-model.global_IDs = global_IDs;
-model.nbh_IDs = nbh_IDs;
-model.target_IDs = target_IDs;
 model.K = K;
 model.subpose_disps = subpose_disps;
 
@@ -26,9 +23,8 @@ model.apps = struct('w',{},'i',{});
 % deformation gaussian parameters
 model.gaus    = struct('w',{},'i',{});
 
-model.components = struct('parent',{}, 'pid', {}, 'nbh_IDs', {}, ...
-  'subpose_disps', {}, 'biasid', {}, 'appid', {}, 'app_global_ids', {}, ...
-  'gauid', {});
+model.components = struct('parent',{}, 'pid', {}, 'subpose_disps', {}, ...
+    'biasid', {}, 'appid', {}, 'app_global_ids', {}, 'gauid', {});
 
 model.subpose_pa = subpose_pa;
 model.interval = interval;
@@ -45,7 +41,6 @@ for subpose_idx = 1:length(subpose_pa)
     % components{1}.
     p.parent = parent;
     p.pid    = child;
-    p.nbh_IDs = nbh_IDs{p.pid};
     
     if parent == 0
         assert(isempty(model.root));

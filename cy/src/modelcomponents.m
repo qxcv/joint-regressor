@@ -3,9 +3,7 @@ function [components, apps] = modelcomponents(model)
 cell_components = cell(1, 1);
 
 for subpose_idx = 1:length(model.components)
-    subpose = model.components(subpose_idx); % has nbh_IDs
-    nbh_N = numel(subpose.nbh_IDs);
-    subpose.Im = cell(nbh_N, 1);
+    subpose = model.components(subpose_idx);
     % store the scale of each part relative to the component root
     parent_idx = subpose.parent;
     assert(parent_idx < subpose_idx);

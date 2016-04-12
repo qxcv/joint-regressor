@@ -120,6 +120,7 @@ cnt = 0;
 
 ex.blocks = [];
 ex.id = [label id 0 0 0];
+ex.debug = [];
 
 if latent && label > 0
     % record best when doing latent on positive example
@@ -193,12 +194,19 @@ for level = levels
                 far_pslts = true([1 model.K]);
                 far_pslts(near_pslts) = false;
                 assert(sum(far_pslts) == model.K - length(near_pslts));
-                far_idxs = model.global_IDs{subpose_idx}(far_pslts);
-                components(subpose_idx).appMap(:, :, far_idxs) = -INF;
+                assert(length(far_pslts) == model.K);
+                % XXX: masking the appMap doesn't seem to help training
+                % much (although it does make debugging easier by showing
+                % me where things are broken, so I might keep it).
+                components(subpose_idx).appMap(:, :, far_pslts) = -INF;
+                tmpscore(:, :, far_pslts) = -INF;
             elseif label < 0
                 tmpscore(ovmask) = -INF;
             end
-            assert(all(size(components(subpose_idx).score) == size(tmpscore)));
+            assert(all(size(components(subpose_idx).score) == size(tmpscore)), ...
+                'tmpscore changed size');
+            assert(any(tmpscore(:) > -INF), ...
+                'All scores have been masked out (!!)');
             components(subpose_idx).score = tmpscore;
         end
     end
@@ -344,9 +352,11 @@ if write
     ex.blocks = [];
     ex.blocks(end+1).i = root_p.biasI;
     ex.blocks(end).x = 1;
+    ex.blocks(end).debug = dbginfo('Root bias', root_y, root_x, root_t);
     root_app = parts(root).appMap(root_y, root_x, root_t);
     ex.blocks(end+1).i = root_p.appI;
     ex.blocks(end).x = root_app;
+    ex.blocks(end).debug = dbginfo('Root appearance', root_y, root_x, root_t);
 end
 
 for child_k = 2:numparts
@@ -379,16 +389,24 @@ for child_k = 2:numparts
         assert(isscalar(child.gauI));
         ex.blocks(end+1).i = child.gauI;
         ex.blocks(end).x = defvector(child, child_x, child_y, par_x, par_y, child_t, par_t, sbin);
+        ex.blocks(end).debug = dbginfo(sprintf('Subpose %i DG', child_k), ...
+            child_y, child_x, child_t);
         
         % unary
         child_app = parts(child_k).appMap(child_y, child_x, child_t);
         ex.blocks(end+1).i = child.appI;
         ex.blocks(end).x = child_app;
+        ex.blocks(end).debug = dbginfo(sprintf('Subpose %i appearance', child_k), ...
+            child_y, child_x, child_t);
     end
 end
 % Used to have this (will be necessary for compat with older code,
 % probably):
 % box = reshape(box', 1, 4*numparts);
+end
+
+function rv = dbginfo(msg, root_y, root_x, root_t)
+rv = [msg sprintf(' (y=%i, x=%i, t=%i)', root_y, root_x, root_t)];
 end
 
 % Update QP with coordinate descent
