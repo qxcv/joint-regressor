@@ -65,3 +65,8 @@ conf.stitching.dist_weights = [1 1 1];
 % stitching. Remember stitching is O(poses_per_pair^2), so this can't be
 % too large.
 conf.stitching.poses_per_pair = 100;
+
+% List of limbs for PCP calculation
+conf.limbs = struct(...
+    'indices', {[3 5],   [5 7],   [7 9],   [4 6],   [6 8],   [8 10],  [11 12]}, ...
+    'names',   {'ruarm', 'rfarm', 'rhand', 'luarm', 'lfarm', 'lhand', 'face'});

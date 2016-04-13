@@ -70,11 +70,15 @@ fprintf('Stitching detections into sequence\n');
 pose_dets = stitch_all_seqs(pair_dets, conf.stitch_weights, ...
     conf.valid_parts, conf.cache_dir);
 pose_gts = get_gts(test_seqs);
-% TODO: visualise detected poses
 
 fprintf('Calculating statistics\n');
 flat_dets = cat(2, pose_dets{:});
 flat_gts = cat(2, pose_gts{:});
-all_pcks = pck(flat_dets, flat_gts, conf.pck_thresholds);
+pck_thresholds = conf.pck_thresholds;
+all_pcks = pck(flat_dets, flat_gts, pck_thresholds); %#ok<SNASGU>
+limbs = conf.limbs;
+all_pcps = pcp(flat_dets, flat_gts, {limbs.indices}); %#ok<SNASGU>
+save(fullfile(conf.cache_dir, 'final-stats.mat'), 'all_pcks', ...
+    'all_pcps', 'pck_thresholds', 'limbs');
 
 fprintf('Done!\n');

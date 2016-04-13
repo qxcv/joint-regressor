@@ -29,10 +29,10 @@ all_diffs = pred_mat - gt_mat;
 all_norms = squeeze(sqrt(sum(all_diffs.^2, 2))) ./ scales;
 assert(all(size(all_norms) == [size(pred_mat, 1), length(preds)]));
 
-accs = zeros([1 length(threshs)]);
-for tidx=1:length(threshs)
+accs = cell([1 length(threshs)]);
+parfor tidx=1:length(threshs)
     thresh = threshs(tidx);
-    accs(tidx) = sum(all_norms < thresh, 2) / size(all_norms, 2);
+    accs{tidx} = sum(all_norms < thresh, 2) / size(all_norms, 2);
 end
 end
 
