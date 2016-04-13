@@ -1,17 +1,25 @@
-function [pyra, unary_map] = imCNNdet(im_stack, flow, model, upS)
+function [pyra, unary_map] = imCNNdet(im_stack, flow, model, save_path)
 %IMCNNDET Build and marginalise over feature pyramid
-if ~exist('upS', 'var')
-    upS = 1; % by default, we do not upscale the image
-end
+persistent cnn_model;
 
 assert(size(im_stack, 3) == 6, 'Need RGBRGB channels');
 assert(all(size(im_stack) == size(flow) | [0 0 1]), ...
     'Stack and flow should have same width/height');
 
+if exist('save_path', 'var')
+    try
+        l = load(save_path);
+        pyra = l.pyra;
+        unary_map = l.unary_map;
+        return
+    catch
+        fprintf('imCNNdet couldn''t load %s, recomputing\n', save_path);
+    end
+end
+
 % This seems to be necessary to make sure that Keras memory is cleaned up
 force_pygc();
 cnnpar = model.cnn;
-persistent cnn_model;
 if isempty(cnn_model)
     if ~exist(cnnpar.deploy_json, 'file') || ~exist(cnnpar.deploy_weights, 'file')
         error('jointregressor:invalidCNNConfig', ...
@@ -22,15 +30,10 @@ if isempty(cnn_model)
 end
 assert(~isempty(cnn_model));
 
-if upS > 1
-    % ensure largest length < 1200
-    [imx, imy, ~] = size(im);
-    upS = min(upS, 600 / max(imx,imy));
-end
 cnn_size = cnnpar.window(1);
 assert(all(cnn_size == cnnpar.window));
 pyra = impyra(im_stack, flow, cnn_model, cnnpar.mean_pixels, ...
-    cnnpar.step, cnn_size, model.interval, upS);
+    cnnpar.step, cnn_size, model.interval, 1);
 max_scale = numel(pyra);
 FLT_MIN = realmin('single');
 % 0.01;
@@ -55,5 +58,17 @@ for scale_idx = 1:max_scale
         % convert to log space
         unary_map{scale_idx}{subpose_idx} = log(max(subpose_map, FLT_MIN));
     end
+end
+
+if exist('save_path', 'var')
+    fprintf('Saving pyramid to %s\n', save_path);
+    % Make directory and save map
+    dest_dir = fileparts(save_path);
+    if ~exist(dest_dir, 'dir');
+        mkdir(dest_dir);
+    end
+    % Remove HUGE DEBUGGING FIELDS
+    pyra = rmfield(pyra, {'feat', 'in_rgb', 'in_flow'});
+    save(save_path, 'pyra', 'unary_map');
 end
 end

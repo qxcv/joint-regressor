@@ -127,13 +127,16 @@ for neg_num = 1:neg.num_pairs
     d1 = neg.data(pair.fst);
     d2 = neg.data(pair.snd);
 %   If you want to save CNN results, you can use CNNSavePath optarg
-%     cnn_save_fn = sprintf('neg-pyra-%i.mat', neg_num);
-%     cnn_save_path = fullfile('cache', 'neg-pyra', cnn_save_fn);
+    cnn_save_fn = sprintf('neg-pyra-%i.mat', neg_num);
+    cnn_save_path = fullfile('cache', 'neg-pyra', cnn_save_fn);
     [box, model] = detect(d1, d2, model, 'PairInfo', pair, 'Thresh', -1, ...
-        'Overlap', 0, 'ID', neg_num, 'Label', -1, 'CacheDir', 'cache');
+        'Overlap', 0, 'ID', neg_num, 'Label', -1, 'CacheDir', 'cache', ...
+        'CNNSavePath', cnn_save_path);
     numnegatives = numnegatives + size(box,1);
-    fprintf(' #cache+%d=%d/%d, #sv=%d, #sv>0=%d, (est)UB=%.4f, LB=%.4f', ...
-        size(box,1), qp.n, nmax, sum(qp.sv), sum(qp.a>0), qp.ub, qp.lb);
+    p95_score = prctile([box.rscore], 0.95);
+    best_score = max([box.rscore]);
+    fprintf(' #cache+%d=%d/%d, #sv=%d, #sv>0=%d, 95p-score=%.4f, best-score=%.4f, (est)UB=%.4f, LB=%.4f', ...
+        size(box,1), qp.n, nmax, sum(qp.sv), sum(qp.a>0), p95_score, best_score, qp.ub, qp.lb);
     
     % Stop if cache is full
     if sum(qp.sv) == nmax
@@ -174,11 +177,11 @@ for pair_num = 1:num_pairs
     
 %     Again, you can supply CNNSavePath to detect() to save your image
 %     pyramids for later analysis.
-%     cnn_save_fn = sprintf('pos-pyra-%i-iter-%i.mat', pair_num, t);
-%     cnn_save_path = fullfile('cache', 'pos-pyra', cnn_save_fn);
+    cnn_save_fn = sprintf('pos-pyra-pair-%i.mat', pair_num);
+    cnn_save_path = fullfile('cache', 'pos-pyra', cnn_save_fn);
     box = detect(d1, d2, model, 'PairInfo', pair, 'Thresh', 0, ...
         'BBox', bbox, 'Overlap', overlap, 'ID', pair_num, 'Label', 1, ...
-        'CacheDir', 'cache');
+        'CacheDir', 'cache', 'CNNSavePath', cnn_save_path);
     if ~isempty(box)
         fprintf(' (sc=%.3f)\n', box(1).rscore);
         numpositives = numpositives+1;
