@@ -8,8 +8,13 @@ try
     pair_dets = l.pair_dets;
 catch
     fprintf('Regenerating detections\n');
-    pair_dets = get_test_detections(test_seqs, ssvm_model, biposelets, ...
-        subposes, num_joints, num_dets, cache_dir);
+    pair_dets = cell([1 length(test_seqs.seqs)]);
+    num_seqs = length(test_seqs.seqs);
+    for seq_num=1:num_seqs
+        fprintf('Working in seq %i/%i\n', seq_num, num_seqs);
+        pair_dets{seq_num} = get_seq_detections(test_seqs, seq_num, ssvm_model, biposelets, ...
+            subposes, num_joints, num_dets, cache_dir);
+    end
     save(pd_path, 'pair_dets');
 end
 end

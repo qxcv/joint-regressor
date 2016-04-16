@@ -15,8 +15,10 @@
 %
 % where  x'_ij = c_i*(x_ij/r)
 %        b'_ij = c_i*(1 - w0*x_ij)
-function qp_write(ex)
+function wrote_ex = qp_write(ex)
   global qp;
+  
+  wrote_ex = false;
   
   if qp.n == length(qp.a),
     return;
@@ -77,4 +79,5 @@ function qp_write(ex)
   qp.b(i)   = C*bias;
   qp.i(:,i) = ex.id;
   qp.sv(i)  = 1;
- 
+  
+  wrote_ex = true;

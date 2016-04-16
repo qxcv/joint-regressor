@@ -14,7 +14,7 @@ catch
         pos_val.pairs(pair_idx).near = labels(pair_idx).near;
     end
     
-    % XXX: Should pass this in more elegantly. Same goes for clusters.
+    % TODO: Should pass this in more elegantly. Same goes for clusters.
     mean_pixels = load(fullfile(cachedir, 'mean_pixel.mat'));
     model = build_model(subpose_pa, conf.biposelet_classes, subpose_disps, ...
         conf.cnn, mean_pixels, conf.interval, tsize, conf.memsize);
