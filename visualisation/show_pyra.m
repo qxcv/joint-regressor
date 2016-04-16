@@ -30,6 +30,8 @@ conf = get_conf_mpii;
 sp_names = {conf.subposes.name};
 num_maps = conf.biposelet_classes;
 num_scales = length(pyra);
+assert(num_scales == length(unary_map));
+
 uicontrol('Style', 'text',...
           'Position', [10 10, 80 15],...
           'String', 'Subpose');
@@ -44,7 +46,7 @@ uicontrol('Style', 'text',...
 uicontrol('Style', 'slider',...
           'Min', 1, 'Max', num_scales, 'Value', scale,...
           'Position', [100 30 300 15],...
-          'SliderStep', [1 1],...
+          'SliderStep', [1 1] / num_scales,...
           'Callback', @set_scale);
 uicontrol('Style', 'text',...
           'Position', [10 50, 80 15],...
@@ -82,33 +84,40 @@ fprintf('**********\n');
 fprintf('Scale %i, subpose %i, map index %i, redraw? %i\n', scale, subpose, map_idx, redraw_input);
 
 % Extract data
-im_stack = unperm(pyra(scale).in_rgb);
-assert(ndims(im_stack) == 3 && size(im_stack, 3) == 6);
-im_size = size(im_stack);
+has_input = all(hasfield(pyra, {'in_flow', 'in_rgb'}));
+if has_input
+    im_stack = unperm(pyra(scale).in_rgb);
+    assert(ndims(im_stack) == 3 && size(im_stack, 3) == 6);
+    im_size = size(im_stack);
+    num_plots = 5;
 
-if redraw_input
-    im1 = im_stack(:, :, 1:3);
-    im2 = im_stack(:, :, 4:6);
-    flow = unperm(pyra(scale).in_flow);
-    assert(ndims(flow) == 3);
-    flow_size = size(flow);
-    assert(all(im_size(1:2) == flow_size(1:2)));
-    
-    % First image
-    subtightplot(1,5,1);
-    imshow(im1);
-    
-    % Second image
-    subtightplot(1,5,2);
-    imshow(im2);
-    
-    % Flow
-    subtightplot(1,5,3);
-    imshow(pretty_flow(flow));
+    if redraw_input
+        im1 = im_stack(:, :, 1:3);
+        im2 = im_stack(:, :, 4:6);
+        flow = unperm(pyra(scale).in_flow);
+        assert(ndims(flow) == 3);
+        flow_size = size(flow);
+        assert(all(im_size(1:2) == flow_size(1:2)));
+
+        % First image
+        subtightplot(1,num_plots,1);
+        imshow(im1);
+
+        % Second image
+        subtightplot(1,num_plots,2);
+        imshow(im2);
+
+        % Flow
+        subtightplot(1,num_plots,3);
+        imshow(pretty_flow(flow));
+    end
+else
+    im_size = [20 20];
+    num_plots = 2;
 end
 
 % Heatmap 1 (max over all poselets)
-subtightplot(1,5,4);
+subtightplot(1,num_plots,num_plots-1);
 colormap('hot');
 all_maps = unary_map{scale}{subpose};
 best_map = pretty_heatmap(max(all_maps, [], 3), im_size(1:2));
@@ -128,7 +137,7 @@ res_string = strjoin(res, ', ');
 fprintf('Top %d poselet scores: %s\n', num_results, res_string);
 
 % Heatmap 2 (selected poselet)
-subtightplot(1,5,5);
+subtightplot(1,num_plots,num_plots);
 heatmap = pretty_heatmap(all_maps(:, :, map_idx), im_size(1:2));
 imagesc(heatmap, [0 exp(best_act)]);
 % hm_range = [min(heatmap(:)) max(heatmap(:))];
