@@ -2,13 +2,8 @@ function [boxes, model, ex] = detect(im1_info, im2_info, model, varargin)
 % Detect objects in image using a model (SSVM + CNN) and either a score
 % threshold or fixed number of boxes to return.
 %
-% The function returns a matrix with one row per detected object.  The
-% last column of each row gives the score of the detection.  The
-% column before last specifies the component used for the detection.
-% Each set of the first 4 columns specify the bounding box for a part
-%
-% If bbox is not empty, we pick best detection with significant overlap.
-% If label is included, we write feature vectors to a global QP structure
+% Returns a struct array with bounding boxes for all parts in all
+% detections and a score for each detection.
 %
 % This function updates the model (by running the QP solver) if upper and
 % lower bound differs
@@ -24,18 +19,18 @@ function [boxes, model, ex] = detect(im1_info, im2_info, model, varargin)
 parser = inputParser;
 parser.CaseSensitive = true;
 parser.StructExpand = false;
-parser.addRequired('im1_info', @isstruct); % im1_info (supplied)
-parser.addRequired('im2_info', @isstruct); % im2_info (supplied)
-parser.addRequired('model', @isstruct); % model (supplied)
-parser.addOptional('PairInfo', [], @isstruct); % pair
-parser.addOptional('CNNSavePath', [], @isstr); % cnn_save_path
-parser.addOptional('Thresh', [], @isscalar); % thresh
-parser.addOptional('NumResults', [], @isscalar); % num_results
-parser.addOptional('BBox', [], @isvector); % bbox
-parser.addOptional('Overlap', [], @isscalar); % overlap
-parser.addOptional('ID', [], @isscalar); % id
-parser.addOptional('Label', [], @isscalar); % label
-parser.addOptional('CacheDir', [], @isstr); % cache_dir
+parser.addRequired('im1_info', @isstruct);
+parser.addRequired('im2_info', @isstruct);
+parser.addRequired('model', @isstruct);
+parser.addOptional('PairInfo', [], @isstruct);
+parser.addOptional('CNNSavePath', [], @isstr);
+parser.addOptional('Thresh', [], @isscalar);
+parser.addOptional('NumResults', [], @isscalar);
+parser.addOptional('BBox', [], @isvector);
+parser.addOptional('Overlap', [], @isscalar);
+parser.addOptional('ID', [], @isscalar);
+parser.addOptional('Label', [], @isscalar);
+parser.addOptional('CacheDir', [], @isstr);
 parser.parse(im1_info, im2_info, model, varargin{:});
 r = parser.Results;
 pair = r.PairInfo;
@@ -87,17 +82,18 @@ else
 end
 im_stack = cat(3, im1, im2);
 % if has box information, crop it
-if latent && label > 0
-    % crop positive images to speed up latent search
-    [im_stack, flow, bbox] = cropscale_pos(im_stack, flow, bbox, model.cnn.psize);
+if ~isempty(bbox)
+    % crop positives and evaluation images to speed up search
+    [im_stack, flow, bbox, cs_xtrim, cs_ytrim, cs_scale] = ...
+        cropscale_pos(im_stack, flow, bbox, model.cnn.psize);
 end
 
-[pyra, unary_map] = imCNNdet(im_stack, flow, model);
-
+cnn_args = {im_stack, flow, model};
 if ~isempty(cnn_save_path)
-    fprintf('Saving image pyramid and unary map to "%s"\n', cnn_save_path);
-    save(cnn_save_path, 'pyra', 'unary_map');
+    % Cache output in save path
+    cnn_args{end+1} = cnn_save_path;
 end
+[pyra, unary_map] = imCNNdet(cnn_args{:});
 
 levels = 1:length(pyra);
 
@@ -172,6 +168,8 @@ for level = levels
         components(subpose_idx).level = level;
         
         if latent
+            assert(label > 0, 'This doesn''t make sense on negatives');
+            
             ovmask = testoverlap(components(subpose_idx).sizx, components(subpose_idx).sizy, ...
                 sizs(1), sizs(2), pyra(level), bbox.xy(subpose_idx,:), overlap);
             assert(ismatrix(ovmask));
@@ -180,29 +178,25 @@ for level = levels
             assert(tmpscore_K == model.K);
             ovmask = repmat(ovmask, 1, 1, tmpscore_K);
             assert(all(size(ovmask) == size(tmpscore)));
-            % label supervision
-            if label > 0
-                % If a location doesn't overlap enough with the ground
-                % truth, then we set it to -INF
-                tmpscore(~ovmask) = -INF;
-                
-                % If a poselet is a long way from the GT poselet, then we
-                % also set it to 0.
-                near_pslts = pair.near{subpose_idx};
-                assert(~isempty(near_pslts));
-                assert(all(1 <= near_pslts & near_pslts <= model.K));
-                far_pslts = true([1 model.K]);
-                far_pslts(near_pslts) = false;
-                assert(sum(far_pslts) == model.K - length(near_pslts));
-                assert(length(far_pslts) == model.K);
-                % XXX: masking the appMap doesn't seem to help training
-                % much (although it does make debugging easier by showing
-                % me where things are broken, so I might keep it).
-                components(subpose_idx).appMap(:, :, far_pslts) = -INF;
-                tmpscore(:, :, far_pslts) = -INF;
-            elseif label < 0
-                tmpscore(ovmask) = -INF;
-            end
+            
+            % If a location doesn't overlap enough with the ground
+            % truth, then we set it to -INF
+            %tmpscore(~ovmask) = -INF;
+            
+            % If a poselet is a long way from the GT poselet, then we
+            % also set it to -INF
+            near_pslts = pair.near{subpose_idx};
+            assert(~isempty(near_pslts));
+            assert(all(1 <= near_pslts & near_pslts <= model.K));
+            far_pslts = true([1 model.K]);
+            far_pslts(near_pslts) = false;
+            assert(sum(far_pslts) == model.K - length(near_pslts));
+            assert(length(far_pslts) == model.K);
+            % XXX: masking the appMap doesn't seem to help training
+            % much (although it does make debugging easier by showing
+            % me where things are broken, so I might keep it).
+            %components(subpose_idx).appMap(:, :, far_pslts) = -INF;
+            %tmpscore(:, :, far_pslts) = -INF;
             assert(all(size(components(subpose_idx).score) == size(tmpscore)), ...
                 'tmpscore changed size');
             assert(any(tmpscore(:) > -INF), ...
@@ -251,7 +245,6 @@ for level = levels
 
     % Walk back down tree following pointers
     % (DEBUG) Assert extracted feature re-produces score
-    num_written = 0;
     for i = 1:length(X)
         cnt = cnt + 1;
         x = X(i);
@@ -267,9 +260,9 @@ for level = levels
         b.rscore = this_rscore;
         boxes(end+1) = b; %#ok<AGROW>
         assert(length(boxes) == cnt);
+        wrote_ex = false;
         if write && (~latent || label < 0)
-            qp_write(ex);
-            num_written = num_written + 1;
+            wrote_ex = qp_write(ex);
             qp.ub = qp.ub + qp.Cneg*max(1+this_rscore, 0);
         elseif latent && label > 0
             if isempty(best_box)
@@ -286,18 +279,14 @@ for level = levels
     % Crucial DEBUG assertion:
     % If we're computing features, assert extracted feature re-produces
     % score (see qp_writ.m for computing original score)
-    if write && (~latent || label < 0) && ~isempty(X) && qp.n < length(qp.a)
-        % If we don't write an example then qp.n-th SV won't refer to
-        % rscore(y,x,t)
-        % assert(num_written > 1, 'Should have written at least one example');
-        
+    if wrote_ex
         w = -(qp.w + qp.w0.*qp.wreg) / qp.Cneg;
         sv_score = score(w,qp.x,qp.n);
         sv_rscore = rscore(y,x,t);
         delta = abs(sv_score - sv_rscore);
         if delta >= 1e-5
-            warning('JointRegressor:detect:inconsistentScore', ...
-                'Delta %f = |%f (SV score) - %f (rscore)| too big', ...
+            fprintf(...
+                'Delta %f = |%f (SV score) - %f (rscore)| too big\n', ...
                 delta, sv_score, sv_rscore);
         end
     end
@@ -326,6 +315,11 @@ end
 % Make sure we only return num_results results (if NumResults supplied)
 if ~isempty(num_results) && length(boxes) > num_results
     boxes = boxes(1:num_results);
+end
+
+% Undo cropscale_pos transformation on coordinates
+if ~isempty(bbox)
+    boxes = unscale_boxes(boxes, cs_xtrim, cs_ytrim, cs_scale);
 end
 end
 
@@ -407,6 +401,16 @@ end
 
 function rv = dbginfo(msg, root_y, root_x, root_t)
 rv = [msg sprintf(' (y=%i, x=%i, t=%i)', root_y, root_x, root_t)];
+end
+
+% Undo cropscale_pos transform to get box detections in original image
+% coordinates
+function dets = unscale_boxes(dets, xtrim, ytrim, scale)
+% Each box is [x1, y1, x2, y2]
+assert(isscalar(xtrim) && isscalar(ytrim) && isscalar(scale));
+add_vec = [xtrim, ytrim, xtrim, ytrim];
+dets.boxes = cellfun(@(b) (b / scale) + add_vec, dets.boxes, ...
+    'UniformOutput', false);
 end
 
 % Update QP with coordinate descent

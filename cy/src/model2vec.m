@@ -13,9 +13,8 @@ end
 for x = model.apps
   j = x.i:x.i+numel(x.w)-1;
   w(j) = x.w;
-  % Ensures that our appearance terms are at least positive. They don't
-  % have to be huge, though :-)
-  % w0(j) = 1e-10; % was 0.001 in CY code
+  % w0(j) is a lower bound for weight j (appearance weight)
+  %w0(j) = 1e-3; % was 0.001 in CY code
   noneg = [noneg uint32(j)]; %#ok<AGROW>
 end
 
@@ -27,7 +26,8 @@ for x = model.gaus
   % We actually need a minimum for these terms, because otherwise we will
   % get degenerate deformation parabolas which cause the distance transform
   % to crash (it divides by the weights of the squared terms).
-  w0(j) = 1e-10; % was 0.001 in CY code
+  %w0(j) = 1e-3; % was 0.001 in CY code
+  w0(j) = 1e-10;
   noneg = [noneg uint32(j)]; %#ok<AGROW>
 end
 

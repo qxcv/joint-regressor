@@ -116,7 +116,7 @@ for flip=flips
                 % TODO: Instead of finding wiggle room automatically, I
                 % should specify a maximum distance by which the pose can
                 % be translated, in pixels. That could then be scaled
-                % apprporiately according to the datum scale, then the 
+                % appropriately according to the datum scale, then the 
                 if rand_trans > 0 && wiggle_room > 1
                     trans_amount = wiggle_room * rand(1, 2) - wiggle_room / 2;
                     trans_box_center = trans_box_center + trans_amount;
