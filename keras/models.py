@@ -307,7 +307,14 @@ def dense_to_conv(dense_layer, conv_shape, **conv_args):
         dense_weights[0].shape, weight_shape
     ))
 
-    conv_weights = [dense_weights[0].reshape(weight_shape), dense_weights[1]]
+    # If dense weights are (4096, 301) (4096 inputs, 301 outputs), then conv
+    # weights will be (301, 4096, 1, 1) (1x1 conv with 301 inputs and 4096
+    # outputs
+    conv_w = dense_weights[0].T.reshape(weight_shape)[:, :, ::-1, ::-1]
+    conv_weights = [conv_w, dense_weights[1]]
+
+    if 'activation' not in conv_args:
+        conv_args['activation'] = dense_layer.activation
 
     rv = Convolution2D(
         num_outputs, conv_shape[1], conv_shape[2], weights=conv_weights,
