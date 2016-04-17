@@ -1,4 +1,4 @@
-git+git://github.com/Theano/Theano.git
-keras
+Theano>=0.8.1
+keras>=1.0.1
 ipython
 jupyter

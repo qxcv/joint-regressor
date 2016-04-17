@@ -6,7 +6,7 @@ from keras.models import Graph, Sequential
 from keras.layers.core import Dense, Dropout, Flatten
 from keras.layers.convolutional import (Convolution2D, MaxPooling2D,
                                         ZeroPadding2D)
-from keras.utils.layer_utils import container_from_config
+from keras.utils.layer_utils import layer_from_config
 
 from utils import register_activation, convolution_softmax
 
@@ -356,7 +356,7 @@ def upgrade_sequential(old_model):
                 repr_layer(next_layer), repr_layer(new_conv)
             ))
         else:
-            next_layer_copy = container_from_config(
+            next_layer_copy = layer_from_config(
                 next_layer.get_config()
             )
             rv.add(next_layer_copy)
