@@ -1,4 +1,11 @@
-Theano>=0.8.1,<0.9.0
-keras==0.3.3
+# Apparently Theano 0.8.X breaks, but this commit (last commit on day of Keras
+# 0.3.2.X release) does work.
+git+git://github.com/Theano/Theano.git@c3b54b9b4c29dd03d989fa3029c6a8eb3327316c
+# 0.3.3 does not seem to work, 1.0.X breaks 0.3.X API (and hence does not work
+# either). At some point I might to upgrade to 1.0.X (and Theano 0.8.X) just so
+# that my code functions with the new Keras API, and if I do that I'll skip
+# 0.3.3.
+keras==0.3.2
+# Next two are dev conveniences, so version should not matter
 ipython
 jupyter
