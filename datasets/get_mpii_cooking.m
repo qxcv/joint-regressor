@@ -1,31 +1,13 @@
-% From the README:
-%
-% The ground-truth poses for the dataset are provided as .mat files in 'gt_poses' directory.
-% 
-% The pose files are given as, pose_<TrackIndex>_<Index>.mat
-% and the images are given as,  img_<TrackIndex>_<Index>.mat
-% 
-% <TrackIndex> is the index of the continuous image sequence (activity track)
-% <Index> is just the image index in this evaluation set.
-%
-% Each pose file contains the location of 10 parts (torso and head each consists of two points),
-%
-%      pose(1,:) -> torso upper point
-%      pose(2,:) -> torso lower point
-%      pose(3,:) -> right shoulder
-%      pose(4,:) -> left shoulder
-%      pose(5,:) -> right elbow
-%      pose(6,:) -> left elbow
-%      pose(7,:) -> right wrist
-%      pose(8,:) -> left wrist
-%      pose(9,:) -> right hand
-%      pose(10,:)-> left hand
-%      pose(11,:)-> head upper point
-%      pose(12,:)-> head lower point
-
 function [train_dataset, val_dataset, test_seqs, tsize] = get_mpii_cooking(...
     dest_dir, cache_dir, dump_thresh, subposes, step, template_scale)
 %GET_MPII_COOKING Fetches continuous pose estimation data from MPII
+% train_dataset and val_dataset both come from MPII Cooking's continuous
+% pose dataset, with val_dataset scraped from a couple of scenes at the
+% end. test_dataset comes from the training set of MPII Cooking's "pose
+% challenge". The training set of the pose challenge happens to be
+% continuous, but it is *not* the same as the continuous pose dataset
+% (which I believe was derived from the same source video as the pose
+% challenge *after* Cooking Activities was released).
 MPII_POSE_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallenge-1.1.zip';
 MPII_CONTINUOUS_URL = 'http://datasets.d2.mpi-inf.mpg.de/MPIICookingActivities/poseChallengeContinuous-1.0.zip';
 CONTINUOUS_DEST_PATH = fullfile(dest_dir, 'mpii-cooking-pose-challenge-continuous');
@@ -81,46 +63,45 @@ end
 
 fprintf('Generating data\n');
 train_data = load_files_continuous(CONTINUOUS_DEST_PATH, CONT_EVIL_FRAMES);
-val_data = load_files_basic(POSE_DEST_PATH);
+test_data = load_files_basic(POSE_DEST_PATH);
 
 train_data = split_mpii_scenes(train_data, 0.2);
-val_data = split_mpii_scenes(val_data, 0.1);
+test_data = split_mpii_scenes(test_data, 0.1);
 
 fprintf('Generating pairs\n');
 train_pairs = find_pairs(train_data, TRAIN_FRAME_SKIP, dump_thresh);
-val_pairs = find_pairs(val_data, VAL_FRAME_SKIP, dump_thresh);
+test_pairs = find_pairs(test_data, VAL_FRAME_SKIP, dump_thresh);
 
 % Combine into structs with .data and .pairs attributes
 train_dataset = unify_dataset(train_data, train_pairs, 'train_dataset_mpii_cont');
-val_dataset = unify_dataset(val_data, val_pairs, 'val_dataset_mpii_base');
+test_dataset = unify_dataset(test_data, test_pairs, 'val_dataset_mpii_base');
 
 % Write out scale data
 [train_dataset, ~] = mark_scales(train_dataset, subposes, step, ...
     template_scale);
-[val_dataset, tsize] = mark_scales(val_dataset, subposes, step, ...
+[test_dataset, tsize] = mark_scales(test_dataset, subposes, step, ...
     template_scale, [train_dataset.pairs.scale]);
 
-% Grab sequences and split out a test set. Sequences must have 10 frames or
-% more.
-all_seqs = pairs2seqs(train_dataset, 10);
-
-% Arbitrarily pick last 15 sequences as test set (should be enough? Maybe
-% 200-300 frames in that lot)
-num_test_seqs = 15; % TODO make this configurable
-test_part = all_seqs(end-num_test_seqs+1:end);
-lowest_frame = min([test_part{:}]);
-highest_frame = max([test_part{:}]);
+% Grab sequences and define a test set. Sequences need 10+ frames each.
+all_test_seqs = pairs2seqs(test_dataset, 10);
 
 fprintf('Test set has %i seqs and %i frames\n', ...
-    length(test_part), sum(cellfun(@length, test_part)));
-test_seqs = make_test_set(train_dataset, test_part);
+    length(all_test_seqs), sum(cellfun(@length, all_test_seqs)));
+test_seqs = make_test_set(test_dataset, all_test_seqs);
 
-fprintf('Removing frames %i to %i (%i frames) from train set\n', ...
-    lowest_frame, highest_frame, highest_frame - lowest_frame + 1);
-old_np = train_dataset.num_pairs;
-train_dataset = remove_pairs(train_dataset, lowest_frame, highest_frame);
-fprintf('Went from %i training pairs to %i training pairs\n', ...
-    old_np, train_dataset.num_pairs);
+% Now we need a validation set (for CNN validation, for SSVM training
+% possibly). Can just use last 20% of train pairs. Eventually (once I'm
+% sure the model works) I'll be able to throw this away and just use the
+% entire continuous dataset for training (to hell with validation!).
+val_dataset = train_dataset;
+split_idx = floor(0.8 * train_dataset.num_pairs);
+train_dataset.pairs = train_dataset.pairs(1:split_idx-1);
+train_dataset.num_pairs = length(train_dataset.pairs);
+val_dataset.pairs = val_dataset.pairs(split_idx:end);
+val_dataset.num_pairs = length(val_dataset.pairs);
+assert(...
+    isempty(intersect([train_dataset.pairs.fst], [val_dataset.pairs.fst])), ...
+    'Train dataset and val dataset should have mutually exclusive pairs');
 
 % Cache
 save(data_path, 'train_dataset', 'val_dataset', 'test_seqs', 'tsize');
@@ -131,14 +112,6 @@ rv = some_dataset;
 rv.seqs = test_seqs;
 rv = rmfield(rv, {'pairs', 'num_pairs'});
 rv.name = [rv.name '_seqs_for_test'];
-end
-
-function ds = remove_pairs(ds, rstart, rend)
-% Remove pairs from dataset ds between frame rstart and frame rend
-in_range = @(vec) vec >= rstart & vec <= rend;
-to_remove = in_range([ds.pairs.fst]) | in_range([ds.pairs.snd]);
-ds.pairs = ds.pairs(~to_remove);
-ds.num_pairs = length(ds.pairs);
 end
 
 function cont_data = load_files_continuous(dest_path, evil_frames)
@@ -320,3 +293,28 @@ if dropped
 end
 pairs = cat(2, fst_inds(good_inds)', snd_inds(good_inds)');
 end
+
+% From the README:
+%
+% The ground-truth poses for the dataset are provided as .mat files in 'gt_poses' directory.
+% 
+% The pose files are given as, pose_<TrackIndex>_<Index>.mat
+% and the images are given as,  img_<TrackIndex>_<Index>.mat
+% 
+% <TrackIndex> is the index of the continuous image sequence (activity track)
+% <Index> is just the image index in this evaluation set.
+%
+% Each pose file contains the location of 10 parts (torso and head each consists of two points),
+%
+%      pose(1,:) -> torso upper point
+%      pose(2,:) -> torso lower point
+%      pose(3,:) -> right shoulder
+%      pose(4,:) -> left shoulder
+%      pose(5,:) -> right elbow
+%      pose(6,:) -> left elbow
+%      pose(7,:) -> right wrist
+%      pose(8,:) -> left wrist
+%      pose(9,:) -> right hand
+%      pose(10,:)-> left hand
+%      pose(11,:)-> head upper point
+%      pose(12,:)-> head lower point
