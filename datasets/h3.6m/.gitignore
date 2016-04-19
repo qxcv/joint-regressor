@@ -1,3 +1,10 @@
 # Ignore all actual data so that we just have the downloader script and MD5SUMs
 # stored here.
 *.tgz
+S1/
+S11/
+S5/
+S6/
+S7/
+S8/
+S9/

@@ -38,7 +38,7 @@ for pair_idx=1:num_pairs
         subpose_sizes(subpose_idx) = patch_size;
     end
     new_scale = round(template_scale * max(subpose_sizes));
-    assert(isscalar(new_scale) && new_scale < 450); % 450 is just sanity check
+    assert(isscalar(new_scale));
     dataset.pairs(pair_idx).scale = new_scale;
 end
 
