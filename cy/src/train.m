@@ -180,8 +180,8 @@ for pair_num = 1:num_pairs
     cnn_save_fn = sprintf('pos-pyra-pair-%i.mat', pair_num);
     cnn_save_path = fullfile('cache', 'pos-pyra', cnn_save_fn);
     box = detect(d1, d2, model, 'PairInfo', pair, 'Thresh', 0, ...
-        'BBox', bbox, 'Overlap', overlap, 'ID', pair_num, 'Label', 1, ...
-        'CacheDir', 'cache', 'CNNSavePath', cnn_save_path);
+        'BBox', bbox, 'TrueScale', pair.scale, 'Overlap', overlap, 'ID', ...
+        pair_num, 'Label', 1, 'CacheDir', 'cache', 'CNNSavePath', cnn_save_path);
     if ~isempty(box)
         fprintf(' (sc=%.3f)\n', box(1).rscore);
         numpositives = numpositives+1;

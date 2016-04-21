@@ -1,5 +1,8 @@
-function [im_stack, flow, box, xtrim, ytrim, scale] = cropscale_pos(im_stack, flow, box, psize)
+function [im_stack, flow, box, xtrim, ytrim, scale] = cropscale_pos(im_stack, flow, box, cnn_window, true_scale)
 % Crop positive example to speed up latent search.
+%
+% Remember that true_scale should be taken from pair.scale for training
+% positives!
 %
 % ytrim, xtrim and scale are for transforming search results back into
 % image scale at the end of the function. ytrim and xtrim indicate the
@@ -10,13 +13,14 @@ function [im_stack, flow, box, xtrim, ytrim, scale] = cropscale_pos(im_stack, fl
 % then add [xoff yoff] to each joint (assuming [x y] coordinates).
 
 assert(all(size(im_stack) == size(flow) | [0 0 1]));
+assert(isscalar(cnn_window));
+assert(isscalar(true_scale));
 
 x1 = box.xy(:,1);
 y1 = box.xy(:,2);
 x2 = box.xy(:,3);
 y2 = box.xy(:,4);
 siz = x2(1)-x1(1)+1;
-psize = psize(1);
 
 x1 = min(x1); y1 = min(y1); x2 = max(x2); y2 = max(y2);
 
@@ -36,11 +40,11 @@ flow = flow(y1:y2, x1:x2, :);
 box.xy(:,[1 3]) = box.xy(:,[1 3]) - x1 + 1;
 box.xy(:,[2 4]) = box.xy(:,[2 4]) - y1 + 1;
 
-% further scale it
-% XXX: This is fucked! It's rescaling to be far too small to actually fit
-% the ground truth inside the CNN window. I need to figure out what the GT
-% scale is and then scale the image up/down to that.
-scale = min(1, psize * 1.2 / siz); % keep it a little bit larger to make it more stable
+% further scale it to the "true scale". This might involve a bit of
+% upscaling which will be undone later, but I'm happy to take that hit.
+scale = cnn_window / true_scale;
+assert(1/4 <= scale && scale <= 4, 'Scale %f seems too large', scale);
+fprintf('[DEBUG] Scaling by factor %i\n', scale);
 im_stack = imresize(im_stack, scale);
 flow = smart_resize_flow(flow, size(im_stack));
 assert(all(size(im_stack) == size(flow) | [0 0 1]));

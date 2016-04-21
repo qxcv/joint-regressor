@@ -27,6 +27,7 @@ parser.addOptional('CNNSavePath', [], @isstr);
 parser.addOptional('Thresh', [], @isscalar);
 parser.addOptional('NumResults', [], @isscalar);
 parser.addOptional('BBox', [], @isvector);
+parser.addOptional('TrueScale', [], @isscalar);
 parser.addOptional('Overlap', [], @isscalar);
 parser.addOptional('ID', [], @isscalar);
 parser.addOptional('Label', [], @isscalar);
@@ -38,6 +39,7 @@ cnn_save_path = r.CNNSavePath;
 thresh = r.Thresh;
 num_results = r.NumResults;
 bbox = r.BBox;
+true_scale = r.TrueScale;
 overlap = r.Overlap;
 id = r.ID;
 label = r.Label;
@@ -84,8 +86,16 @@ im_stack = cat(3, im1, im2);
 % if has box information, crop it
 if ~isempty(bbox)
     % crop positives and evaluation images to speed up search
+    % TODO: Replace model.cnn.window(1) with model.cnn.window once window
+    % is a scalar.
+    % TODO: Make sure that I'm upsampling as well as downsampling in the
+    % pyramid code. I want to try higher scales as well as lower ones.
+    if ~isempty(pair)
+        assert(pair.scale == true_scale, ...
+            'true_scale is just pair.scale when pair info is supplied');
+    end
     [im_stack, flow, bbox, cs_xtrim, cs_ytrim, cs_scale] = ...
-        cropscale_pos(im_stack, flow, bbox, model.cnn.psize);
+        cropscale_pos(im_stack, flow, bbox, model.cnn.window(1), true_scale);
 end
 
 cnn_args = {im_stack, flow, model};
@@ -400,9 +410,6 @@ for child_k = 2:numparts
             child_y, child_x, child_t);
     end
 end
-% Used to have this (will be necessary for compat with older code,
-% probably):
-% box = reshape(box', 1, 4*numparts);
 end
 
 function rv = dbginfo(msg, root_y, root_x, root_t)

@@ -8,8 +8,8 @@ function pose = boxes2pose(detection, biposelets, biposelet_scale, ...
 %                 detect returns)
 % centroids: carefully reformatted centroids from buildmodel (should be
 %            saved in model produced by train_model)
-% centroid_size: scale at which centroids were clustered. Probably the CNN
-%                window size.
+% biposelet_scale: scale at which centroids were clustered. Probably the
+%                  CNN window size.
 % subpose_idxs: cell array giving original joint indices of parts
 % num_joints: number of joints in complete skeleton
 

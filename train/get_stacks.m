@@ -96,6 +96,9 @@ for flip=flips
             extra = sprintf('sp_idx=%i; pose_side=%f; pair_scale=%f', ....
                 subpose_num, pose_side, pair_scale);
             % sqrt(2) thing is to account for fact that joints are rotated
+            % XXX: It doesn't make sense to have that in the assertion but
+            % not in the actual code. If I rotate the pose, I'll probably
+            % have to re-mark the scale, too.
             assert(sqrt(2) * pair_scale > pose_side, ...
                 ['mark_scales should have defined a scale larger than '...
                  'the longest side of the largest subpose. ' extra]);
