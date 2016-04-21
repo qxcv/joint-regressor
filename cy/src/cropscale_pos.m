@@ -43,8 +43,9 @@ box.xy(:,[2 4]) = box.xy(:,[2 4]) - y1 + 1;
 % further scale it to the "true scale". This might involve a bit of
 % upscaling which will be undone later, but I'm happy to take that hit.
 scale = cnn_window / true_scale;
+% Just a heuristic check. If it trigers, make sure everything is working
+% okay and then change the bounds so that it stops triggering.
 assert(1/4 <= scale && scale <= 4, 'Scale %f seems too large', scale);
-fprintf('[DEBUG] Scaling by factor %i\n', scale);
 im_stack = imresize(im_stack, scale);
 flow = smart_resize_flow(flow, size(im_stack));
 assert(all(size(im_stack) == size(flow) | [0 0 1]));

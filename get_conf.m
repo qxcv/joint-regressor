@@ -23,9 +23,9 @@ conf.cnn.cnmem = 0.5;
 conf.cnn.step = 32;
 
 %% Inference stuff
-% Levels of the feature pyramid in each octave. Might have to turn this
-% down, since 10 (former value) is insane.
-conf.interval = 8;
+% Scales used in each level of the feature pyramid (reversed so that
+% biggest is at the beginning)
+conf.pyra.scales = sort(1.12 .^ (-3:3), 'ascend');
 % This defines the maximum size for the QP solver's support vector cache
 % (in GiB).
 conf.memsize = 0.5;

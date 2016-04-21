@@ -84,7 +84,7 @@ fprintf('**********\n');
 fprintf('Scale %i, subpose %i, map index %i, redraw? %i\n', scale, subpose, map_idx, redraw_input);
 
 % Extract data
-has_input = all(hasfield(pyra, {'in_flow', 'in_rgb'}));
+has_input = hasfield(pyra, 'in_flow') && hasfield(pyra, 'in_rgb');
 if has_input
     im_stack = unperm(pyra(scale).in_rgb);
     assert(ndims(im_stack) == 3 && size(im_stack, 3) == 6);
