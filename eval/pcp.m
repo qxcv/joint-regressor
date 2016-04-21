@@ -7,16 +7,16 @@ assert(ismatrix(preds{1}) && size(preds{1}, 2) == 2);
 
 pred_mat = cat(3, preds{:});
 gt_mat = cat(3, gts{:});
-pcps = nan([1 limbs]);
+pcps = nan([1 length(limbs)]);
 
 parfor limb_id=1:length(limbs)
     limb = limbs{limb_id};
-    start_gts = squeeze(gt_mat(limb(1), :, :));
+    start_gts = squeeze(gt_mat(limb(1), :, :)); %#ok<PFBNS>
     end_gts = squeeze(gt_mat(limb(2), :, :));
     lengths = dists_2d(start_gts, end_gts);
     threshs = lengths / 2;
     
-    start_preds = squeeze(pred_mat(limb(1), :, :));
+    start_preds = squeeze(pred_mat(limb(1), :, :)); %#ok<PFBNS>
     end_preds = squeeze(pred_mat(limb(2), :, :));
     start_dists = dists_2d(start_preds, start_gts);
     end_dists = dists_2d(end_preds, end_gts);

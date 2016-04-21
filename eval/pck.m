@@ -4,7 +4,7 @@ function accs = pck(preds, gts, threshs, norm_joints)
 % `gts` is cell array of GT poses, `threshs` is array of thresholds,
 % `norm_joints` is a pair indicating which two joints should be used for
 % normalisation.
-will_norm = exists(norm_joints, 'var');
+will_norm = exist('norm_joints', 'var');
 if will_norm
     assert(length(norm_joints) == 2);
 else

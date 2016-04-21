@@ -12,7 +12,7 @@ catch
         pairs = pair_dets{i};
         pose_dets{i} = stitch_seq(pairs, stitch_weights, valid_parts);
     end
-    save(dest, pose_dets);
+    save(dest, 'pose_dets');
 end
 end
 

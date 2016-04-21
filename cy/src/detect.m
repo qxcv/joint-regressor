@@ -245,6 +245,9 @@ for level = levels
 
     % Walk back down tree following pointers
     % (DEBUG) Assert extracted feature re-produces score
+    % If we never iterate through X, we'll never write an example, so start
+    % with ~wrote_ex
+    wrote_ex = false;
     for i = 1:length(X)
         cnt = cnt + 1;
         x = X(i);
@@ -260,6 +263,9 @@ for level = levels
         b.rscore = this_rscore;
         boxes(end+1) = b; %#ok<AGROW>
         assert(length(boxes) == cnt);
+        % wrote_ex should tell us whether the *last* ex we looked at was
+        % written, so we need to set it to false whenever we look at a new
+        % ex (and only set it to true if that ex is written).
         wrote_ex = false;
         if write && (~latent || label < 0)
             wrote_ex = qp_write(ex);
