@@ -4,9 +4,13 @@ function [dataset, tsize] = mark_scales(dataset, subposes, step, template_scale,
 % - subpose_pa should be a parents array giving the locations of each subpose
 % - step gives the downsampling factor of the classification CNN (e.g. /32
 %   for VGGNet)
-% - dataset will be annotated with scale_x and scale_y for each pair,
-%   possibly along with some other stuff
-% - tsize gives a template size for the dataset
+% - template_scale is a small factor (e.g. 1.15) used to increase the
+%   calculated scale so that bboxes calculated based on the scale are
+%   sufficiently large.
+% - other_scales can be used to pass in .scale attributes calculated from
+%   other datasets so that there is more data available to calculate .tsize
+%   (which is like the X-th percentile of scales or something divided by
+%   the CNN step)
 
 if ~exist('other_scales', 'var')
     other_scales = [];
@@ -22,22 +26,8 @@ for pair_idx=1:num_pairs
     pair = dataset.pairs(pair_idx);
     fst = dataset.data(pair.fst);
     snd = dataset.data(pair.snd);
-    num_joints = size(fst.joint_locs, 1);
-    all_joints = cat(1, fst.joint_locs, snd.joint_locs);
-    assert(size(all_joints, 2) == 2 && numel(all_joints) == 2 * numel(fst.joint_locs));
-    subpose_sizes = zeros([1 num_subposes]);
-    for subpose_idx=1:num_subposes
-        inds = subposes(subpose_idx).subpose;
-        all_inds = [inds, inds + num_joints];
-        subpose_locs = all_joints(all_inds, :);
-        bbox = get_bbox(subpose_locs);
-        assert(numel(bbox) == 4);
-        % bbox(3:4) is width and height
-        patch_size = max(bbox(3:4));
-        assert(patch_size > 1);
-        subpose_sizes(subpose_idx) = patch_size;
-    end
-    new_scale = round(template_scale * max(subpose_sizes));
+    new_scale = calc_pair_scale(fst.joint_locs, snd.joint_locs, ...
+        subposes, template_scale);
     assert(isscalar(new_scale));
     dataset.pairs(pair_idx).scale = new_scale;
 end

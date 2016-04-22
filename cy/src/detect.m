@@ -88,8 +88,6 @@ if ~isempty(bbox)
     % crop positives and evaluation images to speed up search
     % TODO: Replace model.cnn.window(1) with model.cnn.window once window
     % is a scalar.
-    % TODO: Make sure that I'm upsampling as well as downsampling in the
-    % pyramid code. I want to try higher scales as well as lower ones.
     if ~isempty(pair)
         assert(pair.scale == true_scale, ...
             'true_scale is just pair.scale when pair info is supplied');

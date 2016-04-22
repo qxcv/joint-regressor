@@ -13,18 +13,17 @@ for pair_idx = 1:num_pairs
     idx2 = seq(pair_idx+1);
     im1_info = dataset.data(idx1);
     im2_info = dataset.data(idx2);
-    warning('JointRegressor:get_seq_detections:no_bbox', 'You need to implement the bbox thingo');
-    %assert(false, 'You need to implement the bbox thing properly');
-    %bbox_wh = get_bbox();
-    % XXX: Ah shit, I just realised that the bounding boxes expected by
-    % cropscale_pos are for *each subpose* rather than for the entire pose.
-    % Note sure whether that's going to cause a problem (it may if those
-    % bboxes are used for anything other than cropping and scaling).
+    fst_joints = im1_info.joint_locs;
+    snd_joints = im2_info.joint_locs;
+    bbox = get_subpose_bboxes(fst_joints, snd_joints, subposes);
+    true_scale = calc_pair_scale(fst_joints, snd_joints, subposes, ...
+        ssvm_model.template_scale);
     
     % Run the detector
     start = tic;
     [boxes, ~, ~] = detect(im1_info, im2_info, ssvm_model, ...
-        'NumResults', num_results, 'CacheDir', cache_dir);
+        'NumResults', num_results, 'CacheDir', cache_dir, ...
+        'BBox', bbox, 'TrueScale', true_scale);
     time_taken = toc(start);
     
     % Debugging output
