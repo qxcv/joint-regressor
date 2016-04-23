@@ -1,6 +1,6 @@
 % General startup code
 
-if isempty(gcp('nocreate')) && isunix
+if isunix && usejava('jvm') && isempty(gcp('nocreate'))
     [stat, res] = system('free -g | sed -e ''s/\s\+/ /g'' | grep ^Mem: | cut -f 2 -d " "');
     if ~stat && str2double(res) > 32
         % If we have memory to burn, then we can make a pool that lasts a
