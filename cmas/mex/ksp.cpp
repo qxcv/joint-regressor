@@ -6,50 +6,10 @@
 #include "matrix.h"
 #include "mex.h"
 
-void mexPrintMatrix(mxArray *matptr);
 int populate_affinity_matrices(const mxArray*, double**, int *);	
 int	find_shortest_path(const mxArray*, mxArray**, mxArray**);
 int get_max_states(const mxArray *cellarrayptr, int numcells);
 mxArray* augment_cell_array(const mxArray* cellarrayptr);
-
-void  mexPrintMatrix(mxArray *matptr)
-{
-	int xdim, ydim; 
-	double *matcontentptr; 
-	const mwSize *dims;
-
-	matcontentptr = mxGetPr(matptr);
-	dims = mxGetDimensions(matptr);
-	mexPrintf("matrix : numrows = %d numcols=%d\n", (int)dims[0], (int)dims[1]);
-	xdim = (int)dims[1]; ydim=(int)dims[0];
-	for (int j=0; j<ydim; j++)
-	{
-		for (int k=0; k<xdim; k++)
-		{
-			mexPrintf(" %lf ", *(matcontentptr + k*ydim + j));
-		}
-		mexPrintf("\n");
-	}
-	mexPrintf("\n\n");
-	return;
-}
-
-//overloaded function
-template <class T>
-void  mexPrintMatrix(T *matptr, int xdim, int ydim, const char *str)
-{			
-	for (int j=0; j<ydim; j++)
-	{
-		for (int k=0; k<xdim; k++)
-		{			
-			mexPrintf( str, *(matptr + k*ydim + j));
-		}
-		mexPrintf("\n");
-	}
-	mexPrintf("\n\n");
-	return;
-}
-
 
 // get the maximum of the dimensions in the input cell array.
 int get_max_states(const mxArray *cellarrayptr, int numcells)
@@ -158,10 +118,6 @@ int find_shortest_path(const mxArray* cellarrayptr, mxArray** dist_out, mxArray*
 	// now lets start the shortest path algo
 	for (int i=0; i<d; i++)
 		*(dist_ptr + i) = 0; // set dist(:,1)=0;
-
-	// test
-	//mexPrintMatrix(dist_ptr, n, d, " %f ");
-	//mexPrintMatrix(prev_ptr, n, d, " %d ");
 	
 	for (int k=1; k<n; k++)
 	{
@@ -182,19 +138,7 @@ int find_shortest_path(const mxArray* cellarrayptr, mxArray** dist_out, mxArray*
 				}
 			}
 		}
-		//mexPrintMatrix(dist_ptr, n, d, " %f ");
-		//mexPrintMatrix(prev_ptr, n, d, " %d ");
 	}
-
-	// how to access the matrix.
-	/*for (int j=0; j<ydim; j++)
-	{
-		for (int k=0; k<xdim; k++)
-		{
-			mexPrintf(" %lf ", *(matcontentptr + k*ydim + j));
-		}
-		mexPrintf("\n");
-	}*/
 
 	// now lets get the shortest path.
 	//mxArray* s_matrix = mxCreateNumericMatrix(n,1, mxINT32_CLASS, mxREAL);
