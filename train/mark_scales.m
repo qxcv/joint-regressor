@@ -16,7 +16,6 @@ if ~exist('other_scales', 'var')
     other_scales = [];
 end
 
-num_subposes = length(subposes);
 num_pairs = length(dataset.pairs);
 
 fprintf('Calculating scales for %i pairs with %i extra scales\n', ...

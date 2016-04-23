@@ -70,7 +70,7 @@ void initialize_matrix(T* dist_ptr, int d, int n, T val)
 {
 	for (int i=0; i<d; i++)
 			for (int j=0; j<n; j++)			
-				*(dist_ptr + i*n+j) = val; //initial distance is inf.
+				dist_ptr[i*n+j] = val; //initial distance is inf.
 	return;
 }
 
@@ -81,7 +81,7 @@ double get_min_value(double *dist_ptr, int d, int n, double *cost, int* p)
 	*cost = mxGetInf();
 	for (int i=0; i<d; i++)
 	{
-		tmp_val = *(dist_ptr + (n-1)*d + i); // last column of dist_ptr ?
+		tmp_val = dist_ptr[(n-1)*d + i]; // last column of dist_ptr ?
 		if (tmp_val < *cost) //last cost.
 		{
 			*cost = tmp_val;
@@ -117,7 +117,7 @@ int find_shortest_path(const mxArray* cellarrayptr, mxArray** dist_out, mxArray*
 
 	// now lets start the shortest path algo
 	for (int i=0; i<d; i++)
-		*(dist_ptr + i) = 0; // set dist(:,1)=0;
+		dist_ptr[i] = 0; // set dist(:,1)=0;
 	
 	for (int k=1; k<n; k++)
 	{
@@ -130,11 +130,11 @@ int find_shortest_path(const mxArray* cellarrayptr, mxArray** dist_out, mxArray*
 			for (int j=0; j<N; j++) //xdim
 			{
 	//			mexPrintf("dist_ptr + i*d + k-1 = %f cellptr + i*N + j=%f\n", *(dist_ptr + i + (k-1)*n), *(cellptr + i + j*M));
-				s = *(dist_ptr + (k-1)*d + i) + *(cellptr + j*M+i);
-				if (s < *(dist_ptr + k*d + j))
+				s = dist_ptr[(k-1)*d + i] + cellptr[j*M+i];
+				if (s < dist_ptr[k*d + j])
 				{
-					*(dist_ptr + k*d + j) = s;
-					*(prev_ptr + k*d + j) = i;		
+					dist_ptr[k*d + j] = s;
+					prev_ptr[k*d + j] = i;		
 				}
 			}
 		}
@@ -167,8 +167,8 @@ int find_shortest_path(const mxArray* cellarrayptr, mxArray** dist_out, mxArray*
 				break;
 			}
 
-			cost[k] = *(dist_ptr + k*d + p);
-			p = *(prev_ptr + k*d + p);
+			cost[k] = dist_ptr[k*d + p];
+			p = prev_ptr[k*d + p];
 		}		
 	}
 
@@ -212,13 +212,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	numouts = nlhs;	
 	if ((nlhs != 2) || (nrhs != 1))
 	{
-		mexPrintf("Error: Number of outputs must be 2 and Number of inputs must be 1\n");
+		mexErrMsgTxt("Number of outputs must be 2 and Number of inputs must be 1");
 		return;
 	}
 
 	if (!mxIsCell(prhs[0]))
 	{
-		mexPrintf("Error: input must be of celltype\n");
+		mexErrMsgTxt("Input must be of celltype");
 		return;
 	}
 	

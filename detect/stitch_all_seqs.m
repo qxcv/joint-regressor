@@ -9,6 +9,7 @@ catch
     fprintf('Re-stitching detections\n');
     pose_dets = cell([1 length(pair_dets)]);
     parfor i=1:length(pair_dets)
+        fprintf('Re-stitching sequence %i/%i\n', i, length(pair_dets));
         pairs = pair_dets{i};
         pose_dets{i} = stitch_seq(pairs, stitch_weights, valid_parts);
     end
