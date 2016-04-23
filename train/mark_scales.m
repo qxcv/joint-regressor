@@ -28,7 +28,7 @@ for pair_idx=1:num_pairs
     new_scale = calc_pair_scale(fst.joint_locs, snd.joint_locs, ...
         subposes, template_scale);
     assert(isscalar(new_scale));
-    dataset.pairs(pair_idx).scale = new_scale;
+    dataset.pairs(pair_idx).scale = single(new_scale);
 end
 
 all_scales = [[dataset.pairs.scale] other_scales];

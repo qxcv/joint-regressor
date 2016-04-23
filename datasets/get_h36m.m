@@ -23,7 +23,7 @@ assert(~~exist(fullfile(h36m_dir, 'MD5SUM'), 'file'), ...
 save_path = fullfile(cache_dir, 'h36m_data.mat');
 if exist(save_path, 'file')
     fprintf('Found existing H3.6M data, so I''ll just use that\n');
-    [train_dataset, test_seqs, tsize] = parload(data_path, ...
+    [train_dataset, test_seqs, tsize] = parload(save_path, ...
         'train_dataset', 'test_seqs', 'tsize');
     return
 else
@@ -39,11 +39,12 @@ cd(h36m_dir);
 % fprintf('Checking MD5s in %s\n', dest_dir);
 % assert(system('md5sum -c MD5SUM') == 0, 'Archive MD5s must match');
 
-empty_data = @() struct('frame_no', {}, 'video_path', {}, ...
-    'pose_path', {}, 'frame_time', {}, 'joint_locs', {}, 'subject', {}, ...
-    'action', {}, 'camera', {});
+empty_data = @() struct('frame_no', {}, 'frame_time', {}, ...
+    'joint_locs', {}, 'subject', {}, 'action', {}, 'camera', {}, ...
+    'video_id', {});
 train_frames = empty_data();
 test_frames = empty_data();
+all_video_paths = {};
 for fake_subj=FAKE_SUBJECTS
     % Extract data if necessary
     real_subj = REAL_SUBJECTS(fake_subj);
@@ -62,13 +63,15 @@ for fake_subj=FAKE_SUBJECTS
     pose_dir_listing = dir(pose_dir);
     pose_fns = {pose_dir_listing(3:end).name};
     subj_frames = empty_data();
+    subject_video_paths = cell([1 length(pose_fns)]);
     parfor pose_fn_idx=1:length(pose_fns)
         pose_fn = pose_fns{pose_fn_idx};
         
         [action, cam] = parse_fn(pose_fn);
         
         vid_path = fullfile(video_dir, sprintf('%s.%i.mp4', action, cam));
-        video_path = fullfile(h36m_dir, vid_path);
+        subject_video_paths{pose_fn_idx} = fullfile(dest_dir, vid_path);
+        video_id = length(all_video_paths) + pose_fn_idx;
         if any(strcmp(vid_path, VIDEO_BLACKLIST))
             continue
         end
@@ -77,16 +80,16 @@ for fake_subj=FAKE_SUBJECTS
         
         rep_ft = @(val) repmat({val}, 1, length(frame_times));
         this_data = struct(...
-            'frame_no', num2cell(1:length(frame_times)), ...
-            'video_path', rep_ft(video_path), ...
-            'pose_path', rep_ft(pose_fn), ...
-            'frame_time', num2cell(frame_times), ...
+            'frame_no', num2cell(int32(1:length(frame_times))), ...
+            'frame_time', num2cell(single(frame_times)), ...
             'joint_locs', poses, ...
-            'subject', rep_ft(real_subj), ...
+            'subject', rep_ft(int8(real_subj)), ...
             'action', rep_ft(action), ...
-            'camera', rep_ft(cam));
+            'camera', rep_ft(int32(cam)), ...
+            'video_id', rep_ft(int32(video_id)));
         subj_frames = [subj_frames, this_data];
     end
+    all_video_paths = [all_video_paths subject_video_paths]; %#ok<AGROW>
     
     if real_subj ~= TEST_SUBJECT
         train_frames = [train_frames, subj_frames]; %#ok<AGROW>
@@ -99,10 +102,14 @@ end
 assert(~isempty(test_frames) && ~isempty(train_frames));
 
 train_pairs = find_pairs(train_frames, FRAME_SKIP);
+[train_frames, train_pairs] = trim_frames(train_frames, train_pairs);
 test_pairs = find_pairs(test_frames, FRAME_SKIP);
+[test_frames, test_pairs] = trim_frames(test_frames, test_pairs);
 
 train_dataset = unify_dataset(train_frames, train_pairs, 'train_dataset_h36m');
+train_dataset.video_paths = all_video_paths;
 test_dataset = unify_dataset(test_frames, test_pairs, 'test_dataset_h36m_s5');
+test_dataset.video_paths = all_video_paths;
 
 [train_dataset, ~] = mark_scales(train_dataset, subposes, step, ...
     template_scale);
@@ -116,7 +123,8 @@ fprintf('Test set has %i seqs and %i frames\n', ...
 test_seqs = make_test_set(test_dataset, all_test_seqs);
 
 cd(old_dir);
-save(save_path, 'train_dataset', 'test_seqs', 'tsize', '-v7.3');
+fprintf('Saving to %s\n', save_path);
+save(save_path, 'train_dataset', 'test_seqs', 'tsize');
 end
 
 function [poses, frame_times] = seq_data(subject, action, cam)
@@ -158,19 +166,30 @@ end
 
 function all_pairs = find_pairs(frames, frame_skip)
 % Find pairs from collected frames
-vid_paths = {frames.video_path};
-vid_idents = unique(vid_paths);
+all_vid_ids = [frames.video_id];
+vid_idents = unique(all_vid_ids);
 all_pairs = [];
 parfor vid_idx=1:length(vid_idents)
-    vid_ident = vid_idents{vid_idx};
-    % Slow way of doing something simple, but whatever. That's why we have
-    % parallelism and insane hardware :-)
-    frame_idxs = find(strcmp(vid_paths, vid_ident));
+    vid_ident = vid_idents(vid_idx);
+    frame_idxs = find(all_vid_ids == vid_ident);
     fsts = frame_idxs(1:frame_skip:end);
     snds = fsts(2:end);
     fsts = fsts(1:end-1);
     pairs = cat(2, fsts', snds');
     all_pairs = [all_pairs; pairs];
+end
+end
+
+function [frames, pairs] = trim_frames(frames, pairs)
+% Remove data for frames not associated with a pair
+% This saves a lot of space without breaking anything, but is pretty hacky.
+assert(isstruct(frames) && ismatrix(pairs) && size(pairs, 2) == 2);
+included = unique(pairs(:));
+% Drop frames not in a pair
+frames = frames(included);
+% Renumber pair references
+for incl_idx=1:length(included)
+    pairs(pairs == included(incl_idx)) = incl_idx;
 end
 end
 
