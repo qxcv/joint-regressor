@@ -33,7 +33,7 @@ assert(~isempty(cnn_model));
 cnn_size = cnnpar.window(1);
 assert(all(cnn_size == cnnpar.window));
 pyra = impyra(im_stack, flow, cnn_model, cnnpar.mean_pixels, ...
-    cnnpar.step, cnn_size, model.pyra_scales);
+    cnnpar.step, cnn_size, model.pyra_scales, false);
 max_scale = numel(pyra);
 FLT_MIN = realmin('single');
 % 0.01;

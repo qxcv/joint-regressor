@@ -26,7 +26,7 @@ parser.addOptional('PairInfo', [], @isstruct);
 parser.addOptional('CNNSavePath', [], @isstr);
 parser.addOptional('Thresh', [], @isscalar);
 parser.addOptional('NumResults', [], @isscalar);
-parser.addOptional('BBox', [], @isvector);
+parser.addOptional('BBox', [], @isstruct);
 parser.addOptional('TrueScale', [], @isscalar);
 parser.addOptional('Overlap', [], @isscalar);
 parser.addOptional('ID', [], @isscalar);
@@ -420,8 +420,12 @@ function dets = unscale_boxes(dets, xtrim, ytrim, scale)
 % Each box is [x1, y1, x2, y2]
 assert(isscalar(xtrim) && isscalar(ytrim) && isscalar(scale));
 add_vec = [xtrim, ytrim, xtrim, ytrim];
-dets.boxes = cellfun(@(b) (b / scale) + add_vec, dets.boxes, ...
-    'UniformOutput', false);
+% {dets.boxes} is a cell array of s*1 cell arrays, where s is the number of
+% subposes.
+scaled_boxes = cellfun(...
+    @(bs) cellfun(@(b) (b / scale) + add_vec, bs, 'UniformOutput', false), ...
+    {dets.boxes}, 'UniformOutput', false);
+[dets.boxes] = deal(scaled_boxes{:});
 end
 
 % Update QP with coordinate descent

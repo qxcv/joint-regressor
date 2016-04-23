@@ -7,9 +7,9 @@ assert(ismatrix(fst_locs) && ismatrix(snd_locs) ...
 num_joints = size(fst_locs, 1);
 all_joints = cat(1, fst_locs, snd_locs);
 assert(size(all_joints, 2) == 2 && numel(all_joints) == 2 * numel(fst_locs));
-subpose_sizes = zeros([1 num_subposes]);
+subpose_sizes = zeros([1 length(subposes)]);
 
-for subpose_idx=1:num_subposes
+for subpose_idx=1:length(subposes)
     inds = subposes(subpose_idx).subpose;
     all_inds = [inds, inds + num_joints];
     subpose_locs = all_joints(all_inds, :);

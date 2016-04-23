@@ -1,5 +1,5 @@
 function pyra = impyra(im, flow, cnn_model, mean_pixels, step, cnn_size, ...
-    scales)
+    scales, add_debug_fields)
 % Compute feature pyramid.
 %
 % pyra.feat{i} is the i-th level of the feature pyramid.
@@ -28,7 +28,6 @@ assert(all(imsize(1:2) == flowsize(1:2)));
 % each dimension.
 assert(isscalar(cnn_size) && isscalar(step));
 pad = max(ceil((double(cnn_size-1)/2)), 0);
-imsize = [size(im, 1), size(im, 2)];
 
 % pyra is structure
 empty_cells = @() cell(length(scales), 1);
@@ -39,7 +38,7 @@ clear empty_cells;
 
 % Change down max_batch_size if you don't have enough memory for your
 % choice of scales
-max_batch_size = 1; % TODO: Intelligently decide what this should be based
+max_batch_size = 4; % TODO: Intelligently decide what this should be based
                     % approximate memory constraints
 for octave = 1:max_batch_size:length(scales)
     batch_size = min(max_batch_size, length(scales)-octave+1);
@@ -93,13 +92,15 @@ for octave = 1:max_batch_size:length(scales)
         
         pyra(octave+sub_scale).scale = step / sub_scale_factor;
         pyra(octave+sub_scale).pad = pad / step;
-        pyra(octave+sub_scale).in_rgb = scaled_im_shuf;
-        pyra(octave+sub_scale).in_flow = scaled_flow_shuf;
+        if add_debug_fields
+            pyra(octave+sub_scale).in_rgb = scaled_im_shuf;
+            pyra(octave+sub_scale).in_flow = scaled_flow_shuf;
+        end
     end
     % Result is an array with dimensions N*C*H*W (where C is the number of
     % outputs).
     resp = cnn_eval(cnn_model, im_pyra, flow_pyra, mean_pixels);
-    for sub_scale = 0:batch_size-1
+    parfor sub_scale = 0:batch_size-1
         feat = resp(sub_scale+1, :, ...
             1:pyra(octave + sub_scale).sizs(1), ...
             1:pyra(octave + sub_scale).sizs(2));
