@@ -232,3 +232,37 @@ end
 % fwd {port, stbd} if it all goes south).
 %
 % [0] http://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Fragkiadaki_Recurrent_Network_Models_ICCV_2015_paper.pdf
+%
+% Joint information
+% 1: Pelvis --> Dupe of 12?
+% 2: Hip (right)
+% 3: Knee (right)
+% 4: Ankle (right)
+% 5: Foot arch (right)
+% 6: Toes (right)
+% 7: Hip (left)
+% 8: Knee (left)
+% 9: Ankle (left)
+% 10: Foot arch (left)
+% 11: Toes (left)
+% 12: Pelvis --> Dupe of 1?
+% 13: Torso
+% 14: Base of neck --> Dupe of 17, 25?
+% 15: Head low
+% 16: Head high
+% 17: Base of neck --> Dupe of 14, 25?
+% 18: Shoulder (left)
+% 19: Elbow (left)
+% 20: Wrist (left) --> Dupe of 21?
+% 21: Wrist (left) --> Dupe of 20?
+% 22: ?? hand (left)
+% 23: ?? hand (left) --> Dupe of 24? Unreliable?
+% 24: ?? hand (left) --> Dupe of 23? Unreliable?
+% 25: Base of neck --> Dupe of 14, 17?
+% 26: Shoulder (right)
+% 27: Elbow (right)
+% 28: Wrist (right) --> Dupe of 29?
+% 29: Wrist (wright) --> Dupe of 29?
+% 30: ?? hand (right) --> Unreliable?
+% 31: ?? hand (right) --> Dupe of 32? Unreliable?
+% 32: ?? hand (right) --> Dupe of 31? Unreliable?
