@@ -1,20 +1,16 @@
-% Train and evaluate a model on the MPII dataset
+% Train and evaluate a model on the Human3.6M dataset
 
 startup;
-conf = get_conf_mpii;
-[train_dataset, val_dataset, test_seqs, tsize] = get_mpii_cooking(...
-    conf.dataset_dir, conf.cache_dir, conf.pair_mean_dist_thresh, ...
-    conf.subposes, conf.cnn.step, conf.template_scale);
-% Check that conf.num_joints is consistent with data
+conf = get_conf_h36m;
+[train_dataset, test_seqs, tsize] = get_h36m(...
+    conf.dataset_dir, conf.cache_dir, conf.subposes, conf.cnn.step, ...
+    conf.template_scale);
 sizes_okay = @(ds) all(cellfun(@length, {ds.data.joint_locs}) == conf.num_joints);
 assert(sizes_okay(train_dataset) && sizes_okay(val_dataset));
-% INRIAPerson data is only used for training the graphical model; I used
-% person-free crops of MPII cooking to train the CNN to recognise
-% background.
 neg_dataset = get_inria_person(conf.dataset_dir, conf.cache_dir);
 
 fprintf('Writing validation set\n');
-val_patch_dir = fullfile(conf.cache_dir, 'val-patches-mpii');
+val_patch_dir = fullfile(conf.cache_dir, 'val-patches-h36m');
 write_dset(val_dataset, conf.cache_dir, val_patch_dir, ...
     conf.num_val_hdf5s, conf.cnn.window, conf.subposes, ...
     conf.left_parts, conf.right_parts, conf.val_aug, conf.val_chunksz);
@@ -22,7 +18,7 @@ write_negatives(val_dataset, conf.cache_dir, val_patch_dir, ...
     conf.cnn.window, conf.val_aug.negs, conf.val_chunksz, conf.subposes);
 
 fprintf('Writing training set\n');
-train_patch_dir = fullfile(conf.cache_dir, 'train-patches-mpii');
+train_patch_dir = fullfile(conf.cache_dir, 'train-patches-h36m');
 write_dset(train_dataset, conf.cache_dir, train_patch_dir, ...
     conf.num_hdf5s, conf.cnn.window, conf.subposes, ...
     conf.left_parts, conf.right_parts, conf.aug, conf.train_chunksz);
