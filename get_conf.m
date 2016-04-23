@@ -34,7 +34,7 @@ conf.num_dets = 300;
 % Weights for stitching biposelet sequences. rscore is root score of
 % biposelet, dist is L2 distance between neighbouring poses
 conf.stitch_weights.rscore = 1;
-conf.stitch_weights.dist = 1;
+conf.stitch_weights.dist = 0.01;
 
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 
