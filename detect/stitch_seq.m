@@ -7,7 +7,7 @@ assert(num_bps > 1, 'Need to implement one-BP trivial case');
 % set of biposelets
 ksp_size = num_bps-1;
 ksp_problem = cell([1 ksp_size]);
-for bp_pair_idx=1:ksp_size
+parfor bp_pair_idx=1:ksp_size
     % Distance matrix first
     bp1_poses = pair_detections(bp_pair_idx).recovered;
     bp2_poses = pair_detections(bp_pair_idx+1).recovered;
@@ -15,7 +15,7 @@ for bp_pair_idx=1:ksp_size
     first_set = sanitise_poses(first_set, valid_parts);
     second_set = cellfun(@(p) p{1}, bp2_poses, 'UniformOutput', false);
     second_set = sanitise_poses(second_set, valid_parts);
-    cost_mat = weights.dist .* pose_distance_matrix(first_set, second_set);
+    cost_mat = weights.dist .* pose_distance_matrix(first_set, second_set); %#ok<PFBNS>
     
     % Now add rscores; will be negated, since higher rscore = better but
     % lower dist = better
@@ -25,7 +25,7 @@ for bp_pair_idx=1:ksp_size
     cost_mat = bsxfun(@minus, cost_mat, weights.rscore .* bp1_rscores');
     if bp_pair_idx == num_bps-1
         % Add second frame scores to each column if last biposelet
-        bp2_rscores = [pair_detections(bp_pair_idx+1).raw.rscore];
+        bp2_rscores = [pair_detections(bp_pair_idx+1).raw.rscore]; %#ok<PFBNS>
         cost_mat = bsxfun(@minus, cost_mat, weights.rscore .* bp2_rscores);
     end
     
@@ -69,7 +69,7 @@ function poses = sanitise_poses(poses, valid_inds)
 % Strip out invalid joints. Invalid joints are set to NaN, so they can
 % seriously screw up distance calculations.
 assert(iscell(poses));
-for i=1:length(poses)
+parfor i=1:length(poses)
     assert_inds_consistent(poses{i}, valid_inds);
     poses{i} = poses{i}(valid_inds);
 end
