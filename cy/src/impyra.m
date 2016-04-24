@@ -97,7 +97,7 @@ for octave = 1:max_batch_size:length(scales)
     parfor sub_scale = 0:batch_size-1
         feat = resp(sub_scale+1, :, ...
             1:pyra(octave + sub_scale).sizs(1), ...
-            1:pyra(octave + sub_scale).sizs(2));
+            1:pyra(octave + sub_scale).sizs(2)); %#ok<PFBNS>
         assert(ndims(feat) == 4);
         assert(size(feat, 1) == 1);
         feat_size = size(feat);

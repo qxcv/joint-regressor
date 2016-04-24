@@ -1,5 +1,5 @@
 function [score, Ix, Iy, Im] = passmsg(child, parent, scale)
-% Pass a message from child component to parent componoent, returning four
+% Pass a message from child component to parent component, returning four
 % H*W*K matrices. In each matrix, the (h, w, k)-th entry corresponds to a
 % parent of type k at location (h, w). The matrices can be interpreted as
 % follows:

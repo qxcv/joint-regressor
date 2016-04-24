@@ -150,6 +150,7 @@ for level = levels
             end
         end
         if skipflag == 1
+            fprintf('detect() skipping level %i/%i\n', level, length(levels));
             continue;
         end
     end
@@ -345,10 +346,8 @@ root = 1;
 root_p = parts(root);
 ptr(root, :) = [root_x, root_y, root_t];
 scale = pyra.scale;
-bb_start = [(root_x - 1 - pyra.pad)*scale+1, (root_y - 1 - pyra.pad)*scale+1];
-bb_end = bb_start + [det_side*scale - 1, det_side*scale - 1];
 
-box(root,:) = [bb_start bb_end];
+box(root,:) = get_subpose_box(root_x, root_y, det_side, pyra.pad, scale);
 types(root) = root_t;
 
 if write
@@ -376,11 +375,8 @@ for child_k = 2:numparts
     ptr(child_k,2) = child.Iy(par_y,par_x,par_t);
     ptr(child_k,3) = child.Im(par_y,par_x,par_t);
     
-    x1 = (ptr(child_k,1) - 1 - pyra.pad)*scale+1;
-    y1 = (ptr(child_k,2) - 1 - pyra.pad)*scale+1;
-    x2 = x1 + det_side*scale - 1;
-    y2 = y1 + det_side*scale - 1;
-    box(child_k,:) = [x1 y1 x2 y2];
+    box(child_k,:) = get_subpose_box(ptr(child_k, 1), ptr(child_k, 2), ...
+        det_side, pyra.pad, scale);
     types(child_k) = ptr(child_k,3);
     
     if write
@@ -403,6 +399,24 @@ for child_k = 2:numparts
             child_y, child_x, child_t);
     end
 end
+end
+
+function box = get_subpose_box(heatmap_x, heatmap_y, det_side, pad, scale)
+% Grab the bounding box associated with a subpose detection at the given
+% location in the output heatmap. det_side is cnn_edge_length / cnn_step,
+% pad is the padding added to the original image before producing the
+% heatmap, divided by the step, scale is the factor by which the heatmap
+% needs to be multiplied to get back to the original image resolution.
+
+% RV is in original image coordinates, so if the detection is perfect then
+% orig_image(y1:y2, x1:x2, :) will select exactly the region containing the
+% subpose.
+
+x1 = (heatmap_x - 1 - pad)*scale+1;
+y1 = (heatmap_y - 1 - pad)*scale+1;
+x2 = x1 + det_side*scale - 1;
+y2 = y1 + det_side*scale - 1;
+box = [x1 y1 x2 y2];
 end
 
 function rv = dbginfo(msg, root_y, root_x, root_t)
