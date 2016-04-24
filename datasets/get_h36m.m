@@ -1,4 +1,4 @@
-function [train_dataset, test_seqs, tsize] = get_h36m(...
+function [train_dataset, test_seqs] = get_h36m(...
     dest_dir, cache_dir, subposes, step, template_scale)
 %GET_H36M Fetches H3.6M pose estimation dataset (incl. videos)
 % You'll have to download all of the necessary files yourself, since the
@@ -23,8 +23,8 @@ assert(~~exist(fullfile(h36m_dir, 'MD5SUM'), 'file'), ...
 save_path = fullfile(cache_dir, 'h36m_data.mat');
 if exist(save_path, 'file')
     fprintf('Found existing H3.6M data, so I''ll just use that\n');
-    [train_dataset, test_seqs, tsize] = parload(save_path, ...
-        'train_dataset', 'test_seqs', 'tsize');
+    [train_dataset, test_seqs] = parload(save_path, ...
+        'train_dataset', 'test_seqs');
     return
 else
     fprintf('Need to regenerate all H3.6M data :(\n');
@@ -113,8 +113,9 @@ test_dataset.video_paths = all_video_paths;
 
 [train_dataset, ~] = mark_scales(train_dataset, subposes, step, ...
     template_scale);
-[test_dataset, tsize] = mark_scales(test_dataset, subposes, step, ...
-    template_scale, [train_dataset.pairs.scale]);
+% Second return value *would* be t size, but I'm ignoring it for now.
+[test_dataset, ~] = mark_scales(test_dataset, subposes, step, ...
+    template_scale);
 
 % Extract sequences from test dataset
 all_test_seqs = pairs2seqs(test_dataset, 10);
@@ -124,7 +125,7 @@ test_seqs = make_test_set(test_dataset, all_test_seqs);
 
 cd(old_dir);
 fprintf('Saving to %s\n', save_path);
-save(save_path, 'train_dataset', 'test_seqs', 'tsize');
+save(save_path, 'train_dataset', 'test_seqs');
 end
 
 function [poses, frame_times] = seq_data(subject, action, cam)

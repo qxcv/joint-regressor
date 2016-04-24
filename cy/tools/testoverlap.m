@@ -1,7 +1,7 @@
 % Compute a mask of filter reponse locations (for a filter of size sizy,sizx)
 % that sufficiently overlap a ground-truth bounding box (bbox)
 % at a particular level in a feature pyramid
-function ov = testoverlap(sizx, sizy, ud1, ud2, pyra, bbox, overlap)
+function ov = testoverlap(width, height, ud1, ud2, pyra, bbox, overlap)
 scale = pyra.scale;
 % ---------- TODO -----------
 pad  = pyra.pad;
@@ -16,8 +16,8 @@ by2 = bbox(4);
 % Index windows evaluated by filter (in image coordinates)
 x1 = double(((1:dimx) - pad - 1)*scale + 1);
 y1 = double(((1:dimy) - pad - 1)*scale + 1);
-x2 = x1 + double(sizx*scale) - 1;
-y2 = y1 + double(sizy*scale) - 1;
+x2 = x1 + double(width*scale) - 1;
+y2 = y1 + double(height*scale) - 1;
 
 % Compute intersection with bbox
 xx1 = max(x1,bx1);

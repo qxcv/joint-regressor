@@ -1,5 +1,5 @@
 function model = build_model(subpose_pa, K, subpose_disps, cnn_conf, mean_pixels, ...
-    pyra_scales, tsize, memsize, template_scale)
+    pyra_scales, memsize, template_scale)
 % This function merges together separate part models into a tree structure
 
 [~, global_IDs, ~] = get_IDs(subpose_pa, K);
@@ -8,7 +8,6 @@ function model = build_model(subpose_pa, K, subpose_disps, cnn_conf, mean_pixels
 model.cnn = cnn_conf;
 model.cnn.mean_pixels = mean_pixels;
 model.cnn.cnn_output_dim = global_IDs{end}(end);
-model.cnn.psize = tsize * cnn_conf.step;
 
 % Factor by which we expan bounding boxes for parts before taking crop for
 % CNN (well virtual crop here, since we're using a fully convolutional
@@ -17,7 +16,6 @@ model.template_scale = template_scale;
 
 model.memsize = memsize;
 
-model.tsize = tsize;
 model.K = K;
 model.subpose_disps = subpose_disps;
 
@@ -86,8 +84,6 @@ for subpose_idx = 1:length(subpose_pa)
     nf  = length(model.apps);
     % Yep, there's only one appearance term, even though *my* appearance term
     % also considers part type.
-    % TODO: Should update these initial scores to be of the correct
-    % order-of-magnitude for my model.
     f.w = 0.01;                     % encourage larger appearance score
     f.i = model.len + 1;
     

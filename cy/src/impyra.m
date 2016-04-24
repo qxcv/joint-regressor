@@ -16,12 +16,6 @@ imsize = size(im);
 flowsize = size(flow);
 assert(all(imsize(1:2) == flowsize(1:2)));
 
-% psize is the expected size of part, expressed in the side length of the
-% region which contains it in the output volume. That's what it's computed
-% as tsize*step in build_model.m, where tsize is the expected size in
-% input pixels of a part and step is the downsampling factor (stride) of
-% the fully convolutional network.
-
 % the ceil((x-1)/2) seems to be division by 2 with round-down (and a max to
 % clamp in [0, infty)).
 % The following checks are necessary so that our subsampling is the same in

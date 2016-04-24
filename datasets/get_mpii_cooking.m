@@ -1,4 +1,4 @@
-function [train_dataset, val_dataset, test_seqs, tsize] = get_mpii_cooking(...
+function [train_dataset, val_dataset, test_seqs] = get_mpii_cooking(...
     dest_dir, cache_dir, dump_thresh, subposes, step, template_scale)
 %GET_MPII_COOKING Fetches continuous pose estimation data from MPII
 % train_dataset and val_dataset both come from MPII Cooking's continuous
@@ -30,8 +30,8 @@ CONT_EVIL_FRAMES = struct(...
 data_path = fullfile(cache_dir, 'mpii_data.mat');
 if exist(data_path, 'file')
     fprintf('Found existing data, so I''ll just use that\n');
-    [train_dataset, val_dataset, test_seqs, tsize] = parload(data_path, ...
-        'train_dataset', 'val_dataset', 'test_seqs', 'tsize');
+    [train_dataset, val_dataset, test_seqs] = parload(data_path, ...
+        'train_dataset', 'val_dataset', 'test_seqs');
     return
 else
     fprintf('Need to regenerate all data :(\n');
@@ -79,7 +79,7 @@ test_dataset = unify_dataset(test_data, test_pairs, 'test_dataset_mpii_base');
 % Write out scale data
 [train_dataset, ~] = mark_scales(train_dataset, subposes, step, ...
     template_scale);
-[test_dataset, tsize] = mark_scales(test_dataset, subposes, step, ...
+[test_dataset, ~] = mark_scales(test_dataset, subposes, step, ...
     template_scale, [train_dataset.pairs.scale]);
 
 % Grab sequences and define a test set. Sequences need 10+ frames each.
@@ -104,7 +104,7 @@ assert(...
     'Train dataset and val dataset should have mutually exclusive pairs');
 
 % Cache
-save(data_path, 'train_dataset', 'val_dataset', 'test_seqs', 'tsize');
+save(data_path, 'train_dataset', 'val_dataset', 'test_seqs');
 end
 
 function cont_data = load_files_continuous(dest_path, evil_frames)

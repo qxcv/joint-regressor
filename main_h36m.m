@@ -2,7 +2,7 @@
 
 startup;
 conf = get_conf_h36m;
-[train_dataset, test_seqs, tsize] = get_h36m(...
+[train_dataset, test_seqs] = get_h36m(...
     conf.dataset_dir, conf.cache_dir, conf.subposes, conf.cnn.step, ...
     conf.template_scale);
 sizes_okay = @(ds) all(cellfun(@length, {ds.data.joint_locs}) == conf.num_joints);
@@ -45,7 +45,7 @@ fprintf('Caching flow for negative pairs\n');
 cache_all_flow(neg_dataset, conf.cache_dir);
 
 fprintf('Training graphical model\n');
-ssvm_model = train_model(conf, val_dataset, neg_dataset, subpose_disps, tsize);
+ssvm_model = train_model(conf, val_dataset, neg_dataset, subpose_disps);
 
 fprintf('Running bipose detections on validation set\n');
 pair_dets = get_pair_dets(conf.cache_dir, test_seqs, ssvm_model, ...

@@ -8,11 +8,6 @@ function [boxes, model, ex] = detect(im1_info, im2_info, model, varargin)
 % This function updates the model (by running the QP solver) if upper and
 % lower bound differs
 
-% XXX: Need to fix bounding boxes (sixz/sixy don't make sense any more, so
-% I'll have to rethink how this is done; in heatmap, bbox edge for a part
-% will probably just be center+-cnn_scale/(2*32)) and also fix all of the
-% problems in passmsg.
-
 % MathWorks: "Hey, you know what would be a great idea? Not adding default
 % arguments to our language! Think of how elegant Matlab would be without
 % that cruft!"
@@ -126,6 +121,10 @@ ex.blocks = [];
 ex.id = [label id 0 0 0];
 ex.debug = [];
 
+% det_side is roughly the width and height of a detection, in
+% heatmap coordinates.
+det_side = model.cnn.window(1) / model.cnn.step;
+
 if latent && label > 0
     % record best when doing latent on positive example
     best_ex = ex;
@@ -140,12 +139,10 @@ for level = levels
     % Skip if there is no overlap of root filter with bbox
     if latent
         skipflag = 0;
+        % because all mixtures for one part is the same size, we only need to do this once
         for subpose_idx = 1:num_subposes
-            % because all mixtures for one part is the same size, we only need to do this once
-            % XXX: This doesn't make sense now that sixz/sixy don't make
-            % sense.
-            ovmask = testoverlap(components(subpose_idx).sizx(1), ...
-                components(subpose_idx).sizy(1), sizs(1), sizs(2), ...
+            ovmask = testoverlap(det_side, det_side,...
+                sizs(1), sizs(2), ...
                 pyra(level), bbox.xy(subpose_idx,:), overlap);
             if ~any(ovmask)
                 skipflag = 1;
@@ -178,8 +175,8 @@ for level = levels
         if latent
             assert(label > 0, 'This doesn''t make sense on negatives');
             
-            ovmask = testoverlap(components(subpose_idx).sizx, components(subpose_idx).sizy, ...
-                sizs(1), sizs(2), pyra(level), bbox.xy(subpose_idx,:), overlap);
+            ovmask = testoverlap(det_side, det_side, sizs(1), sizs(2), ...
+                pyra(level), bbox.xy(subpose_idx,:), overlap);
             assert(ismatrix(ovmask));
             tmpscore = components(subpose_idx).score;
             tmpscore_K = size(tmpscore, 3);
@@ -263,7 +260,7 @@ for level = levels
         t = T(i);
         
         [box, types, ex] = ...
-            backtrack(x, y, t, components, pyra(level), ex, write, model.sbin);
+            backtrack(x, y, t, det_side, components, pyra(level), ex, write, model.sbin);
         
         this_rscore = rscore(y, x, t);
         b.boxes = num2cell(box, 2);
@@ -339,7 +336,7 @@ end
 
 % Backtrack through dynamic programming messages to estimate part locations
 % and the associated feature vector
-function [box,types,ex] = backtrack(root_x,root_y,root_t,parts,pyra,ex,write,sbin)
+function [box,types,ex] = backtrack(root_x,root_y,root_t,det_side,parts,pyra,ex,write,sbin)
 numparts = length(parts);
 ptr = zeros(numparts,3);
 box = zeros(numparts,4);
@@ -348,15 +345,14 @@ root = 1;
 root_p = parts(root);
 ptr(root, :) = [root_x, root_y, root_t];
 scale = pyra.scale;
-% XXX: siz{x,y} thing is wrong
 bb_start = [(root_x - 1 - pyra.pad)*scale+1, (root_y - 1 - pyra.pad)*scale+1];
-bb_end = bb_start + [root_p.sizx*scale - 1, root_p.sizy*scale - 1];
+bb_end = bb_start + [det_side*scale - 1, det_side*scale - 1];
 
 box(root,:) = [bb_start bb_end];
 types(root) = root_t;
 
 if write
-    ex.id(3:6) = [root_p.level round(root_x+root_p.sizx/2) round(root_y+root_p.sizy/2) root_t];
+    ex.id(3:6) = [root_p.level round(root_x+det_side/2) round(root_y+det_side/2) root_t];
     ex.blocks = [];
     ex.blocks(end+1).i = root_p.biasI;
     ex.blocks(end).x = 1;
@@ -382,9 +378,8 @@ for child_k = 2:numparts
     
     x1 = (ptr(child_k,1) - 1 - pyra.pad)*scale+1;
     y1 = (ptr(child_k,2) - 1 - pyra.pad)*scale+1;
-    % XXX: sizx thing is wrong
-    x2 = x1 + child.sizx*scale - 1;
-    y2 = y1 + child.sizy*scale - 1;
+    x2 = x1 + det_side*scale - 1;
+    y2 = y1 + det_side*scale - 1;
     box(child_k,:) = [x1 y1 x2 y2];
     types(child_k) = ptr(child_k,3);
     

@@ -155,7 +155,9 @@ num_pairs = pos.num_pairs;
 % 1 before I changed model.components from a 1x1 cell array containing a
 % single struct array to just a struct array itself.
 numpositives = 0;
-minsize = prod(double(model.tsize*model.sbin));
+% Not a very good minsize. OTOH I don't think it really matters what
+% minsize is :P
+minsize = model.cnn.window(1)^2 / 16;
 
 for pair_num = 1:num_pairs
     fprintf('%s: iter %d: latent positive: %d/%d\n', name, t, pair_num, num_pairs);
@@ -170,8 +172,9 @@ for pair_num = 1:num_pairs
     bbox.xy = [all_joints(:,1)-bbox_side, all_joints(:,2)-bbox_side, ...
         all_joints(:,1)+bbox_side, all_joints(:,2)+bbox_side];
     area = (bbox.xy(:,3)-bbox.xy(:,1)+1).*(bbox.xy(:,4)-bbox.xy(:,2)+1);
-    if any(area < minsize/1.5)
+    if any(area < minsize)
         % skip only when exmaple are too small
+        fprintf('skipped (too small)\n');
         continue;
     end
     

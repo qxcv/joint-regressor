@@ -5,4 +5,5 @@
 --ignore-dir=ext/LDOF_src/
 --ignore-dir=ext/deepmatching_1.2.2_c++/
 --ignore-dir=cache/
+--ignore-dir=models/
 --ignore-file=match:.ipynb

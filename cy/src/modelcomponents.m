@@ -14,10 +14,6 @@ for subpose_idx = 1:length(model.components)
     
     x = model.apps(subpose.appid);
     
-    % XXX: This is stupid/broken. Not even sure what tsize is helpful for
-    % now.
-    subpose.sizy = model.tsize;
-    subpose.sizx = model.tsize;
     subpose.appI = x.i;
     
     % Remember that means are already in subpose.subpose_disps (see
