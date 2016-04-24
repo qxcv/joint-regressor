@@ -12,7 +12,8 @@
  * messages between variables in different domains)
  */
 
-static inline int square(int x) { return x*x; }
+template<class T>
+static inline T square(T x) { return x*x; }
 
 void dt1d(double *src, double *dst, int *ptr, int step, int len,
           double a, double b, double mean, int dlen) {
