@@ -29,7 +29,7 @@ parfor param_idx=1:length(param_configs)
 end
 
 assert(~any(isnan(config_pcks)));
-assert(all(0 <= config_pcks && config_pcks <= 1));
+assert(all(0 <= config_pcks) && all(config_pcks <= 1));
 [best_pck, best_param_idx] = max(config_pcks);
 assert(best_pck > 0, 'Uh, that''s not good');
 fprintf('Best PCK: %f\n', best_pck);
