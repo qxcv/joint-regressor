@@ -25,7 +25,7 @@ conf.cnn.step = 32;
 %% Inference stuff
 % Scales used in each level of the feature pyramid (reversed so that
 % biggest is at the beginning)
-conf.pyra.scales = sort(1.12 .^ (-3:3), 'ascend');
+conf.pyra.scales = sort(1.12 .^ (-2:2), 'ascend');
 % This defines the maximum size for the QP solver's support vector cache
 % (in GiB).
 conf.memsize = 0.5;

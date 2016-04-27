@@ -16,16 +16,25 @@ parent_K = size(parent.score, 3);
 child_K = size(child.score, 3);
 assert(child_K == parent_K);
 
-[score0, Ix0, Iy0] = deal(zeros(height, width, parent_K, child_K));
-parfor parent_type = 1:parent_K
-    for child_type = 1:child_K
-        fixed_score_map = double(child.score(:, :, child_type)); %#ok<PFBNS>
+all_zeros = zeros(height, width, parent_K, child_K);
+score0 = single(all_zeros);
+[Ix0, Iy0] = deal(int32(all_zeros));
+% Pull these three out before the loop so that we don't spend years
+% transferring child to every one of the workers if we use parfor :P
+child_sc = child.score; % must be single
+child_spd = child.subpose_disps;
+child_gauw = child.gauw;
+fprintf('Starting parfor (oh god)\n');
+for child_type = 1:child_K
+    for parent_type = 1:parent_K
+        fprintf('Doing parent thingo\n');
+        fixed_score_map = child_sc(:, :, child_type);
         % this is child_center - parent_center, IIRC
-        mean_disp = child.subpose_disps{child_type}{parent_type};
+        mean_disp = child_spd{child_type}{parent_type};
         assert(isvector(mean_disp) && length(mean_disp) == 2);
         [score0(:, :, parent_type, child_type), Ix0(:, :, parent_type, child_type), ...
             Iy0(:, :, parent_type, child_type)] = shiftdt(...
-                fixed_score_map, child.gauw, mean_disp, int32([width, height]));
+                fixed_score_map, child_gauw, mean_disp, int32([width, height]));
         
         % If there was a prior-of-deformation (like the image evidence in
         % Chen & Yuille's model), then I would add it in here.
@@ -33,7 +42,7 @@ parfor parent_type = 1:parent_K
 end
 [score, Im] = max(score0, [], 4);
 assert(ndims(score) == 3 && ndims(Im) == 3);
-[Ix, Iy] = deal(zeros(height, width, parent_K));
+[Ix, Iy] = deal(int32(zeros(height, width, parent_K)));
 for row = 1:height
     for col = 1:width
         for ptype = 1:parent_K

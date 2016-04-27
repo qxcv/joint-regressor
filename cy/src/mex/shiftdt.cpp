@@ -13,10 +13,10 @@
  */
 
 template<class T>
-static inline T square(T x) { return x*x; }
+inline T square(T x) { return x*x; }
 
-void dt1d(double *src, double *dst, int *ptr, int step, int len,
-          double a, double b, double mean, int dlen) {
+inline void dt1d(float *src, float *dst, int *ptr, int step, int len,
+                 float a, float b, float mean, int dlen) {
     /* Informal documentation: This function computes a single 1D distance
      * transform, with several parameters for controlling array access
      * strides (useful for processing matrices where you want to do several
@@ -37,7 +37,7 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len,
     // [z[k], z[k+1]] is the region in which parabola k of the lower
     // envelope actually "counts" towards the lower envelope
     int   *v = new int[len];
-    double *z = new double[len+1];
+    float *z = new float[len+1];
     int k = 0;
     int q = 0;
     v[0] = 0;
@@ -64,7 +64,7 @@ void dt1d(double *src, double *dst, int *ptr, int step, int len,
         // the last parabola from the array of parabolas which define the
         // lower envelope (effectively replacing it with the current
         // parabola)
-        double s = intersect(k);
+        auto s = intersect(k);
         while (s <= z[k]) {
             k--;
             s = intersect(k);
@@ -104,7 +104,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         mexErrMsgTxt("Wrong number of inputs");
     if (nlhs != 3)
         mexErrMsgTxt("Wrong number of outputs");
-    if (mxGetClassID(prhs[0]) != mxDOUBLE_CLASS)
+    if (mxGetClassID(prhs[0]) != mxSINGLE_CLASS)
         mexErrMsgTxt("Invalid unaries");
     if (mxGetClassID(prhs[1]) != mxDOUBLE_CLASS
             || mxGetNumberOfElements(prhs[1]) != 4)
@@ -118,7 +118,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     
     // Read in deformation coefficients, negating to define a cost
     // Read in offsets for output grid, fixing MATLAB 0-1 indexing
-    double *vals = mxGetPr(prhs[0]);
+    float *vals = (float*)mxGetData(prhs[0]);
     int sizx  = mxGetN(prhs[0]);
     int sizy  = mxGetM(prhs[0]);
     double *gauw = mxGetPr(prhs[1]);
@@ -133,14 +133,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     int lenx  = lens[0];
     int leny  = lens[1];
     
-    mxArray  *mxM = mxCreateNumericMatrix(leny, lenx, mxDOUBLE_CLASS, mxREAL);
+    mxArray  *mxM = mxCreateNumericMatrix(leny, lenx, mxSINGLE_CLASS, mxREAL);
     mxArray *mxIy = mxCreateNumericMatrix(leny, lenx, mxINT32_CLASS, mxREAL);
     mxArray *mxIx = mxCreateNumericMatrix(leny, lenx, mxINT32_CLASS, mxREAL);
-    double   *M = (double *)mxGetPr(mxM);
-    int32_t *Iy = (int32_t *)mxGetPr(mxIy);
-    int32_t *Ix = (int32_t *)mxGetPr(mxIx);
+    float    *M =   (float *)mxGetData(mxM);
+    int32_t *Iy = (int32_t *)mxGetData(mxIy);
+    int32_t *Ix = (int32_t *)mxGetData(mxIx);
     
-    double   *tmpM =  (double *)mxCalloc(leny*sizx, sizeof(double));
+    float    *tmpM =   (float *)mxCalloc(leny*sizx, sizeof(float));
     int32_t *tmpIy = (int32_t *)mxCalloc(leny*sizx, sizeof(int32_t));
     
     for (int x = 0; x < sizx; x++)
