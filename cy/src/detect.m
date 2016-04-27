@@ -123,7 +123,7 @@ ex.debug = [];
 
 % det_side is roughly the width and height of a detection, in
 % heatmap coordinates.
-det_side = model.cnn.window(1) / model.cnn.step;
+det_side = model.cnn.window(1);
 
 if latent && label > 0
     % record best when doing latent on positive example
@@ -225,7 +225,7 @@ for level = levels
         [msg, components(subpose_idx).Ix, ...
               components(subpose_idx).Iy, ...
               components(subpose_idx).Im] ...
-            = passmsg(child, parent, model.sbin);
+            = passmsg(child, parent);
         components(par_idx).score = components(par_idx).score + msg;
     end
     
@@ -261,7 +261,7 @@ for level = levels
         t = T(i);
         
         [box, types, ex] = ...
-            backtrack(x, y, t, det_side, components, pyra(level), ex, write, model.sbin);
+            backtrack(x, y, t, det_side, components, pyra(level), ex, write);
         
         this_rscore = rscore(y, x, t);
         b.boxes = num2cell(box, 2);
@@ -337,7 +337,7 @@ end
 
 % Backtrack through dynamic programming messages to estimate part locations
 % and the associated feature vector
-function [box,types,ex] = backtrack(root_x,root_y,root_t,det_side,parts,pyra,ex,write,sbin)
+function [box,types,ex] = backtrack(root_x,root_y,root_t,det_side,parts,pyra,ex,write)
 numparts = length(parts);
 ptr = zeros(numparts,3);
 box = zeros(numparts,4);
@@ -345,9 +345,8 @@ types = zeros(1, numparts);
 root = 1;
 root_p = parts(root);
 ptr(root, :) = [root_x, root_y, root_t];
-scale = pyra.scale;
 
-box(root,:) = get_subpose_box(root_x, root_y, det_side, pyra.pad, scale);
+box(root,:) = get_subpose_box(root_x, root_y, det_side, pyra.pad, pyra.scale);
 types(root) = root_t;
 
 if write
@@ -376,7 +375,7 @@ for child_k = 2:numparts
     ptr(child_k,3) = child.Im(par_y,par_x,par_t);
     
     box(child_k,:) = get_subpose_box(ptr(child_k, 1), ptr(child_k, 2), ...
-        det_side, pyra.pad, scale);
+        det_side, pyra.pad, pyra.scale);
     types(child_k) = ptr(child_k,3);
     
     if write
@@ -387,7 +386,7 @@ for child_k = 2:numparts
         % deformation
         assert(isscalar(child.gauI));
         ex.blocks(end+1).i = child.gauI;
-        ex.blocks(end).x = defvector(child, child_x, child_y, par_x, par_y, child_t, par_t, sbin);
+        ex.blocks(end).x = defvector(child, child_x, child_y, par_x, par_y, child_t, par_t);
         ex.blocks(end).debug = dbginfo(sprintf('Subpose %i DG', child_k), ...
             child_y, child_x, child_t);
         

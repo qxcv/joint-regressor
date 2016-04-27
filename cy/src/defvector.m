@@ -1,9 +1,7 @@
 % Compute the deformation feature given child locations, parent locations
 % and the child part
-function res = defvector(part, x_c, y_c, x_p, y_p, child_type, parent_type, scale)
-% {x,y}{1,2} are in heatmap coordinates, so I need to divide by CNN stride
-% (scale)
-disp = part.subpose_disps{child_type}{parent_type} / scale;
+function res = defvector(part, x_c, y_c, x_p, y_p, child_type, parent_type)
+disp = part.subpose_disps{child_type}{parent_type};
 
 % This should be correct. Work through displacement calculation code to
 % check

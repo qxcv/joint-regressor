@@ -1,4 +1,4 @@
-function [score, Ix, Iy, Im] = passmsg(child, parent, scale)
+function [score, Ix, Iy, Im] = passmsg(child, parent)
 % Pass a message from child component to parent component, returning four
 % H*W*K matrices. In each matrix, the (h, w, k)-th entry corresponds to a
 % parent of type k at location (h, w). The matrices can be interpreted as
@@ -21,7 +21,7 @@ parfor parent_type = 1:parent_K
     for child_type = 1:child_K
         fixed_score_map = double(child.score(:, :, child_type)); %#ok<PFBNS>
         % this is child_center - parent_center, IIRC
-        mean_disp = child.subpose_disps{child_type}{parent_type} / scale;
+        mean_disp = child.subpose_disps{child_type}{parent_type};
         assert(isvector(mean_disp) && length(mean_disp) == 2);
         [score0(:, :, parent_type, child_type), Ix0(:, :, parent_type, child_type), ...
             Iy0(:, :, parent_type, child_type)] = shiftdt(...

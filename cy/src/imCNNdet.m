@@ -10,7 +10,7 @@ if exist('save_path', 'var')
     try
         l = load(save_path);
         pyra = l.pyra;
-        unary_map = l.unary_map;
+        unary_map = compute_unary_map(pyra, model);
         return
     catch
         fprintf('imCNNdet couldn''t load %s, recomputing\n', save_path);
@@ -34,13 +34,27 @@ cnn_size = cnnpar.window(1);
 assert(all(cnn_size == cnnpar.window));
 pyra = impyra(im_stack, flow, cnn_model, cnnpar.mean_pixels, ...
     cnnpar.step, cnn_size, model.pyra_scales, false);
+unary_map = compute_unary_map(pyra, model);
+
+if exist('save_path', 'var')
+    fprintf('Saving pyramid to %s\n', save_path);
+    % Make directory and save map
+    dest_dir = fileparts(save_path);
+    if ~exist(dest_dir, 'dir');
+        mkdir(dest_dir);
+    end
+    % Remove HUGE DEBUGGING FIELDS
+    pyra = rmfield(pyra, {'in_rgb', 'in_flow'});
+    save(save_path, 'pyra');
+end
+end
+
+function unary_map = compute_unary_map(pyra, model)
 max_scale = numel(pyra);
 FLT_MIN = realmin('single');
-% 0.01;
-
-unary_map = cell(max_scale, 1);
 num_subposes = length(model.subpose_pa);
 model_parts = model.components;
+unary_map = cell(max_scale, 1);
 
 for scale_idx = 1:max_scale
     % the first dimension is the reponse of background, but app_global_ids
@@ -56,19 +70,9 @@ for scale_idx = 1:max_scale
         % gives p(s=i,t=t_i | I(l_i); theta).
         subpose_map = feat(:, :, app_global_ids);
         % convert to log space
-        unary_map{scale_idx}{subpose_idx} = log(max(subpose_map, FLT_MIN));
+        unscaled = log(max(subpose_map, FLT_MIN));
+        % Rescale to input coordinates
+        unary_map{scale_idx}{subpose_idx} = imresize(unscaled, model.sbin);
     end
-end
-
-if exist('save_path', 'var')
-    fprintf('Saving pyramid to %s\n', save_path);
-    % Make directory and save map
-    dest_dir = fileparts(save_path);
-    if ~exist(dest_dir, 'dir');
-        mkdir(dest_dir);
-    end
-    % Remove HUGE DEBUGGING FIELDS
-    pyra = rmfield(pyra, {'feat', 'in_rgb', 'in_flow'});
-    save(save_path, 'pyra', 'unary_map');
 end
 end
