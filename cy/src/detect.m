@@ -121,9 +121,13 @@ ex.blocks = [];
 ex.id = [label id 0 0 0];
 ex.debug = [];
 
+% This is how much our heatmap is downsampled relative to the RGB input.
+% The CNN downsamples by model.sbin >= 0 (say 32x downsample in the case of
+% VGG16) while imCNNdet.m upscales by model.pyra_upscale (e.g. 4x)
+downsample_factor = model.sbin / model.pyra_upscale;
 % det_side is roughly the width and height of a detection, in
 % heatmap coordinates.
-det_side = model.cnn.window(1);
+det_side = model.cnn.window(1) / downsample_factor;
 
 if latent && label > 0
     % record best when doing latent on positive example
@@ -225,7 +229,7 @@ for level = levels
         [msg, components(subpose_idx).Ix, ...
               components(subpose_idx).Iy, ...
               components(subpose_idx).Im] ...
-            = passmsg(child, parent);
+            = passmsg(child, parent, downsample_factor);
         components(par_idx).score = components(par_idx).score + msg;
     end
     
@@ -260,8 +264,8 @@ for level = levels
         y = Y(i);
         t = T(i);
         
-        [box, types, ex] = ...
-            backtrack(x, y, t, det_side, components, pyra(level), ex, write);
+        [box, types, ex] = backtrack(x, y, t, det_side, components, ...
+            pyra(level), ex, write, downsample_factor);
         
         this_rscore = rscore(y, x, t);
         b.boxes = num2cell(box, 2);
@@ -337,7 +341,8 @@ end
 
 % Backtrack through dynamic programming messages to estimate part locations
 % and the associated feature vector
-function [box,types,ex] = backtrack(root_x,root_y,root_t,det_side,parts,pyra,ex,write)
+function [box,types,ex] = backtrack(root_x, root_y, root_t, det_side, ...
+    parts, pyra, ex, write, downsample_factor)
 numparts = length(parts);
 ptr = zeros(numparts,3);
 box = zeros(numparts,4);
@@ -386,7 +391,8 @@ for child_k = 2:numparts
         % deformation
         assert(isscalar(child.gauI));
         ex.blocks(end+1).i = child.gauI;
-        ex.blocks(end).x = defvector(child, child_x, child_y, par_x, par_y, child_t, par_t);
+        ex.blocks(end).x = defvector(child, child_x, child_y, ...
+            par_x, par_y, child_t, par_t, downsample_factor);
         ex.blocks(end).debug = dbginfo(sprintf('Subpose %i DG', child_k), ...
             child_y, child_x, child_t);
         

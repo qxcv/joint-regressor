@@ -1,5 +1,5 @@
 function model = build_model(subpose_pa, K, subpose_disps, cnn_conf, mean_pixels, ...
-    pyra_scales, memsize, template_scale)
+    pyra_scales, pyra_upscale, memsize, template_scale)
 % This function merges together separate part models into a tree structure
 
 [~, global_IDs, ~] = get_IDs(subpose_pa, K);
@@ -31,6 +31,7 @@ model.components = struct('parent',{}, 'pid', {}, 'subpose_disps', {}, ...
 
 model.subpose_pa = subpose_pa;
 model.pyra_scales = pyra_scales;
+model.pyra_upscale = pyra_upscale;
 model.sbin = cnn_conf.step;
 model.len = 0;
 model.root = [];

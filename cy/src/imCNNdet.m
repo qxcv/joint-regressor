@@ -10,7 +10,7 @@ if exist('save_path', 'var')
     try
         l = load(save_path);
         pyra = l.pyra;
-        unary_map = compute_unary_map(pyra, model);
+        [pyra, unary_map] = compute_unary_map(pyra, model);
         return
     catch
         fprintf('imCNNdet couldn''t load %s, recomputing\n', save_path);
@@ -34,7 +34,7 @@ cnn_size = cnnpar.window(1);
 assert(all(cnn_size == cnnpar.window));
 pyra = impyra(im_stack, flow, cnn_model, cnnpar.mean_pixels, ...
     cnnpar.step, cnn_size, model.pyra_scales, false);
-unary_map = compute_unary_map(pyra, model);
+[pyra, unary_map] = compute_unary_map(pyra, model);
 
 if exist('save_path', 'var')
     fprintf('Saving pyramid to %s\n', save_path);
@@ -49,13 +49,16 @@ if exist('save_path', 'var')
 end
 end
 
-function unary_map = compute_unary_map(pyra, model)
+function [pyra, unary_map] = compute_unary_map(pyra, model)
+% Compute unary map and add in scale information
 max_scale = numel(pyra);
 FLT_MIN = realmin('single');
 num_subposes = length(model.subpose_pa);
 model_parts = model.components;
 unary_map = cell(max_scale, 1);
+upfact = model.pyra_upscale;
 
+% TODO: parfor this
 for scale_idx = 1:max_scale
     % the first dimension is the reponse of background, but app_global_ids
     % accounts for that
@@ -69,10 +72,15 @@ for scale_idx = 1:max_scale
         % at each location l_i (for subpose index i, type index t_i),
         % gives p(s=i,t=t_i | I(l_i); theta).
         subpose_map = feat(:, :, app_global_ids);
-        % convert to log space
+        % Rescale as desired and convert to log space
         unscaled = log(max(subpose_map, FLT_MIN));
-        % Rescale to input coordinates
-        unary_map{scale_idx}{subpose_idx} = imresize(unscaled, model.sbin);
+        unary_map{scale_idx}{subpose_idx} = ...
+            imresize(unscaled, upfact);
     end
+    
+    % TODO: Verify that these formulae make sense
+    pyra(scale_idx).sizs = pyra(scale_idx).raw_sizs * upfact;
+    pyra(scale_idx).scale = pyra(scale_idx).raw_scale / upfact;
+    pyra(scale_idx).pad = pyra(scale_idx).raw_pad * upfact;
 end
 end

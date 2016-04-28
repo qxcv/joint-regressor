@@ -1,4 +1,4 @@
-function [score, Ix, Iy, Im] = passmsg(child, parent)
+function [score, Ix, Iy, Im] = passmsg(child, parent, downsample_factor)
 % Pass a message from child component to parent component, returning four
 % H*W*K matrices. In each matrix, the (h, w, k)-th entry corresponds to a
 % parent of type k at location (h, w). The matrices can be interpreted as
@@ -24,13 +24,11 @@ score0 = single(all_zeros);
 child_sc = child.score; % must be single
 child_spd = child.subpose_disps;
 child_gauw = child.gauw;
-fprintf('Starting parfor (oh god)\n');
-for child_type = 1:child_K
+parfor child_type = 1:child_K
     for parent_type = 1:parent_K
-        fprintf('Doing parent thingo\n');
         fixed_score_map = child_sc(:, :, child_type);
         % this is child_center - parent_center, IIRC
-        mean_disp = child_spd{child_type}{parent_type};
+        mean_disp = child_spd{child_type}{parent_type} / downsample_factor;
         assert(isvector(mean_disp) && length(mean_disp) == 2);
         [score0(:, :, parent_type, child_type), Ix0(:, :, parent_type, child_type), ...
             Iy0(:, :, parent_type, child_type)] = shiftdt(...

@@ -26,8 +26,10 @@ pad = max(ceil((double(cnn_size-1)/2)), 0);
 % pyra is structure
 empty_cells = @() cell(length(scales), 1);
 pyra = struct('feat', empty_cells(), 'raw_sizs', empty_cells(), ...
-    'scale', empty_cells(), 'padx', empty_cells(), 'pady', empty_cells(),  ...
-    'in_rgb', empty_cells(), 'in_flow', empty_cells(), 'sizs', empty_cells());
+    'sizs', empty_cells(),  'in_rgb', empty_cells(), ...
+    'in_flow', empty_cells(), 'raw_pad', empty_cells(), ...
+    'pad', empty_cells(), 'raw_scale', empty_cells(), ...
+    'scale', empty_cells());
 clear empty_cells;
 
 % Change down max_batch_size if you don't have enough memory for your
@@ -78,19 +80,13 @@ for octave = 1:max_batch_size:length(scales)
         % scaled_flow_shuf = reshape(scaled_flow_shuf, [1 size(scaled_flow_shuf)]);
         flow_pyra(sub_scale+1, :, 1:height, 1:width) = scaled_flow_shuf; %#ok<AGROW>
         
-        % .raw_sizs is the size of the CNN output volume, .sizs is what we
-        % rescale it to in imCNNdet
-        % TODO: If I keep this, I need to make .sizs more clear. If
-        % rescaling takes place in imCNNdet, then that's clearly where I
-        % need to do step*sizs to calculate the true size after rescaling.
+        % .raw_sizs is size of output volume
         % TODO: Should this be floor(x) + 1 or ceil(x)? Only makes a
         % difference when x is whole, but could still be problematic.
         pyra(octave+sub_scale).raw_sizs = floor([height - cnn_size, ...
                                                  width - cnn_size] / step) + 1;
-        pyra(octave+sub_scale).sizs = step * pyra(octave+sub_scale).raw_sizs;
-        % TODO: Check that uses of these properties make sense
-        pyra(octave+sub_scale).scale = 1 / sub_scale_factor;
-        pyra(octave+sub_scale).pad = pad;
+        pyra(octave+sub_scale).raw_scale = step / sub_scale_factor;
+        pyra(octave+sub_scale).raw_pad = pad / step;
         if add_debug_fields
             pyra(octave+sub_scale).in_rgb = scaled_im_shuf;
             pyra(octave+sub_scale).in_flow = scaled_flow_shuf;

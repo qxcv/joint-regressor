@@ -26,6 +26,10 @@ conf.cnn.step = 32;
 % Scales used in each level of the feature pyramid (reversed so that
 % biggest is at the beginning)
 conf.pyra.scales = sort(1.12 .^ (-2:2), 'ascend');
+% Factor by which to upsample pyramid after generating it (but before doing
+% message passing). Upsampling may or may not help (see #13), but I figure
+% it's worth a try.
+conf.pyra.upscale = 4;
 % This defines the maximum size for the QP solver's support vector cache
 % (in GiB).
 conf.memsize = 0.5;

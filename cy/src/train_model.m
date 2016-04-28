@@ -17,8 +17,8 @@ catch
     % TODO: Should pass this in more elegantly. Same goes for clusters.
     mean_pixels = load(fullfile(cachedir, 'mean_pixel.mat'));
     model = build_model(subpose_pa, conf.biposelet_classes, subpose_disps, ...
-        conf.cnn, mean_pixels, conf.pyra.scales, conf.memsize, ...
-        conf.template_scale);
+        conf.cnn, mean_pixels, conf.pyra.scales, conf.pyra.upscale, ...
+        conf.memsize, conf.template_scale);
     model = train(cls, model, pos_val, neg_val, 1);
     parsave(fullfile(cachedir, cls), model);
 end
