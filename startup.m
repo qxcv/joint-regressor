@@ -36,10 +36,10 @@ CMAS_startup;
 cd_reset.task();
 
 conf = get_conf();
-if ~exist(conf.cache_dir, 'dir')
-    % We have this stupid guard to avoid Matlab warnings
-    mkdir(conf.cache_dir);
-end
+% if ~exist(conf.cache_dir, 'dir')
+%     % We have this stupid guard to avoid Matlab warnings
+%     mkdir(conf.cache_dir);
+% end
 addpath_full(conf.ext_dir);
 get_deps;
 

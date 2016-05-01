@@ -2,7 +2,12 @@ function conf = get_conf_h36m
 %GET_CONF_H36M Human3.6M-specific config (extends get_conf)
 conf = get_conf;
 
+% Directory for temporary files
 conf.cache_dir = 'cache/h36m/';
+% Fully convolutional network definition for Keras
+conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
+% Trained net weights (fully convolutional)
+conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 
 conf.num_hdf5s = 1;
 % Number of hdf5s to use for validation

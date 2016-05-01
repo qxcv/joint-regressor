@@ -1,8 +1,6 @@
 function conf = get_conf
 % Global configuration
 %% Paths
-% Caching flow/detections/Caffe models/whatever
-conf.cache_dir = 'cache/';
 % For data set code and data sets themselves
 conf.dataset_dir = 'datasets/';
 % For third-party deps
@@ -11,10 +9,6 @@ conf.ext_dir = 'ext/';
 %% CNN-related props
 % Size of CNN crop necessary
 conf.cnn.window = [224 224];
-% Fully convolutional network definition for Keras
-conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
-% Trained net weights
-conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 % GPU ID for testing
 conf.cnn.gpu = 2;
 % lib.cnmem flag for Theano

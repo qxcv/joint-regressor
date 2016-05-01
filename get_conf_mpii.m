@@ -2,6 +2,13 @@ function conf = get_conf_mpii
 %GET_CONF_MPII MPII-specific config (extends generic conf from get_conf)
 conf = get_conf;
 
+% Cache directory (per-dataset)
+conf.cache_dir = 'cache/mpii-cooking/';
+% Fully convolutional network definition for Keras
+conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
+% Trained net weights
+conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
+
 conf.num_hdf5s = 1;
 % Number of hdf5s to use for validation
 conf.num_val_hdf5s = 1;
