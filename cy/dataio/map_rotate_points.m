@@ -5,6 +5,10 @@ function pts_out = map_rotate_points(pts_in,im_ori,ang,flag)
 % if flag = 'ori2new', map points in the original image to the rotated image
 % if flag = 'new2ori', map points in the rotated image to the original image
 
+assert(isa(pts_in, 'double') || isa(pts_in, 'single'));
+% Matlab's tform* functions need double input
+pts_in = double(pts_in);
+
 switch flag
   case 'ori2new'
     direction = 0;
