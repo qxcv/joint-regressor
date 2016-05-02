@@ -45,18 +45,7 @@ conf.subpose_pa = [0 1 1];
 % associated with its parent. The fact that we're dealing with biposes
 % rather than just subposes means that some indices will be greater than
 % the number of joints in a subpose.
-conf.shared_parts = make_shared_parts(conf.subposes, conf.subpose_pa, conf.num_joints){
-    % Don't worry about the head because it has no parents
-    {}
-    % Left side shoulder coordinates in the left arm subpose have indices 1
-    % (first frame) and 5 (second frame), which correspond to indices 2
-    % (first frame) and 6 (second frame) in the head subpose.
-    {[1 5], [2 6]}
-    % Right side shoulder coordinates in the right arm subpose have indices
-    % 1 (first frame) and 5 (second frame), which correspond to indices 1
-    % (first frame) and 5 (second frame) in the head subpose.
-    {[1 5], [1 5]}
-};
+conf.shared_parts = make_shared_parts(conf.subposes, conf.subpose_pa);
 
 % Throw out pairs for which the mean distance between corresponding joints
 % (between the two frames) is beyond this pixel threshold. Empirically, this
