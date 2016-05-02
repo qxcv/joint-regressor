@@ -72,15 +72,14 @@ conf.val_aug.negs = 8;
 % attempts to load *entire datasets* from disk, you will end up crashing
 % the program.
 conf.num_hdf5s = 1;
+% ...and only one for validation.
+conf.num_val_hdf5s = 1;
 
 % HDF5 chunk sizes for training and validation, respectively. Training data
 % is accessed randomly, so smaller is better. Validation data, on the other
 % hand, is accessed sequentially, so long chunks are advantageous.
 conf.train_chunksz = 4;
 conf.val_chunksz = 4;
-
-% Number of hdf5s to use for validation
-conf.num_val_hdf5s = 1;
 
 % Use K-means to cluster 2 * length(conf.poselet)-dimensional
 % poselet-per-frame vectors, then use the resulting centroids as classes

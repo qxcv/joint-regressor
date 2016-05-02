@@ -4,9 +4,9 @@ startup;
 conf = get_conf_h36m;
 [train_dataset, test_seqs] = get_h36m(...
     conf.dataset_dir, conf.cache_dir, conf.subposes, conf.cnn.step, ...
-    conf.template_scale);
+    conf.template_scale, conf.trans_spec);
 sizes_okay = @(ds) all(cellfun(@length, {ds.data.joint_locs}) == conf.num_joints);
-assert(sizes_okay(train_dataset) && sizes_okay(val_dataset));
+assert(sizes_okay(train_dataset) && sizes_okay(test_seqs));
 neg_dataset = get_inria_person(conf.dataset_dir, conf.cache_dir);
 
 fprintf('Writing validation set\n');

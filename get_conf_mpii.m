@@ -45,7 +45,7 @@ conf.subpose_pa = [0 1 1];
 % associated with its parent. The fact that we're dealing with biposes
 % rather than just subposes means that some indices will be greater than
 % the number of joints in a subpose.
-conf.shared_parts = {
+conf.shared_parts = make_shared_parts(conf.subposes, conf.subpose_pa, conf.num_joints){
     % Don't worry about the head because it has no parents
     {}
     % Left side shoulder coordinates in the left arm subpose have indices 1

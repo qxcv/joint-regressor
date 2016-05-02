@@ -75,7 +75,7 @@ else
             'Recomputing image flow! (will only warn once)\n');
         warned_about_cache = true;
     end
-    flow = imflow(im1_info.image_path, im2_info.image_path);
+    flow = imflow(im1, im2);
 end
 im_stack = cat(3, im1, im2);
 % if has box information, crop it
