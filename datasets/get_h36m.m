@@ -1,5 +1,5 @@
-function [train_dataset, test_seqs] = get_h36m(...
-    dest_dir, cache_dir, subposes, step, template_scale)
+function [train_dataset, val_dataset, test_seqs] = get_h36m(...
+    dest_dir, cache_dir, subposes, step, template_scale, trans_spec)
 %GET_H36M Fetches H3.6M pose estimation dataset (incl. videos)
 % You'll have to download all of the necessary files yourself, since the
 % dataset needs authentication & EULA acceptance for download (although
@@ -9,6 +9,7 @@ function [train_dataset, test_seqs] = get_h36m(...
 FAKE_SUBJECTS = 1:7;
 REAL_SUBJECTS = [1 5 6 7 8 9 11];
 TEST_SUBJECT = 5;
+VAL_SUBJECT = 9;
 % I can't figure out how to decode these videos
 VIDEO_BLACKLIST = {'S11/Videos/Directions.54138969.mp4'};
 % Number of frames to jump forward between pairs
@@ -23,8 +24,8 @@ assert(~~exist(fullfile(h36m_dir, 'MD5SUM'), 'file'), ...
 save_path = fullfile(cache_dir, 'h36m_data.mat');
 if exist(save_path, 'file')
     fprintf('Found existing H3.6M data, so I''ll just use that\n');
-    [train_dataset, test_seqs] = parload(save_path, ...
-        'train_dataset', 'test_seqs');
+    [train_dataset, val_dataset, test_seqs] = parload(save_path, ...
+        'train_dataset', 'val_dataset', 'test_seqs');
     return
 else
     fprintf('Need to regenerate all H3.6M data :(\n');
@@ -40,9 +41,10 @@ cd(h36m_dir);
 % assert(system('md5sum -c MD5SUM') == 0, 'Archive MD5s must match');
 
 empty_data = @() struct('frame_no', {}, 'frame_time', {}, ...
-    'joint_locs', {}, 'subject', {}, 'action', {}, 'camera', {}, ...
-    'video_id', {});
+    'joint_locs', {}, 'orig_joint_locs', {}, 'subject', {}, ...
+    'action', {}, 'camera', {}, 'video_id', {});
 train_frames = empty_data();
+val_frames = empty_data();
 test_frames = empty_data();
 all_video_paths = {};
 for fake_subj=FAKE_SUBJECTS
@@ -77,12 +79,16 @@ for fake_subj=FAKE_SUBJECTS
         end
         
         [poses, frame_times] = seq_data(real_subj, action, cam);
+        % I'm proud of this variable name :)
+        trans_poses = cellfun(@(p) single(skeltrans(p, trans_spec)), poses, ...
+            'UniformOutput', false);
         
         rep_ft = @(val) repmat({val}, 1, length(frame_times));
         this_data = struct(...
             'frame_no', num2cell(int32(1:length(frame_times))), ...
             'frame_time', num2cell(single(frame_times)), ...
-            'joint_locs', poses, ...
+            'orig_joint_locs', poses, ...
+            'joint_locs', trans_poses, ...
             'subject', rep_ft(int8(real_subj)), ...
             'action', rep_ft(action), ...
             'camera', rep_ft(int32(cam)), ...
@@ -91,27 +97,36 @@ for fake_subj=FAKE_SUBJECTS
     end
     all_video_paths = [all_video_paths subject_video_paths]; %#ok<AGROW>
     
-    if real_subj ~= TEST_SUBJECT
-        train_frames = [train_frames, subj_frames]; %#ok<AGROW>
-    else
+    if real_subj == TEST_SUBJECT
         assert(isempty(test_frames));
         test_frames = subj_frames;
+    elseif real_subj == VAL_SUBJECT
+        assert(isempty(val_frames));
+        val_frames = subj_frames;
+    else
+        train_frames = [train_frames, subj_frames]; %#ok<AGROW>
     end
 end
 
-assert(~isempty(test_frames) && ~isempty(train_frames));
+assert(~isempty(test_frames) && ~isempty(val_frames) && ~isempty(train_frames));
 
 train_pairs = find_pairs(train_frames, FRAME_SKIP);
 [train_frames, train_pairs] = trim_frames(train_frames, train_pairs);
+val_pairs = find_pairs(val_frames, FRAME_SKIP);
+[val_frames, val_pairs] = trim_frames(val_frames, val_pairs);
 test_pairs = find_pairs(test_frames, FRAME_SKIP);
 [test_frames, test_pairs] = trim_frames(test_frames, test_pairs);
 
 train_dataset = unify_dataset(train_frames, train_pairs, 'train_dataset_h36m');
 train_dataset.video_paths = all_video_paths;
+val_dataset = unify_dataset(val_frames, val_pairs, 'val_dataset_h36m');
+val_dataset.video_paths = all_video_paths;
 test_dataset = unify_dataset(test_frames, test_pairs, 'test_dataset_h36m_s5');
 test_dataset.video_paths = all_video_paths;
 
 [train_dataset, ~] = mark_scales(train_dataset, subposes, step, ...
+    template_scale);
+[val_dataset, ~] = mark_scales(val_dataset, subposes, step, ...
     template_scale);
 % Second return value *would* be t size, but I'm ignoring it for now.
 [test_dataset, ~] = mark_scales(test_dataset, subposes, step, ...
@@ -125,7 +140,7 @@ test_seqs = make_test_set(test_dataset, all_test_seqs);
 
 cd(old_dir);
 fprintf('Saving to %s\n', save_path);
-save(save_path, 'train_dataset', 'test_seqs');
+save(save_path, 'train_dataset', 'val_dataset', 'test_seqs');
 end
 
 function [poses, frame_times] = seq_data(subject, action, cam)

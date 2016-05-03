@@ -13,7 +13,7 @@ parfor i=1:num_data
     datum = all_data(i);
     
     show_datum(datum);
-    text(-50, -50, datum.image_path);
+    text(-50, -50, sprintf('Index %i', i));
     result_path = fullfile(dest_dir, sprintf('%06i.jpg', i));
     print(gcf, '-djpeg', result_path, '-r 150');
 end
