@@ -155,6 +155,7 @@ for flip=flips
                 % Return column vector [x1 y1 x2 y2 ... xn yn]'
                 subpose_joints = scale_joints(subpose_indices, :);
                 rvs(current_idx).joint_labels = flatten_coords(subpose_joints); %#ok<AGROW>
+                assert(any(rvs(current_idx).joint_labels));
                 % Return full w * h * c matrix
                 rvs(current_idx).stack = final_stack; %#ok<AGROW>
                 rvs(current_idx).subpose_num = subpose_num; %#ok<AGROW>
