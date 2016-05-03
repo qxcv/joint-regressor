@@ -1,5 +1,5 @@
 function write_negatives(dataset, cache_dir, patch_dir, ...
-    cnn_window, crops_per_pair, chunksz, subposes)
+    cnn_window, aug, chunksz, subposes)
 %WRITE_NEGATIVES Analogue of write_dset for negative patches.
 %Note that unlike write_dset, this function will intentionally avoid
 %whatever poses are present in the images it is given (this functionality
@@ -37,7 +37,7 @@ for pair_idx=1:num_pairs
     pair = dataset.pairs(pair_idx);
     fst = dataset.data(pair.fst);
     snd = dataset.data(pair.snd);
-    [im1, im2, flow] = get_pair_data(fst, snd, cache_dir);
+    [im1, im2, flow] = get_pair_data(fst, snd);
     imstack = cat(3, im1, im2);
     
     % Start by getting a list of rectangles to crop
@@ -54,8 +54,12 @@ for pair_idx=1:num_pairs
     base_crop_size = pair.scale;
     min_crop_size = 0.8 * base_crop_size;
     max_crop_size = 1.2 * base_crop_size;
-    crop_rects = random_nonint_rects(pair_frame, pose_box, min_crop_size, ...
-        max_crop_size, crops_per_pair);
+    easy_crop_rects = random_nonint_rects(pair_frame, pose_box, min_crop_size, ...
+        max_crop_size, aug.easy_negs);
+    hard_crop_rects = random_hard_rects(fst.joint_locs, snd.joint_locs, ...
+        subposes, base_crop_size, aug.hard_negs);
+    crop_rects = [easy_crop_rects; hard_crop_rects];
+    assert(ismatrix(crop_rects) && size(crop_rects, 2) == 4);
     
     % Crop each rectangle in turn and write them as a batch
     lcr = size(crop_rects, 1);
@@ -63,9 +67,9 @@ for pair_idx=1:num_pairs
                                 size(im1, 3) + size(im2, 3) ...
                                 lcr]));
     final_flow = zeros([cnn_window(1:2) 2 lcr]);
-    for crop_num=1:lcr
+    parfor crop_num=1:lcr
         crop = crop_rects(crop_num, :);
-        cropped_imstack = imcrop2(imstack, crop);
+        cropped_imstack = impcrop(imstack, crop);
         resized_imstack = imresize(cropped_imstack, cnn_window);
         % pmask tells permute() to swap h/w
         pmask = [2 1 3];

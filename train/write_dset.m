@@ -1,5 +1,5 @@
-function write_dset(dataset, cache_dir, patch_dir, num_hdf5s, ...
-    cnn_window, cnn_step, subposes, left_parts, right_parts, aug, chunksz)
+function write_dset(dataset, patch_dir, num_hdf5s, cnn_window, cnn_step, ...
+    subposes, left_parts, right_parts, aug, chunksz)
 %WRITE_DSET Write out a data set (e.g. pairs from the train set or pairs
 %from the test set).
 
@@ -75,11 +75,11 @@ for start_index = 1:batch_size:length(rem_pairs)
     for i=1:length(results)
         write_start = tic;
         stacks = results{i};
-        for j=1:length(stacks)
+        for stack_num=1:length(stacks)
             % Get stack and labels; we don't add in dummy dimensions
             % because apparently Matlab can't tell the difference between a
             % j*k*l*1*1*1*1... matrix and a j*k*l matrix.
-            stack = stacks(j).stack;
+            stack = stacks(stack_num).stack;
             
             % Choose a file, regardless of whether it exists
             h5_idx = randi(num_hdf5s);
@@ -96,20 +96,23 @@ for start_index = 1:batch_size:length(rem_pairs)
             % where N is the unmber of samples and K is the number of
             % classes (i.e. number of subposes plus one for background
             % class).
-            class_labels = one_of_k(stacks(j).subpose_num + 1, length(subposes) + 1)';
+            class_labels = one_of_k(stacks(stack_num).subpose_num + 1, ...
+                length(subposes) + 1)';
             joint_args = {};
             for subpose_idx=1:length(subposes)
                 name = subposes(subpose_idx).name;
                 joint_args{length(joint_args)+1} = sprintf('/%s', name); %#ok<AGROW>
-                if subpose_idx ~= stacks(j).subpose_num;
+                if subpose_idx ~= stacks(stack_num).subpose_num;
                     num_values = 4 * length(subposes(subpose_idx).subpose);
                     subpose_data = zeros([num_values, 1]);
                 else
-                    subpose_data = stacks(j).joint_labels;
+                    subpose_data = stacks(stack_num).joint_labels;
                 end
                 joint_args{length(joint_args)+1} = single(subpose_data); %#ok<AGROW>
                 assert(size(subpose_data, 2) == 1);
             end
+            assert(any(joint_args{2*subpose_idx-1}), ...
+                'Joint labels for current subpose are all zero (?!)');
             store3hdf6(filename, opts, '/flow', stack_flow, ...
                 '/images', stack_im_bytes, ...
                 '/class', uint8(class_labels), ...

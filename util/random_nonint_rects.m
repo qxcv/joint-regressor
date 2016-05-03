@@ -6,8 +6,8 @@ function boxes = random_nonint_rects(frame, avoid_box, ...
 %  2) Randomly sampling the space of rectangles which fit inside the given
 %  bounding box.
 %  3) Discarding any rectangles which intersect avoid_box.
-%  4) Stopping if it take longer than 100 iterations (TODO: tune this!) to
-%  find an appropriate box.
+%  4) Stopping if it take longer than 100 iterations to find an appropriate
+%     box.
 %
 % *frame:* rectangle of [xmin ymin width height] format which generated
 % rectangles must lie within.

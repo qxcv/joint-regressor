@@ -1,5 +1,6 @@
 function out = impcrop(image, box)
 %IMPCROP Just like imcrop, except we replicate-pad outside of the box
+% Builds on imcrop2 (so it handles multiple channels correctly)
 imw = size(image, 2);
 imh = size(image, 1);
 box = round(box);
@@ -30,8 +31,4 @@ else
         out = padarray(out, [min(box(2) + bh - imh, bh), 0, 0], 'replicate', 'post');
     end
 end
-
-% assert(size(out, 1) == bh + 1);
-% assert(size(out, 2) == bw + 1);
-% assert(size(out, 3) == size(image, 3));
 end
