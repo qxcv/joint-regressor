@@ -64,7 +64,7 @@ for start_index = 1:batch_size:length(rem_pairs)
         stack_start = tic;
         results{result_index} = get_stacks(...
             fst, snd, pair.scale, subposes, left_parts, right_parts, ...
-            cache_dir, cnn_window, cnn_step, aug);
+            cnn_window, cnn_step, aug);
         stack_time = toc(stack_start);
         fprintf('get_stack() took %fs\n', stack_time);
     end

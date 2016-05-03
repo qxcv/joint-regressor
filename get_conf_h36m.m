@@ -123,9 +123,9 @@ conf.limbs = struct(...
         'rlarm', 'ruarm', 'rtor', 'ruleg', 'rlleg', ...
         'llarm', 'luarm', 'ltor', 'luleg', 'llleg'});
     
-% Range of random rotations
+%% Augmentation stuff
 conf.aug.rot_range = [-15, 15];
-conf.aug.rand_rots = 2;
+conf.aug.rand_rots = 1;
 conf.aug.rand_trans = 0;
 conf.aug.flip_mode = 'random'; % Other values: "both", "none"
 conf.aug.negs = 2;

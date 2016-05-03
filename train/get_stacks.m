@@ -1,5 +1,5 @@
 function rvs = get_stacks(d1, d2, pair_scale, subposes, left_parts, ...
-    right_parts, cache_dir, cnn_window, cnn_step, aug)
+    right_parts, cnn_window, cnn_step, aug)
 %GET_STACKS Get the image/flow stacks for a given data pair and set of
 %transformations.
 % d1: First datum
@@ -15,7 +15,7 @@ function rvs = get_stacks(d1, d2, pair_scale, subposes, left_parts, ...
 % aug: data structure defining which augmentations to perform
 % rvs: struct array with .labels (joint locations) and .stack (full input
 %      data) attributes.
-[im1, im2, flow] = get_pair_data(d1, d2, cache_dir);
+[im1, im2, flow] = get_pair_data(d1, d2);
 % Concatenate along channels
 stacked = cat(3, norm_im(im1), ...
                  norm_im(im2), ...
