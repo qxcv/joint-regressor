@@ -39,7 +39,6 @@ end
 
 % First we get the (much larger) continuous pose estimation dataset
 if ~exist(CONTINUOUS_DEST_PATH, 'dir')
-    assert(~~exist(CONTINUOUS_CACHE_PATH, 'file'));  % We can't download this since I don't know where it is :P
     if ~exist(CONTINUOUS_CACHE_PATH, 'file')
         fprintf('Downloading MPII continuous pose challenge from %s\n', MPII_CONTINUOUS_URL);
         websave(CONTINUOUS_CACHE_PATH, MPII_CONTINUOUS_URL);
@@ -52,7 +51,6 @@ end
 % continuous (but low-FPS) training set but discontinuous testing set.
 % We'll use the training set from that as our validation set.
 if ~exist(POSE_DEST_PATH, 'dir')
-    assert(~~exist(POSE_CACHE_PATH, 'file'));  % We can't download this since I don't know where it is :P
     if ~exist(POSE_CACHE_PATH, 'file')
         fprintf('Downloading MPII pose challenge from %s\n', MPII_POSE_URL);
         websave(POSE_CACHE_PATH, MPII_POSE_URL);

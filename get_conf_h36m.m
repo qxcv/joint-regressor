@@ -8,6 +8,8 @@ conf.cache_dir = 'cache/h36m/';
 conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights (fully convolutional)
 conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
+% Use different GPU
+conf.cnn.gpu = 2;
 
 % right_parts and left_parts are used to ensure that the meanings of "left"
 % and "right" are preserved when doing flip augmentations.

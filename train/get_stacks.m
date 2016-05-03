@@ -1,4 +1,5 @@
-function rvs = get_stacks(d1, d2, pair_scale, subposes, left_parts, right_parts, cache_dir, cnn_window, aug)
+function rvs = get_stacks(d1, d2, pair_scale, subposes, left_parts, ...
+    right_parts, cache_dir, cnn_window, cnn_step, aug)
 %GET_STACKS Get the image/flow stacks for a given data pair and set of
 %transformations.
 % d1: First datum
@@ -107,20 +108,17 @@ for flip=flips
             % We repeat this translation process for each random
             % translation
             total_trans = max(rand_trans, 1);
-            wiggle_room = pair_scale - pose_side;
-            if wiggle_room <= 1
-                % Don't translate at scale 1 or below (effectively)
-                total_trans = 1;
-            end;
             
             for unused=1:total_trans
                 %% 6) Translate box
                 trans_box_center = box_center;
-                % TODO: Instead of finding wiggle room automatically, I
-                % should specify a maximum distance by which the pose can
-                % be translated, in pixels. That could then be scaled
-                % appropriately according to the datum scale, then the 
-                if rand_trans > 0 && wiggle_room > 1
+                if rand_trans > 0
+                    % Translate the patch by ±cnn_step in final resized
+                    % (to cnn_window(1)*cnn_window(2)) coordinates. This
+                    % should help with correctly classifying
+                    % just-off-centre pairs.
+                    wiggle_room = 2 * pair_scale * cnn_step / cnn_window(1);
+                    assert(isscalar(wiggle_room));
                     trans_amount = wiggle_room * rand(1, 2) - wiggle_room / 2;
                     trans_box_center = trans_box_center + trans_amount;
                 end

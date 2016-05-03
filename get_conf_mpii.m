@@ -8,6 +8,42 @@ conf.cache_dir = 'cache/mpii-cooking/';
 conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights
 conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
+% Different for each dataset, I guess
+conf.cnn.gpu = 1;
+
+%% Augmentation stuff (this is 70x augmentation ATM; probably too much)
+
+% Total number of augmentations is given by
+%   length(conf.aug.rots) * length(conf.aug.flips)
+%    * (sum(conf.aug.scales < 1) * conf.aug.randtrans
+%       + sum(conf.aug.scales >= 1)),
+% which doesn't count random translations on images which aren't sub-scale.
+
+% Range of random rotations
+conf.aug.rot_range = [-50, 50];
+% Number of random rotations for each datum
+conf.aug.rand_rots = 4;
+% Random translations at each scale where it's possible to translate whilst
+% keeping the pose in-frame; 0 to disable. Should probably pad all images
+% by step size and then randomly translate by [step, step] (both axes)
+% in training code; that should ensure that learnt biposelet clusters
+% capture something interesting about pose structure.
+conf.aug.rand_trans = 2;
+% Choose a single flip type at random
+% Values: 'random' (choose only one at random), 'both' (do both flips),
+% 'none' (don't flip)
+conf.aug.flip_mode = 'random'; % Other values: "both", "none"
+% Include 30 randomly cropped negative samples for each datum
+conf.aug.negs = 30;
+
+% Validation augmentations are less aggressive (24x instead)
+conf.val_aug.rot_range = [-30, 30];
+conf.val_aug.rand_rots = 2;
+conf.val_aug.rand_trans = 1;
+conf.val_aug.flip_mode = 'random';
+conf.val_aug.negs = 8;
+
+%% General writing stuff
 
 conf.num_hdf5s = 1;
 % Number of hdf5s to use for validation

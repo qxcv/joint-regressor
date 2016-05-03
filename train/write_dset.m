@@ -1,5 +1,5 @@
 function write_dset(dataset, cache_dir, patch_dir, num_hdf5s, ...
-    cnn_window, subposes, left_parts, right_parts, aug, chunksz)
+    cnn_window, cnn_step, subposes, left_parts, right_parts, aug, chunksz)
 %WRITE_DSET Write out a data set (e.g. pairs from the train set or pairs
 %from the test set).
 
@@ -64,7 +64,7 @@ for start_index = 1:batch_size:length(rem_pairs)
         stack_start = tic;
         results{result_index} = get_stacks(...
             fst, snd, pair.scale, subposes, left_parts, right_parts, ...
-            cache_dir, cnn_window, aug);
+            cache_dir, cnn_window, cnn_step, aug);
         stack_time = toc(stack_start);
         fprintf('get_stack() took %fs\n', stack_time);
     end
