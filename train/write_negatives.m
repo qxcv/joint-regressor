@@ -58,7 +58,7 @@ for pair_idx=1:num_pairs
         max_crop_size, aug.easy_negs);
     hard_crop_rects = random_hard_rects(fst.joint_locs, snd.joint_locs, ...
         subposes, base_crop_size, aug.hard_negs);
-    crop_rects = [easy_crop_rects; hard_crop_rects];
+    crop_rects = double([easy_crop_rects; hard_crop_rects]);
     assert(ismatrix(crop_rects) && size(crop_rects, 2) == 4);
     
     % Crop each rectangle in turn and write them as a batch
@@ -75,7 +75,7 @@ for pair_idx=1:num_pairs
         pmask = [2 1 3];
         final_images(:, :, :, crop_num) = permute(resized_imstack, pmask);
         
-        cropped_flow = imcrop2(flow, crop);
+        cropped_flow = impcrop(flow, crop);
         resized_flow = imresize(cropped_flow, cnn_window);
         correct_flow = rescale_flow_mags(resized_flow, size(flow), size(resized_flow));
         final_flow(:, :, :, crop_num) = permute(correct_flow, pmask);

@@ -4,7 +4,6 @@ function boxes = random_hard_rects(f1_joints, f2_joints, subposes, ...
 % Note that there is no requirement that the boxes are contained entirely
 % within the source image, so you'll have to use impcrop or something to
 % handle corner cases.
-boxes = [];
 
 % Stop generating boxes for a subpose after you've done this many
 max_iter = 1000 * negs_per_sp;
@@ -46,7 +45,7 @@ for sp_idx=1:length(subposes)
         if all(inters < centred_iou)
             % If the box isn't focused on any particular part then we can
             % use it.
-            boxes = [boxes; this_box];
+            boxes = [boxes; this_box]; %#ok<AGROW>
             continue
         end
         
