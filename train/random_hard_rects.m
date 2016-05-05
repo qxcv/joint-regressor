@@ -1,5 +1,5 @@
 function boxes = random_hard_rects(f1_joints, f2_joints, subposes, ...
-    box_size, negs_per_sp)
+    box_size, cnn_window, negs_per_sp, biposelets, mean_l2_thresh)
 %RANDOM_HARD_RECTS Get cropping rectangles for hard negatives
 % Note that there is no requirement that the boxes are contained entirely
 % within the source image, so you'll have to use impcrop or something to
@@ -9,8 +9,6 @@ function boxes = random_hard_rects(f1_joints, f2_joints, subposes, ...
 max_iter = 1000 * negs_per_sp;
 % IOU between relevant subpose and generated box must be >= this
 in_view_iou = 0.2;
-% IOU must be <= this for all subposes
-centred_iou = 0.5;
 % [x y w h] bounding box for each subpose
 sp_bboxes = zeros([length(subposes) 4]);
 for sp_idx=1:length(subposes)
@@ -32,7 +30,7 @@ for sp_idx=1:length(subposes)
         && all(ceil(this_right) >= tight_right));
 end
 
-boxes = [];
+boxes = zeros([0 4]);
 
 for sp_idx=1:length(subposes)
     % Need to find a box which (a) has the subpose in view (b) does not
@@ -41,8 +39,11 @@ for sp_idx=1:length(subposes)
     iters = 0;
     while size(boxes, 1) < negs_per_sp
         this_box = random_box(sp_bboxes(sp_idx, :), box_size, in_view_iou);
-        inters = boxes_overlap(this_box, sp_bboxes);
-        if all(inters < centred_iou)
+        mean_l2s = match_subposes(this_box, cnn_window, subposes, ...
+            f1_joints, f2_joints, biposelets);
+        reasonable_intersections = mean_l2s <= mean_l2_thresh;
+        
+        if ~any(reasonable_intersections)
             % If the box isn't focused on any particular part then we can
             % use it.
             boxes = [boxes; this_box]; %#ok<AGROW>
@@ -77,4 +78,35 @@ box_loc = 2 * perm_space * rand(1, 2) + sp_bbox([1 2]) - perm_space;
 box = [box_loc box_size box_size];
 
 assert(boxes_overlap(sp_bbox, box) > min_iou, 'IOU constraint violated');
+end
+
+function mean_l2s = match_subposes(crop_box, cnn_window, subposes, ...
+    f1_joints, f2_joints, biposelets)
+% Find the l2 distance to the nearest biposelet, for each possible subpose
+assert(numel(crop_box) == 4 && crop_box(3) == crop_box(4), ...
+    'Need square box to emulate CNN');
+
+% This ensures that the joints are rescaled to [0, cnn_window] on each axis
+% (not sure if tightness is correct, but whatever).
+scale_factor = cnn_window(1) / crop_box(3);
+assert(isscalar(scale_factor));
+    
+mean_l2s = zeros([1 length(subposes)]);
+for sp_idx=1:length(subposes)
+    sp_bp_centroids = biposelets{sp_idx};
+    assert(ismatrix(sp_bp_centroids));
+    
+    sp_parts = subposes(sp_idx).subpose;
+    sp_coords = cat(1, f1_joints(sp_parts, :), f2_joints(sp_parts, :));
+    sp_coords = bsxfun(@minus, sp_coords, crop_box(1:2));
+    sp_coords = sp_coords * scale_factor;
+    assert(ismatrix(sp_coords) && size(sp_coords, 2) == 2);
+    
+    % Turn it into a row vector (flatten_coords returns a column vector)
+    sp_loc_label = flatten_coords(sp_coords)';
+    assert(isrow(sp_loc_label));
+    [~, best_dist] = cluster_labels(sp_loc_label, sp_bp_centroids);
+    mean_dist = best_dist / length(sp_parts);
+    mean_l2s(sp_idx) = mean_dist;
+end
 end

@@ -1,4 +1,4 @@
-function biposelets = cluster_h5s(num_classes, subposes, train_patch_dir, val_patch_dir, cache_dir)
+function centroids = cluster_h5s(num_classes, subposes, train_patch_dir, val_patch_dir, cache_dir)
 %CLUSTER_H5S Add a "biposelet" dataset to each HDF5 in the cache
 
 % Collect paths
@@ -13,14 +13,7 @@ if exist(centroid_path, 'file')
     centroids = loaded.centroids;
 else
     fprintf('Generating cluster centers\n');
-    [train_classes, train_labels] = extract_joint_loc_labels(train_h5s, subposes);
-    centroids = cell([1 length(subposes)]);
-    parfor subpose_num=1:length(subposes)
-        % poselet_num + 1 because class 1 is background
-        labels = ...
-            train_labels{subpose_num}(train_classes == subpose_num + 1, :);
-        centroids{subpose_num} = calculate_centroids(labels, num_classes);
-    end
+    centroids = generate_centroids_from_h5s(train_h5s, subposes, num_classes);
     save(centroid_path, 'centroids');
 end
 
@@ -72,7 +65,4 @@ for fn_no=1:num_fns
     h5create(fn, '/poselet', size(one_of_k_clusters), 'DataType', 'int32');
     h5write(fn, '/poselet', one_of_k_clusters);
 end
-
-% Return value
-biposelets = centroids;
 end

@@ -13,25 +13,32 @@ assert(sizes_okay(train_dataset) && sizes_okay(val_dataset));
 % background.
 neg_dataset = get_inria_person(conf.dataset_dir, conf.cache_dir);
 
-fprintf('Writing validation set\n');
+fprintf('Writing validation positives\n');
 val_patch_dir = fullfile(conf.cache_dir, 'val-patches-mpii');
 write_dset(val_dataset, val_patch_dir, conf.num_val_hdf5s, ...
     conf.cnn.window, conf.cnn.step, conf.subposes, conf.left_parts, ...
     conf.right_parts, conf.val_aug, conf.val_chunksz);
-write_negatives(val_dataset, conf.cache_dir, val_patch_dir, ...
-    conf.cnn.window, conf.val_aug, conf.val_chunksz, conf.subposes);
 
-fprintf('Writing training set\n');
+fprintf('Writing training positives\n');
 train_patch_dir = fullfile(conf.cache_dir, 'train-patches-mpii');
 write_dset(train_dataset, train_patch_dir, conf.num_hdf5s, ...
     conf.cnn.window, conf.cnn.step, conf.subposes, conf.left_parts, ...
     conf.right_parts, conf.aug, conf.train_chunksz);
-write_negatives(train_dataset, conf.cache_dir, train_patch_dir, ...
-    conf.cnn.window, conf.aug, conf.train_chunksz, conf.subposes);
 
+% Cluster before writing negatives so that we can use the clusters to pick
+% challenging negatives (ones with ineffable subposes)
 fprintf('Writing cluster information\n');
 biposelets = cluster_h5s(conf.biposelet_classes, conf.subposes, ...
     train_patch_dir, val_patch_dir, conf.cache_dir);
+
+fprintf('Writing validation negatives\n');
+write_negatives(val_dataset, biposelets, val_patch_dir, ...
+    conf.cnn.window, conf.val_aug, conf.val_chunksz, conf.subposes);
+
+fprintf('Writing training negatives\n');
+write_negatives(train_dataset, biposelets, train_patch_dir, ...
+    conf.cnn.window, conf.aug, conf.train_chunksz, conf.subposes);
+
 
 fprintf('Calculating mean pixel\n');
 store_mean_pixel(train_patch_dir, conf.cache_dir);

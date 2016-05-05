@@ -1,5 +1,9 @@
-function indices = cluster_labels(labels, centroids)
+function [indices, dists] = cluster_labels(labels, centroids)
 %CLUSTER_LABELS Find cluster indices for labels
 dists = pdist2(labels, centroids);
-[~, indices] = min(dists, [], 2);
+if nargin > 1
+    [dists, indices] = min(dists, [], 2);
+else
+    [~, indices] = min(dists, [], 2);
+end
 end

@@ -1,20 +1,13 @@
-function write_negatives(dataset, cache_dir, patch_dir, ...
+function write_negatives(dataset, biposelets, patch_dir, ...
     cnn_window, aug, chunksz, subposes)
 %WRITE_NEGATIVES Analogue of write_dset for negative patches.
 %Note that unlike write_dset, this function will intentionally avoid
 %whatever poses are present in the images it is given (this functionality
 %will only work on MPII cooking activities, where there is precisely one
-%person present in each frame) in order to write out patches with no
-%people.
-%
-%For the initial version of this function, I'm not doing any augmentation
-%other than random crops, and I'm just ignoring people altogether. In
-%future, it might make sense to avoid only the specific subpose which we
-%wish to regress for (so other parts of the person are visible) and to
-%perform the same augmentations which we would perform normally.
-%
-%Ultimately I'll need to use INRIAPerson or something similar instead of
-%just avoiding cropboxes around humans in the training set.
+%person present in each frame). This allows it to write some patches in
+%which there are no people ("easy negatives") and some patches in which
+%there are people, but no subposes with a reasonable matching centroid
+%("hard negatives").
 
 dest_path = fullfile(patch_dir, 'negatives.h5');
 if exist(dest_path, 'file')
@@ -56,8 +49,10 @@ for pair_idx=1:num_pairs
     max_crop_size = 1.2 * base_crop_size;
     easy_crop_rects = random_nonint_rects(pair_frame, pose_box, min_crop_size, ...
         max_crop_size, aug.easy_negs);
+    mean_l2_thresh = cnn_window(1) / 8; % XXX: This is pretty hacky
     hard_crop_rects = random_hard_rects(fst.joint_locs, snd.joint_locs, ...
-        subposes, base_crop_size, aug.hard_negs);
+        subposes, base_crop_size, cnn_window, aug.hard_negs, biposelets, ...
+        mean_l2_thresh);
     crop_rects = double([easy_crop_rects; hard_crop_rects]);
     assert(ismatrix(crop_rects) && size(crop_rects, 2) == 4);
     
