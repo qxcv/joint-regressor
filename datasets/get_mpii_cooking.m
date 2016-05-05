@@ -1,5 +1,6 @@
 function [train_dataset, val_dataset, test_seqs] = get_mpii_cooking(...
-    dest_dir, cache_dir, dump_thresh, subposes, step, template_scale)
+    dest_dir, cache_dir, dump_thresh, subposes, step, template_scale, ...
+    trans_spec)
 %GET_MPII_COOKING Fetches continuous pose estimation data from MPII
 % train_dataset and val_dataset both come from MPII Cooking's continuous
 % pose dataset, with val_dataset scraped from a couple of scenes at the
@@ -60,8 +61,9 @@ if ~exist(POSE_DEST_PATH, 'dir')
 end
 
 fprintf('Generating data\n');
-train_data = load_files_continuous(CONTINUOUS_DEST_PATH, CONT_EVIL_FRAMES);
-test_data = load_files_basic(POSE_DEST_PATH);
+train_data = load_files_continuous(CONTINUOUS_DEST_PATH, ...
+    CONT_EVIL_FRAMES, trans_spec);
+test_data = load_files_basic(POSE_DEST_PATH, trans_spec);
 
 train_data = split_mpii_scenes(train_data, 0.2);
 test_data = split_mpii_scenes(test_data, 0.1);
@@ -105,7 +107,7 @@ assert(...
 save(data_path, 'train_dataset', 'val_dataset', 'test_seqs');
 end
 
-function cont_data = load_files_continuous(dest_path, evil_frames)
+function cont_data = load_files_continuous(dest_path, evil_frames, trans_spec)
 pose_dir = fullfile(dest_path, 'data', 'gt_poses');
 pose_fns = dir(pose_dir);
 pose_fns = pose_fns(3:end); % Remove . and ..
@@ -123,7 +125,8 @@ for fn_idx=1:length(pose_fns)
     cont_data(fn_idx).image_path = fullfile(dest_path, 'data', 'images', file_name);
     cont_data(fn_idx).pose_fn = data_fn;
     loaded = load(fullfile(pose_dir, data_fn), 'pose');
-    cont_data(fn_idx).joint_locs = loaded.pose;
+    cont_data(fn_idx).orig_joint_locs = loaded.pose;
+    cont_data(fn_idx).joint_locs = skeltrans(loaded.pose, trans_spec);
     cont_data(fn_idx).is_val = false;
 end
 cont_data = sort_by_frame(cont_data);
@@ -153,7 +156,7 @@ assert(old_frame_count - length(cont_data) == total_evil, ...
     'Incorrect number of evil frames removed');
 end
 
-function basic_data = load_files_basic(dest_path)
+function basic_data = load_files_basic(dest_path, trans_spec)
 pose_dir = fullfile(dest_path, 'data', 'train_data', 'gt_poses');
 pose_fns = dir(pose_dir);
 pose_fns = pose_fns(3:end);
@@ -165,7 +168,8 @@ for fn_idx=1:length(pose_fns)
     file_name = sprintf('img_%06i.jpg', frame_no);
     basic_data(fn_idx).image_path = fullfile(dest_path, 'data', 'train_data', 'images', file_name);
     loaded = load(fullfile(pose_dir, data_fn), 'pose');
-    basic_data(fn_idx).joint_locs = loaded.pose;
+    basic_data(fn_idx).orig_joint_locs = loaded.pose;
+    basic_data(fn_idx).joint_locs = skeltrans(loaded.pose, trans_spec);
     basic_data(fn_idx).is_val = true;
 end
 basic_data = sort_by_frame(basic_data);

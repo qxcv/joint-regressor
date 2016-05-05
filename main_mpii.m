@@ -4,7 +4,7 @@ startup;
 conf = get_conf_mpii;
 [train_dataset, val_dataset, test_seqs] = get_mpii_cooking(...
     conf.dataset_dir, conf.cache_dir, conf.pair_mean_dist_thresh, ...
-    conf.subposes, conf.cnn.step, conf.template_scale);
+    conf.subposes, conf.cnn.step, conf.template_scale, conf.trans_spec);
 % Check that conf.num_joints is consistent with data
 sizes_okay = @(ds) all(cellfun(@length, {ds.data.joint_locs}) == conf.num_joints);
 assert(sizes_okay(train_dataset) && sizes_okay(val_dataset));

@@ -19,7 +19,7 @@ conf.left_parts = 13:23;
 conf.num_joints = 23;
 
 %% STUFF FOR MULTI-POSELET CODE BELOW HERE
-% Actual skeleton, adapted from 32-point MPII skeleton
+% Actual skeleton, adapted from 32-point H3.6M skeleton
 conf.trans_spec = struct(...
     ... .indices indicates which source joints should be combined to produce
     ... each new "super joint"

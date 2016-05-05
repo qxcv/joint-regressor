@@ -51,16 +51,9 @@ conf.val_aug.easy_negs = 2;
 conf.val_aug.hard_negs = 1;
 
 %% General writing stuff
-
 conf.num_hdf5s = 1;
 % Number of hdf5s to use for validation
 conf.num_val_hdf5s = 1;
-% right_parts and left_parts are used to ensure that the meanings of "left"
-% and "right" are preserved when doing flip augmentations.
-conf.right_parts = [3, 5, 7, 9];
-conf.left_parts = [4, 6, 8, 10];
-% Number of joints in the model; we don't use all of these
-conf.num_joints = 12;
 
 %% STUFF FOR MULTI-POSELET CODE BELOW HERE
 % Rough guide for MPII
@@ -76,12 +69,60 @@ conf.num_joints = 12;
 % 12 -> head lower point
 % This means that left and right are shoulder->elbow->wrist->hand, and head
 % is left shoulder->right shoulder->upper head->lower head.
-subpose_indices = {[3 4 11 12], [4 6 8 10], [3 5 7 9]};
-subpose_names = {'head', 'left', 'right'};
+
+% Add some extra points to the skeleton
+conf.trans_spec = struct(...
+    'indices', {...
+        ... MIDDLE:
+        [4 3], ... Mid-shoulders            #1
+        ... LEFT:
+        4,     ... Left shoulder            #2
+        [4 6], ... Left upper arm           #3
+        6,     ... Left elbow               #4
+        [6 8], ... Left forearm             #5
+        8,     ... Left wrist               #6
+        ... RIGHT:
+        3,     ... Right shoulder           #7
+        [3 5], ... Right upper arm          #8
+        5,     ... Right elbow              #9
+        [5 7], ... Right forearm            #10
+        7,     ... Right wrist              #11
+    }, ...
+    'weights', {...
+        [1/2 1/2], ... Mid-shoulders        #1
+        1,         ... Left shoulder        #2
+        [1/3 2/3], ... Left upper arm       #3
+        1,         ... Left elbow           #4
+        [2/3 1/3], ... Left forearm         #5
+        1,         ... Left wrist           #6
+        1,         ... Right shoulder       #7
+        [1/3 2/3], ... Right upper arm      #8
+        1,         ... Right elbow          #9
+        [2/3 1/3], ... Right forearm        #10
+        1,         ... Right wrist          #11
+    });
+
+% right_parts and left_parts are used to ensure that the meanings of "left"
+% and "right" are preserved when doing flip augmentations.
+conf.right_parts = 7:11;
+conf.left_parts = 2:6;
+% Number of joints in the model; we don't use all of these
+conf.num_joints = 11;
+
+subpose_indices = {[2 1 7], ...
+    [2 3], [3 4 5], [5 6], ...
+    [7 8], [8 9 10], [10 11]};
+subpose_names = {'shols', ... 1 Mid
+    ...  2       3        4
+    'luarm', 'lelb', 'lfarm', ... Left
+    ...  5       6        7
+    'ruarm', 'relb', 'rfarm'}; % Right
 conf.subposes = struct('name', subpose_names, 'subpose', subpose_indices);
 conf.valid_parts = unique([subpose_indices{:}]);
 % Tells us which subpose is the parent of which (0 for root)
-conf.subpose_pa = [0 1 1];
+conf.subpose_pa = [0 ... Mid
+    1 2 3 ... Left
+    1 5 6]; % Right
 % shared_parts{c} is a two-element cell array in which the first element is
 % a vector naming parts from the biposelet associated with subpose c and
 % the second element is a vector naming equivalent parts from the bipose
@@ -97,10 +138,11 @@ conf.shared_parts = make_shared_parts(conf.subposes, conf.subpose_pa);
 conf.pair_mean_dist_thresh = 50;
 
 % List of limbs for PCP calculation
-conf.limbs = struct(...
-    'indices', {[3 5],   [5 7],   [7 9],   [4 6],   [6 8],   [8 10],  [11 12]}, ...
-    'names',   {'ruarm', 'rfarm', 'rhand', 'luarm', 'lfarm', 'lhand', 'face'});
-conf.limb_combinations = containers.Map(...
-    {'uarm', 'farm', 'hand', 'face'}, ...
-    {{'ruarm', 'luarm'}, {'rfarm', 'lfarm'}, {'rhand', 'lhand'}, {'face'}}...
-);
+% TODO: Fix these
+%conf.limbs = struct(...
+%    'indices', {[3 5],   [5 7],   [7 9],   [4 6],   [6 8],   [8 10],  [11 12]}, ...
+%    'names',   {'ruarm', 'rfarm', 'rhand', 'luarm', 'lfarm', 'lhand', 'face'});
+%conf.limb_combinations = containers.Map(...
+%    {'uarm', 'farm', 'hand', 'face'}, ...
+%    {{'ruarm', 'luarm'}, {'rfarm', 'lfarm'}, {'rhand', 'lhand'}, {'face'}}...
+%);
