@@ -47,8 +47,27 @@ else
     deflate = false;
 end
 
+ds_info_map = containers.Map('KeyType', 'char', 'ValueType', 'any');
+if exist(filename, 'file')
+    % h5info takes a long time on large, remote datasets, so we need to
+    % make sure that we're only calling it when absolutely necessary.
+    all_info = h5info(filename);
+    for ds_idx=1:length(all_info.Datasets)
+        ds_info_map(all_info.Datasets(ds_idx).Name) = all_info.Datasets(ds_idx);
+    end
+end
+
+% Sanity check: because of our h5info caching shenanigans, we need to be
+% careful with rewriting datasets, so no including datasets twice!
+ds_names = varargin(1:2:end);
+assert(length(unique(ds_names)) == length(varargin) / 2, ...
+    ['Each piece of at must have a dataset name, and you can''t ' ...
+     'specify dataset names twice']);
+
 for i=1:2:length(varargin)
     dataset = varargin{i};
+    % Strip leading slash
+    ds_name = regexprep(dataset, '^/', '');
     data = varargin{i+1};
     data_dims = size(data);
     if ndims(data) == 3
@@ -58,8 +77,8 @@ for i=1:2:length(varargin)
         data_dims = [data_dims 1];
     end
     
-    if ~hdf5_location_exists(filename, dataset)
-        % we'll need to create the file
+    if ~ds_info_map.isKey(ds_name)
+        % we'll need to create the dataset
         % chunk size format is  [width, height, channels, number]
         create_args = {filename, dataset, [data_dims(1:end-1) Inf], ...
             'Datatype', class(data), ...
@@ -76,11 +95,8 @@ for i=1:2:length(varargin)
         startloc = [ones(1, length(data_dims)-1), 1];
     else
         % otherwise, we can just write to the file
-        info = h5info(filename);
-        % strip leading slash
-        ds_name = dataset(2:end);
-        ds_idx = find(strcmp(ds_name, {info.Datasets.Name}));
-        prev_size = info.Datasets(ds_idx(1:1)).Dataspace.Size;
+        ds_struct = ds_info_map(ds_name);
+        prev_size = ds_struct.Dataspace.Size;
         assert(all(prev_size(1:end-1) == data_dims(1:end-1)), ...
             'Data dimensions must match existing dimensions in dataset');
         startloc = [ones(1, length(data_dims)-1), prev_size(end)+1];
