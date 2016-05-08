@@ -561,10 +561,17 @@ def get_parser():
         '--finetune', dest='finetune_path', type=str, default=None,
         help='finetune from these weights instead of starting again'
     )
-    # This will produce .json and .h5 files
     parser.add_argument(
-        '--write-fc-net', dest='fc_path', type=str, default=None,
-        help='use this to write fully convolutional net to some path'
+        '--write-fc-weights', dest='fc_weight_path', type=str, default=None,
+        help='use this to write fully convolutional net weights to some path'
+    )
+    parser.add_argument(
+        '--write-fc-json', dest='fc_json_path', type=str, default=None,
+        help='use this to write fully convolutional net spec to some path'
+    )
+    parser.add_argument(
+        '--max-iter', dest='max_iter', type=int, default=None,
+        help='maximum number of iterations to run for'
     )
     # TODO: Add configuration option to just run through the entire validation set
     # like I was doing before. That's a lot faster than using randomly sampled
@@ -610,7 +617,7 @@ if __name__ == '__main__':
     inputs, outputs = [d.keys() for d in get_model_io(model)]
 
     mod_json = model.to_json()
-    moel_json_path = path.join(checkpoint_dir, 'train_model.json')
+    model_json_path = path.join(checkpoint_dir, 'train_model.json')
     with open(model_json_path, 'w') as fp:
         info('Saving model definition to ' + model_json_path)
         fp.write(mod_json)
@@ -669,6 +676,12 @@ if __name__ == '__main__':
                 is_checkpoint_epoch = epochs_elapsed % args.checkpoint_epochs == 0
                 if epochs_elapsed > 0 and is_checkpoint_epoch:
                     save(model, batches_used, checkpoint_dir)
+                if args.max_iter is not None \
+                        and epochs_elapsed > args.max_iter:
+                    info(
+                        'Maximum iterations (%i) exceeded; terminating',
+                        args.max_iter
+                    )
         finally:
             # Always save afterwards, even if we get KeyboardInterrupt'd or
             # whatever
@@ -676,7 +689,17 @@ if __name__ == '__main__':
             save(model, batches_used, checkpoint_dir)
 
         # Convert to fully convolutional net if necessary
-
+        if args.fc_json_path or args.fc_weight_path:
+            info('Upgrading to fully convolutional network')
+            upgraded = models.upgrade_multipath_poselet_vggnet(model)
+            if args.fc_json_path:
+                info('Saving model spec as JSON to %s', args.fc_json_path)
+                mod_json = upgraded.to_json()
+                with open(args.fc_json_path, 'w') as fp:
+                        fp.write(mod_json)
+            if args.fc_weight_path:
+                info('Saving weights to %s', args.fc_weight_path)
+                upgraded.save_weights(args.fc_weight_path, overwrite=True)
     finally:
         # Make sure workers shut down gracefully
         end_event.set()

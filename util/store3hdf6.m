@@ -74,7 +74,7 @@ for i=1:2:length(varargin)
         % If we don't do this, then we can't write out samples one at a
         % time, since Matlab won't let us have a trailing dimension of size
         % 1 :(
-        data_dims = [data_dims 1];
+        data_dims = [data_dims 1]; %#ok<AGROW>
     end
     
     if ~ds_info_map.isKey(ds_name)
