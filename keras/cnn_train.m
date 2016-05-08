@@ -4,13 +4,14 @@ function cnn_train(cnnpar, ~)
 % TODO: Make training automatic. I can do this manually, but people who
 % want to reproduce my results can't. Roughly, you need to:
 % 1) Activate the virtualenv
+% 2) Reshape ILSVRC weights to deal with 
 % 2) Run train.py with the appropriate arguments for an apprporiate number
 %    of iterations.
 % 3) Convert the net to a fully convolutional one and save the weights and
 %    model definition (see debugging-convnet.ipynb).
 
-% TODO: Should fix this before I release
 if ~(exist(cnnpar.deploy_json, 'file') && exist(cnnpar.deploy_weights, 'file'))
+    ilsvrc_weight_path = fetch_vgg16_weights;
     error('jointregressor:nocnn', ...
         ['You need to run train.py to train a network, then use the ' ...
          'provided notebook to convert it to an FC net. This should ' ...
