@@ -374,6 +374,7 @@ def save(model, iteration_no, dest_dir):
     # that it doesn't want to play nicely.
     info("Saving model to %s", full_path)
     model.save_weights(full_path)
+    return full_path
 
 
 def read_mean_pixels(mat_path):
@@ -560,6 +561,11 @@ def get_parser():
         '--finetune', dest='finetune_path', type=str, default=None,
         help='finetune from these weights instead of starting again'
     )
+    # This will produce .json and .h5 files
+    parser.add_argument(
+        '--write-fc-net', dest='fc_path', type=str, default=None,
+        help='use this to write fully convolutional net to some path'
+    )
     # TODO: Add configuration option to just run through the entire validation set
     # like I was doing before. That's a lot faster than using randomly sampled
     # stuff. Edit: I think I pushed down the validaiton block size, so now random
@@ -602,6 +608,12 @@ if __name__ == '__main__':
     # Model-building
     model = load_model(args)
     inputs, outputs = [d.keys() for d in get_model_io(model)]
+
+    mod_json = model.to_json()
+    moel_json_path = path.join(checkpoint_dir, 'train_model.json')
+    with open(model_json_path, 'w') as fp:
+        info('Saving model definition to ' + model_json_path)
+        fp.write(mod_json)
 
     # Prefetching stuff
     end_event = Event()
@@ -662,6 +674,9 @@ if __name__ == '__main__':
             # whatever
             stdout.write('\n')
             save(model, batches_used, checkpoint_dir)
+
+        # Convert to fully convolutional net if necessary
+
     finally:
         # Make sure workers shut down gracefully
         end_event.set()

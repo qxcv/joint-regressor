@@ -17,8 +17,6 @@ if ~exist('./keras/env', 'dir')
     assert(rv == 0, 'Python package install failed');
 end
 % Set some environment variables
-% XXX: Should have some control over these from get_config.m. Particularly
-% the device Theano uses.
 py_weak_setenv('HDF5_DISABLE_VERSION_CHECK', '1');
 THEANO_FLAGS = sprintf('floatX=float32,device=gpu%i,lib.cnmem=%f', ...
     cnn_conf.gpu, cnn_conf.cnmem);
