@@ -1,0 +1,5 @@
+# MD5SUM: dbdbf97041c2c7eda09d907ed36794ad  vgg16_weights.h5
+# Original location is
+# https://drive.google.com/file/d/0ByDjlxFPQJHxbFM0WndZc2dhb1U/view?usp=sharing
+# but the location below should download directly.
+https://www.googledrive.com/host/0ByDjlxFPQJHxbFM0WndZc2dhb1U/
