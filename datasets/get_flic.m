@@ -22,7 +22,8 @@
 % 19-29 N/A
 % We probably only want to return a subset of those
 
-function [flic_data, train_pairs, test_pairs] = get_flic(dest_dir, cache_dir)
+function [train_dataset, val_dataset] = get_flic(dest_dir, cache_dir, ...
+    subposes, step, template_scale)
 FLIC_URL = 'http://vision.grasp.upenn.edu/video/FLIC-full.zip';
 DEST_PATH = fullfile(dest_dir, 'FLIC-full/');
 CACHE_PATH = fullfile(cache_dir, 'FLIC-full.zip');
@@ -30,6 +31,9 @@ CACHE_PATH = fullfile(cache_dir, 'FLIC-full.zip');
 % for training. Some frames are too far apart to reliably compute flow, so
 % we ignore them.
 FRAME_THRESHOLD = 20;
+
+% Just in case :)
+mkdir_p(cache_dir);
 
 if ~exist(DEST_PATH, 'dir')
     if ~exist(CACHE_PATH, 'file')
@@ -62,15 +66,24 @@ end
 test_movies = {...
 'bourne-supremacy', 'goldeneye', 'collateral-disc1', 'daredevil-disc1', ...
 'battle-cry', 'million-dollar-baby'};
-test_mask = zeros(1, length(flic_data));
+val_mask = zeros(1, length(flic_data));
 for i=1:length(test_movies)
     movie = test_movies{i};
-    test_mask = test_mask | strcmp({flic_data.movie_name}, movie);
+    val_mask = val_mask | strcmp({flic_data.movie_name}, movie);
 end
-test_inds = find(test_mask);
-train_inds = find(~test_mask);
+
+val_inds = find(val_mask);
+val_pairs = find_pairs(val_inds, flic_data, FRAME_THRESHOLD);
+val_dataset = unify_dataset(flic_data, val_pairs, 'val_dataset_flic');
+
+train_inds = find(~val_mask);
 train_pairs = find_pairs(train_inds, flic_data, FRAME_THRESHOLD);
-test_pairs = find_pairs(test_inds, flic_data, FRAME_THRESHOLD);
+train_dataset = unify_dataset(flic_data, train_pairs, 'train_dataset_flic');
+
+[train_dataset, ~] = mark_scales(train_dataset, subposes, step, ...
+    template_scale);
+[val_dataset, ~] = mark_scales(val_dataset, subposes, step, ...
+    template_scale, [train_dataset.pairs.scale]);
 end
 
 function pairs = find_pairs(inds, flic_data, thresh)
