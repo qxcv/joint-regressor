@@ -23,7 +23,7 @@
 % We probably only want to return a subset of those
 
 function [train_dataset, val_dataset] = get_flic(dest_dir, cache_dir, ...
-    subposes, step, template_scale)
+    subposes, step, template_scale, trans_spec)
 FLIC_URL = 'http://vision.grasp.upenn.edu/video/FLIC-full.zip';
 DEST_PATH = fullfile(dest_dir, 'FLIC-full/');
 CACHE_PATH = fullfile(cache_dir, 'FLIC-full.zip');
@@ -46,14 +46,19 @@ end
 
 flic_examples_s = load(fullfile(DEST_PATH, 'examples.mat')');
 flic_examples = flic_examples_s.examples;
-flic_data = struct(); % Silences Matlab warnings about growing arrays
-for i=1:length(flic_examples)
+empty = cell([1 length(flic_examples)]);
+flic_data = struct('frame_no', empty, 'movie_name', empty, ...
+    'image_path', empty, 'orig_joint_locs', empty, 'joint_locs', empty, ...
+    'torso_box', empty, 'is_train', empty, 'is_test', empty);
+parfor i=1:length(flic_examples)
     ex = flic_examples(i);
     flic_data(i).frame_no = ex.currframe;
     flic_data(i).movie_name = ex.moviename;
     file_name = sprintf('%s-%08i.jpg', flic_data(i).movie_name, flic_data(i).frame_no);
     flic_data(i).image_path = fullfile(DEST_PATH, 'images', file_name);
-    flic_data(i).joint_locs = convert_joints(ex.coords);
+    orig_locs = convert_joints(ex.coords);
+    flic_data(i).orig_joint_locs = orig_locs;
+    flic_data(i).joint_locs = skeltrans(orig_locs, trans_spec);
     flic_data(i).torso_box = ex.torsobox;
     flic_data(i).is_train = ex.istrain;
     flic_data(i).is_test = ex.istest;

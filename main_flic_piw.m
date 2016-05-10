@@ -5,6 +5,7 @@ startup;
 conf = get_conf_flic_piw;
 [flic_train_dataset, flic_val_dataset] = get_flic(...
     conf.dataset_dir, conf.cache_dir, conf.subposes, conf.cnn.step, ...
-    conf.template_scale);
-piw_test_seqs = get_piw(conf.dataset_dir, conf.cache_dir);
+    conf.template_scale, conf.flic_trans_spec);
+piw_test_seqs = get_piw(conf.dataset_dir, conf.cache_dir, ...
+    conf.piw_trans_spec);
 main_generic(conf, flic_train_dataset, flic_val_dataset, piw_test_seqs);

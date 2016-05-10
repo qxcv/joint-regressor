@@ -1,4 +1,4 @@
-function test_seqs = get_piw(ds_dir, cache_dir)
+function test_seqs = get_piw(ds_dir, cache_dir, trans_spec)
 %GET_PIW Get Poses in the Wild dataset
 
 % List of weird gotchas I've found in PIW:
@@ -37,9 +37,10 @@ end
 piw_data = parload(fullfile(dest_path, 'poses_in_the_wild_data.mat'), ...
     'piw_data');
 num_data = length(piw_data);
-make_empty = @() cell([1 num_data]);
-data = struct('image_path', make_empty(), 'joint_locs', make_empty(), ...
-    'visible', make_empty, 'orig_seq', make_empty());
+empty = cell([1 num_data]);
+data = struct('image_path', empty, 'orig_joint_locs', empty, ...
+    'joint_locs', empty, 'orig_visible', empty, 'visible', empty, ...
+    'orig_seq', empty);
 
 % We'll trigger a change to a new sequence number every time the frame
 % threshold is violated or the annotated sequence number changes.
@@ -53,10 +54,13 @@ skip_thresh = 5;
 for data_idx=1:num_data
     orig_datum = piw_data(data_idx);
     datum.image_path = fullfile(dest_path, orig_datum.im);
-    datum.joint_locs = orig_datum.point;
-    datum.visible = orig_datum.visible;
+    datum.orig_joint_locs = orig_datum.point;
+    datum.joint_locs = skeltrans(orig_datum.point, trans_spec);
+    datum.orig_visible = trans_visible(orig_datum.visible, trans_spec);
+    datum.visible = trans_visible(orig_datum.visible, trans_spec);
     [seq_num, frame_num] = get_seq_frame(datum.image_path);
     datum.orig_seq = seq_num;
+    datum.joint_locs(~datum.visible, :) = -1;
     data(data_idx) = datum;
     
     % Now handle sequences
@@ -108,5 +112,17 @@ for i=1:length(data)
     visible = data(i).visible;
     % Read this is as "invalid implies invisible"
     assert(all(~invalid | ~visible));
+end
+end
+
+function rv = trans_visible(visible, trans_spec)
+% Much like skeltrans, but transforms the indicator array of visible joints
+% so that it's valid for the new skeleton model (which might include more
+% joints than the old one, because of composites)
+rv = true([length(trans_spec) 1]);
+for i=1:length(trans_spec)
+    % A joint in the new skeleton is visible iff all of the joints which
+    % it's composed of in the old skeleton are visible
+    rv(i) = all(visible(trans_spec(i).indices));
 end
 end

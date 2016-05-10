@@ -56,36 +56,53 @@ conf.num_hdf5s = 1;
 conf.num_val_hdf5s = 1;
 
 %% STUFF FOR MULTI-POSELET CODE BELOW HERE
-% Rough guide for MPII
-% 3  -> right shoulder
-% 4  -> left shoulder
-% 5  -> right elbow
-% 6  -> left elbow
-% 7  -> right wrist
-% 8  -> left wrist
-% 9  -> right hand
-% 10 -> left hand
-% 11 -> head upper point
-% 12 -> head lower point
-% This means that left and right are shoulder->elbow->wrist->hand, and head
-% is left shoulder->right shoulder->upper head->lower head.
-
-% Add some extra points to the skeleton
-conf.trans_spec = struct(...
+% We need to transformation specs: one for FLIC and one for PIW. The result
+% is an identical skeleton for each dataset.
+conf.flic_trans_spec = struct(...
     'indices', {...
         ... MIDDLE:
-        [4 3], ... Mid-shoulders            #1
+        [1 4], ... Mid-shoulders            #1
         ... LEFT:
-        4,     ... Left shoulder            #2
-        [4 6], ... Left upper arm           #3
-        6,     ... Left elbow               #4
-        [6 8], ... Left forearm             #5
-        8,     ... Left wrist               #6
+        1,     ... Left shoulder            #2
+        [1 2], ... Left upper arm           #3
+        2,     ... Left elbow               #4
+        [2 3], ... Left forearm             #5
+        3,     ... Left wrist               #6
         ... RIGHT:
-        3,     ... Right shoulder           #7
-        [3 5], ... Right upper arm          #8
+        4,     ... Right shoulder           #7
+        [4 5], ... Right upper arm          #8
         5,     ... Right elbow              #9
-        [5 7], ... Right forearm            #10
+        [5 6], ... Right forearm            #10
+        6,     ... Right wrist              #11
+    }, ...
+    'weights', {...
+        [1/2 1/2], ... Mid-shoulders        #1
+        1,         ... Left shoulder        #2
+        [1/3 2/3], ... Left upper arm       #3
+        1,         ... Left elbow           #4
+        [2/3 1/3], ... Left forearm         #5
+        1,         ... Left wrist           #6
+        1,         ... Right shoulder       #7
+        [1/3 2/3], ... Right upper arm      #8
+        1,         ... Right elbow          #9
+        [2/3 1/3], ... Right forearm        #10
+        1,         ... Right wrist          #11
+    });
+conf.piw_trans_spec = struct(...
+    'indices', {...
+        ... MIDDLE:
+        [2 5], ... Mid-shoulders            #1
+        ... LEFT:
+        2,     ... Left shoulder            #2
+        [2 3], ... Left upper arm           #3
+        3,     ... Left elbow               #4
+        [3 4], ... Left forearm             #5
+        4,     ... Left wrist               #6
+        ... RIGHT:
+        5,     ... Right shoulder           #7
+        [5 6], ... Right upper arm          #8
+        6,     ... Right elbow              #9
+        [6 7], ... Right forearm            #10
         7,     ... Right wrist              #11
     }, ...
     'weights', {...
@@ -119,30 +136,16 @@ subpose_names = {'shols', ... 1 Mid
     'ruarm', 'relb', 'rfarm'}; % Right
 conf.subposes = struct('name', subpose_names, 'subpose', subpose_indices);
 conf.valid_parts = unique([subpose_indices{:}]);
-% Tells us which subpose is the parent of which (0 for root)
 conf.subpose_pa = [0 ... Mid
     1 2 3 ... Left
     1 5 6]; % Right
-% shared_parts{c} is a two-element cell array in which the first element is
-% a vector naming parts from the biposelet associated with subpose c and
-% the second element is a vector naming equivalent parts from the bipose
-% associated with its parent. The fact that we're dealing with biposes
-% rather than just subposes means that some indices will be greater than
-% the number of joints in a subpose.
 conf.shared_parts = make_shared_parts(conf.subposes, conf.subpose_pa);
 
-% Throw out pairs for which the mean distance between corresponding joints
-% (between the two frames) is beyond this pixel threshold. Empirically, this
-% retains ~99% of the data. The rest are probably mislabelled or
-% incorrectly classified as being in the same scene.
-conf.pair_mean_dist_thresh = 50;
-
 % List of limbs for PCP calculation
-% TODO: Fix these
-%conf.limbs = struct(...
-%    'indices', {[3 5],   [5 7],   [7 9],   [4 6],   [6 8],   [8 10],  [11 12]}, ...
-%    'names',   {'ruarm', 'rfarm', 'rhand', 'luarm', 'lfarm', 'lhand', 'face'});
-%conf.limb_combinations = containers.Map(...
-%    {'uarm', 'farm', 'hand', 'face'}, ...
-%    {{'ruarm', 'luarm'}, {'rfarm', 'lfarm'}, {'rhand', 'lhand'}, {'face'}}...
-%);
+conf.limbs = struct(...
+    'indices', {[7 9],   [9 11],  [2 4],   [4 6],   [2 7]}, ...
+    'names',   {'ruarm', 'rfarm', 'luarm', 'lfarm', 'shoul'});
+conf.limb_combinations = containers.Map(...
+    {'uarm', 'farm', 'shoul'}, ...
+    {{'ruarm', 'luarm'}, {'rfarm', 'lfarm'}, {'shoul'}}...
+);
