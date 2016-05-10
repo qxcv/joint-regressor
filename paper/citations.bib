@@ -1,0 +1,275 @@
+The following is Anoop's paper on pose estimation in videos using HoG features
+and a simple graphical model.
+
+@inproceedings{cherian2014mixing,
+  title={Mixing body-part sequences for human pose estimation},
+  author={Cherian, Arun and Mairal, Julien and Alahari, Karteek and Schmid, Cordelia},
+  booktitle={CVPR},
+  year={2014}
+}
+
+The following papers are on deep learning for pose detection in single frames.
+Both were recommended by Anoop (2015-07-24).
+
+@inproceedings{chen2014articulated,
+  title={Articulated Pose Estimation by a Graphical Model with Image Dependent Pairwise Relations},
+  author={Xianjie Chen and Alan Yuille},
+  booktitle={{NIPS}},
+  year={2014}
+}
+
+@inproceedings{tompson2014joint,
+  title={Joint training of a convolutional network and a graphical model for human pose estimation},
+  author={Tompson, Jonathan J and Jain, Arjun and LeCun, Yann and Bregler, Christoph},
+  booktitle={{NIPS}},
+  year={2014}
+}
+
+The next three are various relevant papers recommended by Anoop (also on
+2015-07-24).
+
+@inproceedings{yang2011articulated,
+  title={Articulated pose estimation with flexible mixtures-of-parts},
+  author={Yang, Yi and Ramanan, Deva},
+  booktitle={{CVPR}},
+  year={2011}
+}
+
+@inproceedings{gkioxari2013articulated,
+  title={Articulated pose estimation using discriminative armlet classifiers},
+  author={Gkioxari, Georgia and Arbel{\'a}ez, Pablo and Bourdev, Lubomir and Malik, Jagannath},
+  booktitle={{CVPR}},
+  year={2013}
+}
+
+@article{sermanet2013overfeat,
+  title={Overfeat: Integrated recognition, localization and detection using convolutional networks},
+  author={Sermanet, Pierre and Eigen, David and Zhang, Xiang and Mathieu, Micha{\"e}l and Fergus, Rob and LeCun, Yann},
+  journal={arXiv:1312.6229},
+  year={2013}
+}
+
+The next few papers are all related to clothing parsing, and each use Yang and
+Ramanan's pose estimator in some way
+
+@inproceedings{yamaguchi2012parsing,
+  title={Parsing clothing in fashion photographs},
+  author={Yamaguchi, Kota and Kiapour, M Hadi and Ortiz, Luis E and Berg,
+      Tamara L},
+  booktitle={{CVPR}},
+  year={2012}
+}
+
+@inproceedings{liu2012hi,
+  title={``{Hi}, magic closet, tell me what to wear!''},
+  author={Liu, Si and Feng, Jiashi and Song, Zheng and Zhang, Tianzhu and
+      Lu, Hanqing and Xu, Changsheng and Yan, Shuicheng},
+  booktitle={{ACMMM}},
+  year={2012}
+}
+
+@inproceedings{liu2012street,
+  title={Street-to-shop: Cross-scenario clothing retrieval via parts
+      alignment and auxiliary set},
+  author={Liu, Si and Song, Zheng and Liu, Guangcan and Xu, Changsheng and
+      Lu, Hanqing and Yan, Shuicheng},
+  booktitle={{CVPR}},
+  year={2012}
+}
+
+The next paper is about comparing action recognition with pose estimation to
+action recognition with lower-level features. It has a stupid title, but the
+answer is "yes, it does".
+@inproceedings{yao2011does,
+  title={Does Human Action Recognition Benefit from Pose Estimation?},
+  author={Yao, Angela and Gall, Juergen and Fanelli, Gabriele and Van Gool, Luc J},
+  booktitle={BMVC},
+  year={2011}
+}
+
+This next paper is about using pose estimation to recognise inanimate objects
+which people interact with (e.g. chairs, carpets, computer desks, etc.)
+@incollection{delaitre2012scene,
+  title={Scene semantics from long-term observation of people},
+  author={Delaitre, Vincent and Fouhey, David F and Laptev, Ivan and Sivic, Josef and Gupta, Abhinav and Efros, Alexei A},
+  booktitle={ECCV},
+  year={2012}
+}
+
+Here's AlexNet!
+@inproceedings{krizhevsky2012imagenet,
+  title={Imagenet classification with deep convolutional neural networks},
+  author={Krizhevsky, Alex and Sutskever, Ilya and Hinton, Geoffrey E},
+  booktitle={NIPS},
+  year={2012}
+}
+
+Distance transforms for graphical models
+@article{felzenszwalb2012distance,
+  title={Distance Transforms of Sampled Functions.},
+  author={Felzenszwalb, Pedro F and Huttenlocher, Daniel P},
+  journal={Theory of Computing},
+  volume={8},
+  number={1},
+  pages={415--428},
+  year={2012}
+}
+
+Following seems to be the original PSM article. Good god, their energy function
+is trivial; they seem to be assigning infinite energy to configurations in which
+*any* part lies outside a part-specific box defined by them, and zero energy to
+configurations in which no part is in that position! Nevertheless, they deserve
+kudos for being so far ahead of their time in their use of "springs" to describe
+ideal configurations.
+@article{fischler1973representation,
+  title={The representation and matching of pictorial structures},
+  author={Fischler, Martin A and Elschlager, Robert A},
+  journal={IEEE Transactions on Computers},
+  number={1},
+  pages={67--92},
+  year={1973},
+  publisher={IEEE}
+}
+
+Another pictorial structures paper. I could replace the "Distance Transforms of
+Sampled Functions" paper with this one, but I prefer the DToSF paper since it's
+more concise.
+@article{felzenszwalb2005pictorial,
+  title={Pictorial structures for object recognition},
+  author={Felzenszwalb, Pedro F and Huttenlocher, Daniel P},
+  journal={IJCV},
+  volume={61},
+  number={1},
+  pages={55--79},
+  year={2005}
+}
+
+Here are some NN pose estimation papers
+
+This one compares the use of a variety of "motion features", including optical
+flow, at the input layer of a DCNN
+@incollection{jain2014modeep,
+  title={{MoDeep}: A deep learning framework using motion features for human pose estimation},
+  author={Jain, Arjun and Tompson, Jonathan and LeCun, Yann and Bregler, Christoph},
+  booktitle={ACCV},
+  year={2014}
+}
+
+Probably the first application of CNNs to pose estimation. Uses direct
+coordinate regression with refinement CNNs. Good results relative to what came
+before, poor results relative to what came after.
+@inproceedings{toshev2014deeppose,
+  title={{DeepPose}: Human pose estimation via deep neural networks},
+  author={Toshev, Alexander and Szegedy, Christian},
+  booktitle={CVPR},
+  year={2014}
+}
+
+Uses heatmaps rather than coordinate regression, which they criticise on the
+basis that coordinate mappings are highly nonlinear and get confused by pooling
+(which throws away spatial information)
+@article{jain2013learning,
+  title={Learning human pose estimation features with convolutional networks},
+  author={Jain, Arjun and Tompson, Jonathan and Andriluka, Mykhaylo and Taylor, Graham W and Bregler, Christoph},
+  journal={arXiv:1312.7302},
+  year={2013}
+}
+
+Kind-of meh paper from Zisserman group. Looks like an attempt to just get
+*some* results (any results!) and publish them. The flowing convnets paper
+builds on the ideas in this one and is, in my opinion, more interesting.
+@incollection{pfister2015deep,
+  title={Deep Convolutional Neural Networks for Efficient Pose Estimation in Gesture Videos},
+  author={Pfister, Tomas and Simonyan, Karen and Charles, James and Zisserman, Andrew},
+  booktitle={ACCV},
+  year={2015}
+}
+
+@inproceedings{pfister2015flowing,
+  author="Pfister, T. and Charles, J. and Zisserman, A.",
+  title={Flowing ConvNets for Human Pose Estimation in Videos},
+  booktitle="ICCV",
+  year="2015",
+}
+
+Miscellaneous pose estimation papers
+
+Chain-structured CRFs on the left and right side of the body, with a "mode"
+setting for each side corresponding to some quality like gender, height, whether
+sitting or standing, arms folded, arms raised, etc. The left and right mode
+nodes are connected. Anoop's paper explained this as "...a strategy where the
+model is represented as a convex combination of tree-structured graphs linked
+with dual variables, and solve it with a dual decomposition algorithm."
+@inproceedings{sapp2013modec,
+  title={{MODEC}: Multimodal decomposable models for human pose estimation},
+  author={Sapp, Brian and Taskar, Ben},
+  booktitle={CVPR},
+  year={2013}
+}
+
+Using random forest-based regressors, conditioned on a "global variable" (like
+the one used in MODEC) which is known at evaluation time.
+@inproceedings{sun2012conditional,
+  title={Conditional regression forests for human pose estimation},
+  author={Sun, Min and Kohli, Pushmeet and Shotton, Jamie},
+  booktitle={CVPR},
+  year={2012}
+}
+
+This paper tries to track faces by detecting a face in an initial frame and then
+tracking it through subsequent frames by detecting pupils using a near IR camera
+with IR light and applying a Kalman filter (or similar) for smoothing
+@article{ji20023d,
+  title={{3D} Face pose estimation and tracking from a monocular camera},
+  author={Ji, Qiang},
+  journal={Image and Vision Computing},
+  volume={20},
+  number={7},
+  pages={499--511},
+  year={2002},
+  publisher={Elsevier}
+}
+
+Another detect-in-each-frame-then-track paper. This one uses a HMM applied to
+detected pose bounding boxes for the tracking part.
+@inproceedings{andriluka2010monocular,
+  title={Monocular {3D} pose estimation and tracking by detection},
+  author={Andriluka, Mykhaylo and Roth, Stefan and Schiele, Bernt},
+  booktitle={CVPR},
+  year={2010}
+}
+
+GM with some other hacks which uses LBP to perform inference in the presence of
+temporal links.
+@inproceedings{ferrari2008progressive,
+  title={Progressive search space reduction for human pose estimation},
+  author={Ferrari, Vittorio and Marin-Jimenez, Manuel and Zisserman, Andrew},
+  booktitle={CVPR},
+  year={2008}
+}
+
+More approximate GM inference here
+@inproceedings{sigal2004tracking,
+  title={Tracking loose-limbed people},
+  author={Sigal, Leonid and Bhatia, Sidharth and Roth, Stefan and Black, Michael J and Isard, Michael},
+  booktitle={CVPR},
+  year={2004}
+}
+
+Park and Ramanan's diverse N-best paper
+@inproceedings{park2011n,
+  title={{$N$}-best maximal decoders for part models},
+  author={Park, Dennis and Ramanan, Deva},
+  booktitle={ICCV},
+  year={2011}
+}
+
+Short article explaining what convolutional neural networks are and what they're good for
+@article{lecun1995convolutional,
+  title={Convolutional networks for images, speech, and time series},
+  author={LeCun, Yann and Bengio, Yoshua},
+  journal={The handbook of brain theory and neural networks},
+  volume={3361},
+  number={10},
+  year={1995}
+}
