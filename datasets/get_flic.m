@@ -56,6 +56,16 @@ L2_THRESHOLD = 50;
 % Just in case :)
 mkdir_p(cache_dir);
 
+save_path = fullfile(cache_dir, 'flic_data.mat');
+if exist(save_path, 'file')
+    fprintf('Loading data from %s\n', save_path);
+    [train_dataset, val_dataset] = parload(save_path, 'train_dataset', ...
+        'val_dataset');
+    return
+else
+    fprintf('%s does not exist; have to generate data again\n', save_path);
+end
+
 if ~exist(DEST_PATH, 'dir')
     if ~exist(CACHE_PATH, 'file')
         fprintf('Downloading FLIC from %s\n', FLIC_URL);
@@ -101,24 +111,49 @@ for i=1:length(test_movies)
     val_mask = val_mask | strcmp({flic_data.movie_name}, movie);
 end
 
+% pathological pairs are ones with significant occlusion, people facing in
+% the wrong direction or with incomprehensible poses, several people who
+% overlap, no people at all (really; one of the FLIC-full samples is an
+% animated title card that doesn't even depict a person!)
+patho_pairs = parload(fullfile(dest_dir, 'flic-bad-pairs.mat'), 'flic_bad_pairs');
+
+% Could also use this to get rid of some extra "hard" pairs, but it wastes
+% to much data for me to have the heart to turn it on :P
+% good_mask = ~[flic_data.is_hard];
+
 val_inds = find(val_mask);
-val_pairs = find_pairs(val_inds, flic_data, FRAME_THRESHOLD, L2_THRESHOLD);
+val_pairs = find_pairs(val_inds, flic_data, patho_pairs, FRAME_THRESHOLD, L2_THRESHOLD);
 val_dataset = unify_dataset(flic_data, val_pairs, 'val_dataset_flic');
 
 train_inds = find(~val_mask);
-train_pairs = find_pairs(train_inds, flic_data, FRAME_THRESHOLD, L2_THRESHOLD);
+train_pairs = find_pairs(train_inds, flic_data, patho_pairs, FRAME_THRESHOLD, L2_THRESHOLD);
 train_dataset = unify_dataset(flic_data, train_pairs, 'train_dataset_flic');
 
 [train_dataset, ~] = mark_scales(train_dataset, subposes, step, ...
     template_scale);
 [val_dataset, ~] = mark_scales(val_dataset, subposes, step, ...
     template_scale, [train_dataset.pairs.scale]);
+
+save(save_path, 'train_dataset', 'val_dataset');
 end
 
-function pairs = find_pairs(inds, flic_data, frame_skip_thresh, ...
+function pairs = find_pairs(inds, flic_data, patho_pairs, frame_skip_thresh, ...
     pose_mean_l2_thresh)
 pairs = zeros([0 2]);
 lookahead = 10;
+
+% Because of the way I store pathological pairs (as pairs of indices into
+% the original FLIC-full examples.mat), it's important that the FLIC data
+% loading proces doesn't change. This is a weak check of that. A stronger
+% check would be to check the hashes of example.mat:
+%
+% md5sum: 81caf04c08d1a84f8d3a23a23fdf86d1  examples.mat
+% sha1sum: 5f44c0503e54201b091f097657af74f56fa264df  examples.mat
+%
+% Also, wc -c examples.mat gives "4270702 examples.mat" (so 4.2MB of data),
+% and stat reports that the modify time is 2012-09-05 10:25:08 (presumably
+% extracted from the downloaded archive, since it's 2016 now!).
+assert(length(flic_data) == 20928);
 
 for ind_idx=1:length(inds)-1
     % For each index into a frame we care about, we'll look ahead up to 10
@@ -144,9 +179,23 @@ for ind_idx=1:length(inds)-1
         pairs = [pairs; ind okay_idxs(1)]; %#ok<AGROW>
     end
 end
+
+pairs = remove_patho_pairs(pairs, patho_pairs);
+assert(size(pairs, 2) == 2 && ismatrix(pairs));
 end
 
 function locs = convert_joints(orig_locs)
 locs = orig_locs';
 locs(isnan(locs)) = 0;  
+end
+
+function new_pairs = remove_patho_pairs(old_pairs, patho_pairs)
+% Take a 2D matrix of pathological pairs and a matrix of tentative pairs
+% (say validation or training pairs) in `old_pairs` and return the tenative
+% pairs without the pathological ones.
+assert(ismatrix(old_pairs) && ismatrix(patho_pairs) ...
+    && size(old_pairs, 2) == 2 && size(patho_pairs, 2) == 2);
+new_pairs = setdiff(old_pairs, patho_pairs, 'rows');
+fprintf('Trimmed pairs, %i->%i using %i pathological pairs\n', ...
+    size(old_pairs, 1), size(new_pairs, 1), size(patho_pairs, 1));
 end
