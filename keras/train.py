@@ -27,6 +27,7 @@ import numpy as np
 from scipy.io import loadmat
 
 import models
+from utils import get_model_lr
 
 
 INIT = 'glorot_normal'
@@ -294,7 +295,7 @@ def train(model, queue, iterations, mask_class_name, masks):
         loss, = model.train_on_batch(data, sample_weight=sample_weight)
         loss = float(loss)
         bp_time = time() - start_time
-        learning_rate = model.optimizer.get_config()['lr']
+        learning_rate = get_model_lr(model)
 
         # Finally, write some debugging output
         extra_info = [
