@@ -31,8 +31,12 @@ else
     have_joints = false;
     % For datasets like INRIA Person we don't have any joint locations
     % because there are no people.
-    fprintf('No joint locations present; can''t write hard negatives\n');
-    assert(aug.hard_negs == 0);
+    % TODO: Sort out this behaviour. It's totally counter-intuitive at the
+    % moment (passing a dataset without joint locations magically triggers
+    % the totally different behaviour of ignoring aug.{easy,hard}_negs and
+    % using aug.inria_negs instead).
+    fprintf(['No joint locations present; will just write out %i easy ' ...
+        'negatives per pair\n'], aug.inria_negs);
 end
 
 for pair_idx=1:num_pairs
@@ -47,29 +51,29 @@ for pair_idx=1:num_pairs
     imsize = size(im1);
     % [x y width height]
     pair_frame = [1 1 imsize([2 1])];
+    
     if have_joints
         all_joints = cat(1, fst.joint_locs, snd.joint_locs);
         pose_box = get_bbox(all_joints);
-    else
-        pose_box = [-1 -1 0 0];
-    end
-    % Try to get crops with side lengths between half the minimum dimension
-    % of the max subpose receptive field size and 125% of the maximum
-    % dimension of the pose bounding box. This is an approximation intended
-    % to crop negative patches which are around the same scale as the
-    % actual pose.
-    base_crop_size = pair.scale;
-    min_crop_size = 0.8 * base_crop_size;
-    max_crop_size = 1.2 * base_crop_size;
-    easy_crop_rects = random_nonint_rects(pair_frame, pose_box, min_crop_size, ...
-        max_crop_size, aug.easy_negs);
-    if aug.hard_negs > 0
+        base_crop_size = pair.scale;
+        % Get crops around the same scale as the acutal pose
+        min_crop_size = 0.8 * base_crop_size;
+        max_crop_size = 1.2 * base_crop_size;
+        easy_crop_rects = random_nonint_rects(pair_frame, pose_box, min_crop_size, ...
+            max_crop_size, aug.easy_negs);
         mean_l2_thresh = cnn_window(1) / 8; % XXX: This is pretty hacky
         hard_crop_rects = random_hard_rects(fst.joint_locs, snd.joint_locs, ...
             subposes, base_crop_size, cnn_window, aug.hard_negs, biposelets, ...
             mean_l2_thresh);
         crop_rects = double([easy_crop_rects; hard_crop_rects]);
     else
+        % Make a crop size up! Yay!
+        pose_box = [-1 -1 0 0];
+        im_size = min(size(im1, 1), size(im1, 2));
+        min_crop_size = min(im_size * 0.75, max(im_size / 3, 100));
+        max_crop_size = im_size;
+        easy_crop_rects = random_nonint_rects(pair_frame, pose_box, min_crop_size, ...
+            max_crop_size, aug.inria_negs);
         crop_rects = double(easy_crop_rects);
     end
     assert(ismatrix(crop_rects) && size(crop_rects, 2) == 4);

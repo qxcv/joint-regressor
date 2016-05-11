@@ -52,10 +52,6 @@ for i=1:count
             % If we have a scalar size, then we need to make the box square
             side = rand(1) * (max_size - min_size) + min_size;
             rect_size = [side side];
-            if side < 100
-                disp(rect_size);
-                disp([min_size max_size]);
-            end
         else
             rect_size = rand(1, 2) .* (max_size - min_size) + min_size;
         end
