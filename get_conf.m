@@ -11,8 +11,13 @@ conf.ext_dir = 'ext/';
 conf.cnn.window = [224 224];
 % GPU ID for testing
 conf.cnn.gpu = 2;
-% lib.cnmem flag for Theano
-conf.cnn.cnmem = 0.5;
+% lib.cnmem flag for Theano. I have this set to a really low value so that
+% I can exploit cnmem's never-release-anything "feature", which stops other
+% GPU users from staking out GPU memory in the few seconds in which it
+% would normally be released between forward/back prop runs. Apparently low
+% values can cause fragmentation, so I may have to change this back up
+% later or disable cnmem entirely.
+conf.cnn.cnmem = 0.05;
 % Stride at which fully convolutional network slides over the input
 conf.cnn.step = 32;
 

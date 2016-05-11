@@ -1,5 +1,5 @@
 function write_negatives(dataset, biposelets, patch_dir, ...
-    cnn_window, aug, chunksz, subposes)
+    cnn_window, aug, chunksz, subposes, filename)
 %WRITE_NEGATIVES Analogue of write_dset for negative patches.
 %Note that unlike write_dset, this function will intentionally avoid
 %whatever poses are present in the images it is given (this functionality
@@ -9,7 +9,7 @@ function write_negatives(dataset, biposelets, patch_dir, ...
 %there are people, but no subposes with a reasonable matching centroid
 %("hard negatives").
 
-dest_path = fullfile(patch_dir, 'negatives.h5');
+dest_path = fullfile(patch_dir, filename);
 if exist(dest_path, 'file')
     fprintf('Negatives already exist at "%s", skipping\n', dest_path);
     return
@@ -25,6 +25,16 @@ opts.chunksz = chunksz;
 % opts.deflate = 5;
 num_pairs = length(dataset.pairs);
 
+if hasfield(dataset.data, 'joint_locs')
+    have_joints = true;
+else
+    have_joints = false;
+    % For datasets like INRIA Person we don't have any joint locations
+    % because there are no people.
+    fprintf('No joint locations present; can''t write hard negatives\n');
+    assert(aug.hard_negs == 0);
+end
+
 for pair_idx=1:num_pairs
     fprintf('Cropping pair %i/%i\n', pair_idx, num_pairs);
     pair = dataset.pairs(pair_idx);
@@ -37,8 +47,12 @@ for pair_idx=1:num_pairs
     imsize = size(im1);
     % [x y width height]
     pair_frame = [1 1 imsize([2 1])];
-    all_joints = cat(1, fst.joint_locs, snd.joint_locs);
-    pose_box = get_bbox(all_joints);
+    if have_joints
+        all_joints = cat(1, fst.joint_locs, snd.joint_locs);
+        pose_box = get_bbox(all_joints);
+    else
+        pose_box = [-1 -1 0 0];
+    end
     % Try to get crops with side lengths between half the minimum dimension
     % of the max subpose receptive field size and 125% of the maximum
     % dimension of the pose bounding box. This is an approximation intended
@@ -49,11 +63,15 @@ for pair_idx=1:num_pairs
     max_crop_size = 1.2 * base_crop_size;
     easy_crop_rects = random_nonint_rects(pair_frame, pose_box, min_crop_size, ...
         max_crop_size, aug.easy_negs);
-    mean_l2_thresh = cnn_window(1) / 8; % XXX: This is pretty hacky
-    hard_crop_rects = random_hard_rects(fst.joint_locs, snd.joint_locs, ...
-        subposes, base_crop_size, cnn_window, aug.hard_negs, biposelets, ...
-        mean_l2_thresh);
-    crop_rects = double([easy_crop_rects; hard_crop_rects]);
+    if aug.hard_negs > 0
+        mean_l2_thresh = cnn_window(1) / 8; % XXX: This is pretty hacky
+        hard_crop_rects = random_hard_rects(fst.joint_locs, snd.joint_locs, ...
+            subposes, base_crop_size, cnn_window, aug.hard_negs, biposelets, ...
+            mean_l2_thresh);
+        crop_rects = double([easy_crop_rects; hard_crop_rects]);
+    else
+        crop_rects = double(easy_crop_rects);
+    end
     assert(ismatrix(crop_rects) && size(crop_rects, 2) == 4);
     
     % Crop each rectangle in turn and write them as a batch

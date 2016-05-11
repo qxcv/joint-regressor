@@ -41,6 +41,7 @@ conf.aug.easy_negs = 10;
 % (partially) in the frame, but might will far enough off that it can't
 % reasonably be assigned a type.
 conf.aug.hard_negs = 2;
+conf.aug.inria_negs = 0;
 
 % Validation augmentations are less aggressive (24x instead)
 conf.val_aug.rot_range = [-30, 30];
@@ -49,6 +50,7 @@ conf.val_aug.rand_trans = 1;
 conf.val_aug.flip_mode = 'random';
 conf.val_aug.easy_negs = 2;
 conf.val_aug.hard_negs = 1;
+conf.val_aug.inria_negs = 0;
 
 %% General writing stuff
 conf.num_hdf5s = 1;
