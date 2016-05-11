@@ -19,3 +19,11 @@ def register_activation(function, name):
         assert getattr(activations, name) == function
     else:
         setattr(activations, name, function)
+
+def get_model_lr(model):
+    """Get the current learning rate of a Keras model (must have been compiled)"""
+    opt = model.optimizer
+    lr = opt.lr.get_value()
+    decay = opt.decay.get_value()
+    iterations = opt.iterations.get_value()
+    return lr * (1.0 / (1.0 + decay * iterations))
