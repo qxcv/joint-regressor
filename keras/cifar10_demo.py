@@ -63,15 +63,16 @@ def rescale(input_data, mean_pixel):
     return (casted - mean_pixel) / 255.0
 
 
-(X_train, y_train), (X_test, y_test) = cifar10.load_data()
-Y_train = one_hot(y_train)
-Y_test = one_hot(y_test)
-mp = calc_mean_pixel(X_train)
-X_train_scaled = rescale(X_train, mp)
-X_test_scaled = rescale(X_test, mp)
+if __name__ == '__main__':
+    (X_train, y_train), (X_test, y_test) = cifar10.load_data()
+    Y_train = one_hot(y_train)
+    Y_test = one_hot(y_test)
+    mp = calc_mean_pixel(X_train)
+    X_train_scaled = rescale(X_train, mp)
+    X_test_scaled = rescale(X_test, mp)
 
-try:
-    model.fit(X_train_scaled, Y_train, batch_size=128, nb_epoch=10,
-            validation_data=(X_test_scaled, Y_test))
-finally:
-    model.save_weights('cifar10_1000_epochs.h5')
+    try:
+        model.fit(X_train_scaled, Y_train, batch_size=128, nb_epoch=10,
+                validation_data=(X_test_scaled, Y_test))
+    finally:
+        model.save_weights('cifar10_1000_epochs.h5')
