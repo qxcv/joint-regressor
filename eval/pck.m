@@ -29,10 +29,21 @@ all_diffs = pred_mat - gt_mat;
 all_norms = squeeze(sqrt(sum(all_diffs.^2, 2))) ./ scales;
 assert(all(size(all_norms) == [size(pred_mat, 1), length(preds)]));
 
+% Remove stuff that's NaN
+good_mask = ~squeeze(sum(isnan(gt_mat), 2));
+assert(all(size(good_mask) == size(all_norms)));
+assert(mean(good_mask(:)) >= 0.6); % Most joints should not be NaN
+% We'll set the norms corresponding to NaN ground truths to inf so that
+% they never fall under the threshold. When we compute the mean number of
+% valid parts below, we'll have to account for that.
+all_norms(~good_mask) = inf;
+removed_joints = sum(~good_mask, 2);
+num_valid_samples = size(all_norms, 2) - removed_joints;
+
 accs = cell([1 length(threshs)]);
-parfor tidx=1:length(threshs)
+for tidx=1:length(threshs)
     thresh = threshs(tidx);
-    accs{tidx} = sum(all_norms < thresh, 2) / size(all_norms, 2);
+    accs{tidx} = sum(all_norms < thresh, 2) ./ num_valid_samples;
 end
 end
 
