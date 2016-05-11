@@ -86,13 +86,21 @@ void mexFunction(int nlhs, mxArray *plhs[],
     /* Now we can read the images and convert them to CV_32FC1 (grayscale image,
      * single-precision float).
      * This is straight from the optical_flow.cpp example in the repository. */
-    cv::Ptr<cv::cuda::BroxOpticalFlow> brox = cv::cuda::BroxOpticalFlow::create();
-    cv::cuda::GpuMat im0 = toGPUMat(prhs[0]);
-    cv::cuda::GpuMat im1 = toGPUMat(prhs[1]);
-    cv::cuda::GpuMat outFlow(im0.size(), CV_32FC2);
-    brox->calc(im0, im1, outFlow);
     cv::Mat result;
-    outFlow.download(result);
+    {
+        // I'm being cautious with releasing pointers. It seems that OpenCV
+        /// isn't always honest about releasing GPU memory in the way that
+        // it says it will; this is just some defensive coding to ensure
+        // that if there's a bug in the destructors, everything will still
+        // be released!
+        cv::Ptr<cv::cuda::BroxOpticalFlow> brox = cv::cuda::BroxOpticalFlow::create();
+        cv::cuda::GpuMat im0 = toGPUMat(prhs[0]);
+        cv::cuda::GpuMat im1 = toGPUMat(prhs[1]);
+        cv::cuda::GpuMat outFlow(im0.size(), CV_32FC2);
+        brox->calc(im0, im1, outFlow);
+        outFlow.download(result);
+        im0.release(); im1.release(); outFlow.release(); brox.release();
+    }
     std::vector<cv::Mat> channels(2);
     cv::split(result, channels);
 
