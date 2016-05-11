@@ -6,7 +6,7 @@ mkdir_p(dest_dir);
 all_data = dataset.data;
 num_pairs = dataset.num_pairs;
 all_pairs = dataset.pairs;
-for pair_idx=1:num_pairs
+parfor pair_idx=1:num_pairs
     if mod(pair_idx, 100) == 0
         fprintf('Done %i/%i pairs\n', pair_idx, num_pairs);
     end
