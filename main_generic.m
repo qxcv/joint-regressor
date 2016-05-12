@@ -40,6 +40,13 @@ write_negatives(neg_dataset, biposelets, val_patch_dir, ...
     conf.cnn.window, conf.val_aug, conf.val_chunksz, conf.subposes, ...
     'inria-negatives.h5');
 
+% We need to re-write clusters (poselets) so that the negatives have
+% poselets too (obviously those will be "null poselets" in a sense, but
+% poselets all the same).
+fprintf('Re-writing cluster information\n');
+biposelets = cluster_h5s(conf.biposelet_classes, conf.subposes, ...
+    train_patch_dir, val_patch_dir, conf.cache_dir);
+
 fprintf('Calculating mean pixel\n');
 store_mean_pixel(train_patch_dir, conf.cache_dir);
 
