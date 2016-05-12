@@ -37,6 +37,10 @@ else
     % using aug.inria_negs instead).
     fprintf(['No joint locations present; will just write out %i easy ' ...
         'negatives per pair\n'], aug.inria_negs);
+    if ~aug.inria_negs
+        fprintf('aug.inria_negs == 0; existing data writer\n');
+        return
+    end
 end
 
 for pair_idx=1:num_pairs
