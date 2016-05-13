@@ -97,9 +97,7 @@ if ~isempty(cnn_save_path)
     cnn_args{end+1} = cnn_save_path;
 end
 [pyra, unary_map] = imCNNdet(cnn_args{:});
-num_levels = length(pyra);
 
-% This will mainly be used in the for loop below the parfor
 levels = 1:length(pyra);
 
 % Define global QP if we are writing features
@@ -112,9 +110,9 @@ if is_train_call
 end
 
 % Cache various statistics derived from model
-[shared_components, apps] = modelcomponents(model);
+[components, apps] = modelcomponents(model);
 
-num_subposes = length(shared_components);
+num_subposes = length(components);
 assert(num_subposes > 1, 'Only %d parts?\n', num_subposes);
 boxes = struct('boxes', {}, 'types', {}, 'rscore', {});
 cnt = 0;
@@ -133,14 +131,10 @@ if latent && label > 0
     best_box = [];
 end
 
-all_rscores = cell([1 length(levels)]);
-all_level_components = cell([1 length(levels)]);
-
 % Iterate over random permutation of scales and components,
-parfor level = 1:num_levels
+for level = levels
     % Iterate through mixture components
     sizs = pyra(level).sizs;
-    components = shared_components;
     
     % Skip if there is no overlap of root filter with bbox
     if latent
@@ -149,7 +143,7 @@ parfor level = 1:num_levels
         for subpose_idx = 1:num_subposes
             ovmask = testoverlap(det_side, det_side,...
                 sizs(1), sizs(2), ...
-                pyra(level), bbox.xy(subpose_idx,:), overlap); %#ok<PFBNS>
+                pyra(level), bbox.xy(subpose_idx,:), overlap);
             if ~any(ovmask)
                 skipflag = 1;
                 break;
@@ -171,11 +165,11 @@ parfor level = 1:num_levels
         % this subpose
         f = components(subpose_idx).appid;
         assert(isscalar(f), 'Should have only one weight ID');
-        assert(isscalar(apps{f}), 'Should have only one weight for that ID'); %#ok<PFBNS>
+        assert(isscalar(apps{f}), 'Should have only one weight for that ID');
         % .score will now be h*w*K for each part
         weighted_apps = components(subpose_idx).appMap * apps{f};
         assert(ndims(weighted_apps) == 3);
-        assert(size(weighted_apps, 3) == model.K); %#ok<PFBNS>
+        assert(size(weighted_apps, 3) == model.K);
         components(subpose_idx).score = weighted_apps;
         components(subpose_idx).level = level;
         
@@ -197,7 +191,7 @@ parfor level = 1:num_levels
             
             % If a poselet is a long way from the GT poselet, then we
             % also set it to -INF
-            near_pslts = pair.near{subpose_idx}; %#ok<PFBNS>
+            near_pslts = pair.near{subpose_idx};
             assert(~isempty(near_pslts));
             assert(all(1 <= near_pslts & near_pslts <= model.K));
             far_pslts = true([1 model.K]);
@@ -228,10 +222,6 @@ parfor level = 1:num_levels
         % and part type (*m*ixture?) backtracking, respectively. Each
         % matrix is of size H*W*K (so each entry corresponds to a single
         % parent configuration).
-        % TODO: When no image pyramids need to be calculated, this one line
-        % takes up 99% of the time spent in detect.m; running it in
-        % parallel over all levels at once could cut that down
-        % dramatically.
         [msg, components(subpose_idx).Ix, ...
               components(subpose_idx).Iy, ...
               components(subpose_idx).Im] ...
@@ -242,33 +232,21 @@ parfor level = 1:num_levels
     % Add bias to root score (model.root == 1)
     components(model.root).score = ...
         components(model.root).score + components(model.root).b;
-    this_rscore = components(model.root).score;
-    assert(ndims(this_rscore) == 3);
+    rscore = components(model.root).score;
+    assert(ndims(rscore) == 3);
     
-    all_rscores{level} = this_rscore;
-    all_level_components{level} = components;
-end
-
-for level = levels
     % keep the positive example with the highest score in latent mode
-    level_rscore = all_rscores{level};
-    if isempty(level_rscore)
-        fprintf('Skipped level %i/%i\n', level, num_levels);
-        continue
-    end
-    level_components = all_level_components{level};
-    
     if latent && label > 0
-        thresh = max(thresh, max(level_rscore(:)));
+        thresh = max(thresh, max(rscore(:)));
     end
 
     if ~isempty(thresh)
-        [Y, X, T] = ndfind(level_rscore >= thresh);
+        [Y, X, T] = ndfind(rscore >= thresh);
     else
         % TODO: If some of our num_results boxes have rscores below those
         % of the boxes we've seen already (at other levels), then they will
         % be ignored, so we should not both backtracking to fetch them.
-        [Y, X, T] = ndbestn(level_rscore, num_results);
+        [Y, X, T] = ndbestn(rscore, num_results);
     end
 
     % Walk back down tree following pointers
@@ -283,9 +261,9 @@ for level = levels
         t = T(i);
         
         [box, types, ex] = ...
-            backtrack(x, y, t, det_side, level_components, pyra(level), ex, write, model.sbin);
+            backtrack(x, y, t, det_side, components, pyra(level), ex, write, model.sbin);
         
-        this_rscore = level_rscore(y, x, t);
+        this_rscore = rscore(y, x, t);
         b.boxes = num2cell(box, 2);
         b.types = num2cell(types);
         b.rscore = this_rscore;
@@ -314,14 +292,9 @@ for level = levels
     % If we're computing features, assert extracted feature re-produces
     % score (see qp_writ.m for computing original score)
     if wrote_ex
-        % XXX: Now that I'm doing optimize() below between runs of this
-        % assertion but *not* between actual calls to passmsg(), this
-        % assertion will likely start failing again, as the new qp.w*
-        % weights will not be consistent with the ones used to do message
-        % passing.
         w = -(qp.w + qp.w0.*qp.wreg) / qp.Cneg;
         sv_score = score(w,qp.x,qp.n);
-        sv_rscore = level_rscore(y,x,t);
+        sv_rscore = rscore(y,x,t);
         delta = abs(sv_score - sv_rscore);
         if delta >= 1e-5
             fprintf(...
@@ -334,8 +307,7 @@ for level = levels
     if write && (~latent || label < 0) && ...
             (qp.lb < 0 || 1 - qp.lb/qp.ub > .05 || qp.n == length(qp.sv))
         model = optimize(model);
-        % This was here before, but I don't think I need it any more.
-        % [components, apps] = modelcomponents(model);
+        [components, apps] = modelcomponents(model);
     end
 end
 
