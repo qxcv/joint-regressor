@@ -138,18 +138,18 @@ for level = levels
     
     % Skip if there is no overlap of root filter with bbox
     if latent
-        skipflag = 0;
+        skipflags = false([1 num_subposes]);
         % because all mixtures for one part is the same size, we only need to do this once
         for subpose_idx = 1:num_subposes
             ovmask = testoverlap(det_side, det_side,...
                 sizs(1), sizs(2), ...
                 pyra(level), bbox.xy(subpose_idx,:), overlap);
-            if ~any(ovmask)
-                skipflag = 1;
-                break;
-            end
+            skipflags(subpose_idx) = ~any(ovmask);
         end
-        if skipflag == 1
+        % If many subposes are too small, we skip this level
+        % This check used to skip a level if ANY subposes were too small,
+        % but that caused problems.
+        if mean(skipflags) > 1/4
             fprintf('detect() skipping level %i/%i\n', level, length(levels));
             continue;
         end
@@ -330,7 +330,7 @@ if ~isempty(num_results) && length(boxes) > num_results
 end
 
 % Undo cropscale_pos transformation on coordinates
-if ~isempty(bbox)
+if ~isempty(bbox) && ~isempty(boxes)
     boxes = unscale_boxes(boxes, cs_xtrim, cs_ytrim, cs_scale);
 end
 end
