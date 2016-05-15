@@ -144,7 +144,7 @@ for level = levels
             ovmask = testoverlap(det_side, det_side,...
                 sizs(1), sizs(2), ...
                 pyra(level), bbox.xy(subpose_idx,:), overlap);
-            skipflags(subpose_idx) = ~any(ovmask);
+            skipflags(subpose_idx) = ~any(ovmask(:));
         end
         % If many subposes are too small, we skip this level
         % This check used to skip a level if ANY subposes were too small,

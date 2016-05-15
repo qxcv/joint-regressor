@@ -140,7 +140,14 @@ test_seqs = make_test_set(test_dataset, all_test_seqs);
 
 cd(old_dir);
 fprintf('Saving to %s\n', save_path);
-save(save_path, 'train_dataset', 'val_dataset', 'test_seqs');
+
+% Quick hack to pare down pairs
+val_dataset_full = val_dataset; %#ok<NASGU>
+train_dataset_full = train_dataset; %#ok<NASGU>
+val_dataset = random_trim_pairs(val_dataset, 0.1);
+train_dataset = random_trim_pairs(train_dataset, 0.1);
+save(save_path, 'train_dataset', 'val_dataset', 'train_dataset_full', ...
+    'val_dataset_full', 'test_seqs');
 end
 
 function [poses, frame_times] = seq_data(subject, action, cam)
