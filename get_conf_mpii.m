@@ -35,12 +35,12 @@ conf.aug.rand_trans = 2;
 conf.aug.flip_mode = 'random'; % Other values: "both", "none"
 % Include this many randomly cropped patches from the background for each
 % datum (so no parts at all in the image)
-conf.aug.easy_negs = 10;
+conf.aug.easy_negs = 15;
 % Also include this many challenging negatives for *each subpose* in each
 % datum. Challenging negatives are those where the real subpose appears
 % (partially) in the frame, but might will far enough off that it can't
 % reasonably be assigned a type.
-conf.aug.hard_negs = 2;
+conf.aug.hard_negs = 3;
 conf.aug.inria_negs = 0;
 
 % Validation augmentations are less aggressive (24x instead)

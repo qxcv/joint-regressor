@@ -113,11 +113,11 @@ for flip=flips
                 %% 6) Translate box
                 trans_box_center = box_center;
                 if rand_trans > 0
-                    % Translate the patch by ±cnn_step in final resized
+                    % Translate the patch by ±cnn_step/2 in final resized
                     % (to cnn_window(1)*cnn_window(2)) coordinates. This
                     % should help with correctly classifying
                     % just-off-centre pairs.
-                    wiggle_room = 2 * pair_scale * cnn_step / cnn_window(1);
+                    wiggle_room = pair_scale * cnn_step / cnn_window(1);
                     assert(isscalar(wiggle_room));
                     trans_amount = wiggle_room * rand(1, 2) - wiggle_room / 2;
                     trans_box_center = trans_box_center + trans_amount;

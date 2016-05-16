@@ -17,7 +17,7 @@ conf.cnn.gpu = 2;
 % would normally be released between forward/back prop runs. Apparently low
 % values can cause fragmentation, so I may have to change this back up
 % later or disable cnmem entirely.
-conf.cnn.cnmem = 0.05;
+conf.cnn.cnmem = 0;
 % Stride at which fully convolutional network slides over the input
 conf.cnn.step = 32;
 
