@@ -7,8 +7,11 @@ assert(sizes_okay(train_dataset) && sizes_okay(val_dataset) && sizes_okay(test_s
 neg_dataset = get_inria_person(conf.dataset_dir, conf.cache_dir);
 
 fprintf('Setting GPU for OpenCV\n');
-new_gpu = setOpenCVGPU(conf.cnn.gpu);
-fprintf('Set to GPU %i (expected %i)\n', new_gpu, conf.cnn.gpu);
+% This is ridiculous, but I guess this is what it takes to run something on
+% every worker and the client.
+gpu_run_cmd = sprintf('setOpenCVGPU(%i)', conf.cnn.gpu);
+fprintf('Command: %s\n', gpu_run_cmd);
+pctRunOnAll(gpu_run_cmd);
 
 fprintf('Writing validation set\n');
 val_patch_dir = fullfile(conf.cache_dir, 'val-patches');
