@@ -6,6 +6,10 @@ sizes_okay = @(ds) all(cellfun(@length, {ds.data.joint_locs}) == conf.num_joints
 assert(sizes_okay(train_dataset) && sizes_okay(val_dataset) && sizes_okay(test_seqs));
 neg_dataset = get_inria_person(conf.dataset_dir, conf.cache_dir);
 
+fprintf('Setting GPU for OpenCV\n');
+new_gpu = setOpenCVGPU(conf.cnn.gpu);
+fprintf('Set to GPU %i (expected %i)\n', new_gpu, conf.cnn.gpu);
+
 fprintf('Writing validation set\n');
 val_patch_dir = fullfile(conf.cache_dir, 'val-patches');
 write_dset(val_dataset, val_patch_dir, conf.num_val_hdf5s, ...
