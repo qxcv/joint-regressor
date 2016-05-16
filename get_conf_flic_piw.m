@@ -9,7 +9,7 @@ conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights
 conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 % Different for each dataset, I guess
-conf.cnn.gpu = 2;
+conf.cnn.gpu = 1;
 
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 
@@ -20,7 +20,7 @@ conf.cnn.gpu = 2;
 % which doesn't count random translations on images which aren't sub-scale.
 
 % Range of random rotations
-conf.aug.rot_range = [-50, 50];
+conf.aug.rot_range = [-30, 30];
 % Number of random rotations for each datum
 conf.aug.rand_rots = 4;
 % Random translations at each scale where it's possible to translate whilst
@@ -40,11 +40,11 @@ conf.aug.easy_negs = 0;
 % datum. Challenging negatives are those where the real subpose appears
 % (partially) in the frame, but might will far enough off that it can't
 % reasonably be assigned a type.
-conf.aug.hard_negs = 2;
+conf.aug.hard_negs = 10;
 % We need to use inria_negs (number of negatives to take from each INRIA
 % frame) instead of easy_negs because easy_negs might catch unlabelled
 % people on FLIC-full
-conf.aug.inria_negs = 5;
+conf.aug.inria_negs = 20;
 
 % Validation augmentations are less aggressive (24x instead)
 conf.val_aug.rot_range = [-30, 30];
@@ -52,8 +52,8 @@ conf.val_aug.rand_rots = 2;
 conf.val_aug.rand_trans = 1;
 conf.val_aug.flip_mode = 'random';
 conf.val_aug.easy_negs = 0;
-conf.val_aug.hard_negs = 1;
-conf.val_aug.inria_negs = 2;
+conf.val_aug.hard_negs = 5;
+conf.val_aug.inria_negs = 10;
 
 %% General writing stuff
 conf.num_hdf5s = 1;

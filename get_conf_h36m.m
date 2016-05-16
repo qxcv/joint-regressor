@@ -11,6 +11,10 @@ conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 % Use different GPU
 conf.cnn.gpu = 0;
 
+% Keep only this fraction of train and validation pairs from H3.6M for CNN
+% training (there are so many!)
+conf.h36m_keep_frac = 0.1;
+
 % right_parts and left_parts are used to ensure that the meanings of "left"
 % and "right" are preserved when doing flip augmentations.
 conf.right_parts = 2:12;

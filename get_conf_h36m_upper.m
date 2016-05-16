@@ -9,7 +9,9 @@ conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights (fully convolutional)
 conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 % Use different GPU
-conf.cnn.gpu = 0;
+conf.cnn.gpu = 2;
+
+conf.h36m_keep_frac = 0.3;
 
 %% STUFF FOR MULTI-POSELET CODE BELOW HERE
 % Actual skeleton, adapted from 32-point H3.6M skeleton

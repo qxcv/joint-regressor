@@ -1,5 +1,6 @@
 function [train_dataset, val_dataset, test_seqs] = get_h36m(...
-    dest_dir, cache_dir, subposes, step, template_scale, trans_spec)
+    dest_dir, cache_dir, subposes, step, template_scale, trans_spec, ...
+    keep_frac)
 %GET_H36M Fetches H3.6M pose estimation dataset (incl. videos)
 % You'll have to download all of the necessary files yourself, since the
 % dataset needs authentication & EULA acceptance for download (although
@@ -144,8 +145,8 @@ fprintf('Saving to %s\n', save_path);
 % Quick hack to pare down pairs
 val_dataset_full = val_dataset; %#ok<NASGU>
 train_dataset_full = train_dataset; %#ok<NASGU>
-val_dataset = random_trim_pairs(val_dataset, 0.1);
-train_dataset = random_trim_pairs(train_dataset, 0.1);
+val_dataset = random_trim_pairs(val_dataset, keep_frac);
+train_dataset = random_trim_pairs(train_dataset, keep_frac);
 save(save_path, 'train_dataset', 'val_dataset', 'train_dataset_full', ...
     'val_dataset_full', 'test_seqs');
 end
