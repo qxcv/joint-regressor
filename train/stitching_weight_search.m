@@ -1,7 +1,7 @@
-function best_params = stitching_weight_search(pair_dets, valid_parts, pose_gts)
+function results = stitching_weight_search(pair_dets, valid_parts, pose_gts, limbs)
 %STITCHING_WEIGHT_SEARCH Naively find good stitching weights
-% Uses grid search or randomised search internally (haven't decided which
-% yet).
+% Uses randomised search internally (apparently that is better than grid
+% search?)
 
 flat_gts = cat(2, pose_gts{:});
 calc_thresh = @(gt_pose) max(nanmax(gt_pose, [], 1) - nanmin(gt_pose, [], 1));
@@ -19,29 +19,41 @@ count = 100;
 param_configs = random_stitching_weights(count);
 
 % Now we can choose the best
-config_pcks = nan([1, count]);
+results = struct('config', cell([1, count]), ...
+    'pcp_fit', nan([1, count]), ...
+    'pck_fit', nan([1, count]));
 parfor param_idx=1:length(param_configs)
     fprintf('Testing configuration %i/%i\n', param_idx, length(param_configs));
+    
+    % Grab config
     current_params = param_configs(param_idx);
-    config_pcks(param_idx) = fitness(pair_dets, current_params, ...
-        valid_parts, flat_gts, pck_thresholds);
-    fprintf('Got score %f for configuration %i/%i\n', config_pcks(param_idx));
-end
-
-assert(~any(isnan(config_pcks)));
-assert(all(0 <= config_pcks) && all(config_pcks <= 1));
-[best_pck, best_param_idx] = max(config_pcks);
-assert(best_pck > 0, 'Uh, that''s not good');
-fprintf('Best PCK: %f\n', best_pck);
-best_params = param_configs(best_param_idx);
-end
-
-function mean_pck = fitness(pair_dets, current_params, valid_parts, flat_gts, pck_thresholds)
+    results(param_idx).config = current_params;
+    
+    % Get  results
     pose_dets = stitch_all_seqs(pair_dets, current_params, valid_parts);
     flat_dets = cat(2, pose_dets{:});
+    
+    % Measure fitness
+    results(param_idx).pck_fit = fitness_pck(flat_dets, flat_gts, pck_thresholds);
+    results(param_idx).pcp_fit = fitness_pcp(flat_dets, flat_gts, limbs);
+    
+    fprintf('Got scores %f (PCK), %f (PCP) for configuration %i/%i\n', ...
+        results(param_idx).pck_fit, results(param_idx).pcp_fit, ...
+        param_idx, length(param_configs));
+end
+end
+
+function mean_pck = fitness_pck(flat_dets, flat_gts, pck_thresholds)
     % pcks is |pck_thresholds|-length cell array
     pcks = pck(flat_dets, flat_gts, pck_thresholds);
     % pck_mat will be a J*|pck_thresholds| matrix of PCKs
     pck_mat = cat(2, pcks{:});
     mean_pck = mean(pck_mat(:));
+end
+
+function mean_pcp = fitness_pcp(flat_dets, flat_gts, limbs)
+    % pcks is |pck_thresholds|-length cell array
+    all_pcps = pcp(flat_dets, flat_gts, {limbs.indices});
+    assert(isvector(all_pcps) && ~isempty(all_pcps));
+    mean_pcp = mean(all_pcps(:));
 end
