@@ -1,5 +1,5 @@
 function headless_detection_vis(dataset, pose_dets, dest_dir)
-%HEADLESS_DS_VIS Visualise detections like headless_ds_vis does for GTs.
+%HEADLESS_DETECTION_VIS Visualise dets like headless_ds_vis does for GTs
 % Nice for making pretty movies
 figure('Visible', 'off');
 axes('Visible', 'off');
@@ -25,8 +25,8 @@ parfor seq_idx=1:length(dataset.seqs)
         plot_joints(pred_joints);
         hold off;
         
-        %label = get_label(datum, seq(frame_idx));
-        %text(-50, -50, label, 'Interpreter', 'none');
+        label = get_label(datum, seq(frame_idx));
+        text(-50, -50, label, 'Interpreter', 'none');
         result_path = fullfile(dest_dir, ...
             sprintf('seq-%03i-frame-%04i.jpg', seq_idx, frame_idx));
         print(gcf, '-djpeg', result_path, '-r 300');
