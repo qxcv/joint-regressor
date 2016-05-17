@@ -9,8 +9,9 @@ neg_dataset = get_inria_person(conf.dataset_dir, conf.cache_dir);
 fprintf('Setting GPU for OpenCV\n');
 % This is ridiculous, but I guess this is what it takes to run something on
 % every worker and the client.
-gpu_run_cmd = sprintf('setOpenCVGPU(%i)', conf.cnn.gpu);
+gpu_run_cmd = sprintf('setOpenCVGPU(%i);', conf.cnn.gpu);
 fprintf('Command: %s\n', gpu_run_cmd);
+gcp;
 pctRunOnAll(gpu_run_cmd);
 
 fprintf('Writing validation set\n');
