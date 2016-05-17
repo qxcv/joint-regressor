@@ -10,13 +10,13 @@ end
 
 function safeIm = convertIm(im)
 % Make sure the given image is safe to pass to _broxOpticalFlow
-assert(ndims(im) == 3 || ndims(im) == 2);
+assert(ndims(im) == 3 || ismatrix(im));
 
 % Convert to grayscale
 if size(im, 3) == 3
     grayscale = rgb2gray(im);
 elseif size(im, 3) ~= 1
-    error('Expected grayscale image')
+    error('JointRegressor:broxOpticalFlow:invalidImage', 'Expected grayscale image')
 else
     grayscale = im;
 end
