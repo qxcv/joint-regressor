@@ -19,6 +19,10 @@
 \usepackage{amsfonts}       % blackboard math symbols
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypography
+\usepackage{amsmath}
+
+\renewcommand{\vec}{\mathbf}
+\newcommand{\mat}{\mathbf}
 
 \title{Human pose estimation in videos using biposelets}
 
@@ -34,10 +38,10 @@
 
 \author{
   Sam Toyer\\
-  Research School of Computer Science\\
+  College of Engineering and Computer Science\\
   Australian National University\\
   Canberra, Australia 2601\\
-  \texttt{u5568237@anu.edu.au} \\
+  \texttt{u5568237@anu.edu.au}\\
   %% For more authors (see note above on \And vs. \AND)
   %% {\And, \AND}
   %% Coauthor \\
@@ -67,19 +71,166 @@ pose estimation benchmarks.
 
 \section{Introduction}
 
+% Things I want to say:
+% Why pose estimation in general is interesting:
+%  - Challenging task in general
+%  - Use it for 3D pose estimation
+%  - Use it for action recognition (P-CNN paper is relevant example)
+%  - Use it for just about everything else
+% Why video pose estimation in particular is interesting:
+%  - Few results so far
+%  - Intuitively seems like temporal information should lead to big improvement
+%  - Hard to actually get solid improvement in practice
+% How we approach the problem; briefly summarise the biposelet detection and
+% sequence stitching stages here.
+% Our results
+
 \section{Related work}
 
-\section{Biposelet detection}
+% Work I want to mention:
+% Some papers on poselets
+% Xianjie Chen's stuff (graphical models!)
+% Toshev & Szegedy (CNNs)
+% Modeep
+% Convolutional pose machines
+% Anoop's stuff
+% Flowing convnets
+% "Recurrent human dynamics paper" (poor results, interesting approach)
+
+\section{Detecting pose pairs}
+
+% What I want to say:
+% - Objective of this stage of pipeline is to find a pose in each frame of each
+%   neighbouring frame pair.
+% - Decompose pose into several subposes.
+% - Intuitively: want to predict a configuration (poselet) for each subpose.
+%   Choose configurations by applying K-means to all relative positions.
+% - In our method: each configuration gives a location for each joint within
+%   both frames. This allows configurations to capture both location and motion.
+%   Call these configurations biposelets.
+% - NOW talk about cost function.
+% - Talk about pairwise costs and how the means are found for the pairwise
+%   costs.
+% - Talk about maximising cost function.
+%   - Just message passing.
+% - How unaries are produced and learnt by CNN (one follows from the other):
+%   - CNN architecture
+%   - CNN input (two frames + flow between them)
+%   - CNN output
+%   - CNN objective.
+%   - Fully convolutional inference
+%   - Learning (just SGD) --> maybe put the training details in the experiments
+%     section.
+% - How SSVM is learnt. Talk about learning target, how positives/negatives are
+%   used, where supervision comes in (if anywhere), how things are optimised
+%   (just cite ramanan2013dual).
+% - How poses are recovered from a set of subpose locations and types for each
+%   subpose.
+
+In the first stage of our pipeline, we consider each neighbouring pair of frames
+in a sequence, and try to simultaneously infer the pose present in both frames
+of each pair. %TODO
+
+We decompose pairs of poses in neighbouring frames into a fixed set of subposes,
+each of which correspond to a subset of joints in the original pose skeleton.
+Rather than representing the locations of each joint in each subpose directly,
+we assign a biposelet type to each subpose %TODO
+
+\begin{equation}
+\label{eqn:full-cost}
+C(\vec l, \vec t \mid \mat I)
+= w_0 + \sum_{s \in \mathcal V} \phi_s(\vec l_s, t_s \mid \mat I)
++ \sum_{(s_1, s_2) \in \mathcal E}
+    \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2),
+\end{equation}
+
+\begin{equation}
+\label{eqn:unary-cost}
+\phi_s(\vec l_s, t_s \mid \mat I) = w_s p(s, t_s \mid \mat I(\vec l_s))
+\end{equation}
+
+\begin{equation}
+\label{eqn:pair-cost}
+\psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2)
+= \langle
+    \vec w_{s_1 s_2},
+    \vec \Delta(\vec l_{s_1} - \vec l_{s_2}  - \vec m_{t_1 t_2})
+\rangle,
+\end{equation}
+where $\vec \Delta(\begin{bmatrix}\delta_x & \delta_y\end{bmatrix}) =
+\begin{bmatrix}\delta_x^2 & \delta_x & \delta_y^2 & \delta_y\end{bmatrix}$ is a
+deformation feature.
+
+\subsection{Pose recovery}
 
 \section{Sequence stitching}
 
+% Things I want to talk about:
+%
+% - TODO
+
+In the second stage of our pipeline, we attempt to produce a temporally coherent
+sequence of poses across every frame of a video. %TODO
+
 \section{Experiments}
+
+% Things I want to include:
+% - Some sort of performance evaluation. Probably just measure eval time on
+%   Poses in the Wild, or perhaps time-per-frame-pair for each pair in each of
+%   the datasets, then mean recombination time per frame. Over all the test
+%   sequences.
 
 \subsection{MPII Cooking}
 
+% TODO: PCKh graphs (raw PCK given elsewhere, but I can probably ignore that),
+% PCP for each limb, qualitative results
+
+% Other papers I will try to use:
+% - This paper: http://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Cheron_P-CNN_Pose-Based_CNN_ICCV_2015_paper.pdf
+%   ^ Very relevant! Seems to be action recognition paper where they've also
+%     tackled pose estimation. Also check out http://jhmdb.is.tue.mpg.de/ (SHIT!)
+%   ^ https://github.com/gcheron/P-CNN has a link to computed joint positions
+%     over all of MPII cooking activities (!!)
+%   ^ Oh wait, they're using Anoop's CVPR '14 paper to compute poses :( At least
+%     they show that using the GT poses (which I'll hopefully be closer to)
+%     improves performance by double-digits.
+% - Project results here into 2D: https://www.mpi-inf.mpg.de/fileadmin/inf/d2/amin/sikandar2013bmvc.pdf
+% - Results from here (shitty): https://www.mpi-inf.mpg.de/fileadmin/inf/d2/amin/rohrbach12cvpr.pdf
+% - Here: http://link.springer.com/chapter/10.1007/978-3-319-11752-2_20#page-1
+
 \subsection{FLIC and PIW}
 
+% TODO: PCKh graphs, PCP for each limb, qualitative results
+
+% Other papers I will try to use:
+% - Anoop's original paper
+% - Xianjie Chen's paper from last year (just collapse my model into Chen &
+%   Yuille's model, or maybe use their code but with FLIC stuff)
+% - Flowing convnets paper
+
+% Note that I already have (un-normalised results) for each of those sitting on
+% Github, and they are comparable with the Flowing Convnets paper
+% (http://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Pfister_Flowing_ConvNets_for_ICCV_2015_paper.pdf),
+% which also fails to normalise anything.
+
 \subsection{H3.6M}
+
+% TODO: PCKsh (as in shoulder->hip normalised) plots, qualitative results
+
+% Other papers I will try to use:
+% - Don't bother with Anoop's code or Xianjie Chen's code! This is a totally
+%   alien dataset which will require a LOT of hacking.
+% - http://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Fragkiadaki_Recurrent_Network_Models_ICCV_2015_paper.pdf
+%   ^ May also be able to use PF and VITERBI baselines
+%   ^ Project page at http://www.cs.berkeley.edu/~katef/humandynamics.html but
+%     no results or code. WTF :(
+%   ^ Can probably rip their results out of their PDF using some sort of hacks.
+%     The problem is that the plots are stored as PNG images, which makes it
+%     hard to extract their stats *accurately*
+% - Cast to 2D: http://www.cv-foundation.org/openaccess/content_cvpr_2014/papers/Ionescu_Iterated_Second-Order_Label_2014_CVPR_paper.pdf
+%   ^ There's a project page at http://catalinionescu.weebly.com/label-sensitive-pooling.html
+%     but no results to download
+% - Cast to 2D: http://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7293666
 
 \section{Conclusion}
 
