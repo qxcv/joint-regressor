@@ -1,58 +1,35 @@
-\documentclass{article}
+\documentclass[runningheads]{llncs}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb} % define this before the line numbering.
+\usepackage{ruler}
+\usepackage{color}
 
-% if you need to pass options to natbib, use, e.g.:
-\PassOptionsToPackage{numbers,sort&compress}{natbib}
-% before loading nips_2016
-%
-% to avoid loading the natbib package, add option nonatbib:
-% \usepackage[nonatbib]{nips_2016}
-
-% to compile a camera-ready version, add the [final] option, e.g.:
-% \usepackage[final]{nips_2016}
-\usepackage{nips_2016}
-
-\usepackage[utf8]{inputenc} % allow utf-8 input
-\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
-\usepackage{hyperref}       % hyperlinks
-\usepackage{url}            % simple URL typesetting
-\usepackage{booktabs}       % professional-quality tables
-\usepackage{amsfonts}       % blackboard math symbols
-\usepackage{nicefrac}       % compact symbols for 1/2, etc.
-\usepackage{microtype}      % microtypography
-\usepackage{amsmath}
-
-\renewcommand{\vec}{\mathbf}
+%===========================================================
+% Custom commands
 \newcommand{\mat}{\mathbf}
 
-\title{Human pose estimation in videos using biposelets}
-
-% The \author macro works with any number of authors. There are two
-% commands used to separate the names and addresses of multiple
-% authors: \And and \AND.
-%
-% Using \And between authors leaves it to LaTeX to determine where to
-% break the lines. Using \AND forces a line break at that point. So,
-% if LaTeX puts 3 of 4 authors names on the first line, and the last
-% on the second line, try using \AND instead of \And before the third
-% author name.
-
-\author{
-  Sam Toyer\\
-  College of Engineering and Computer Science\\
-  Australian National University\\
-  Canberra, Australia 2601\\
-  \texttt{u5568237@anu.edu.au}\\
-  %% For more authors (see note above on \And vs. \AND)
-  %% {\And, \AND}
-  %% Coauthor \\
-  %% Affiliation \\
-  %% Address \\
-  %% \texttt{email} \\
-}
-
+%===========================================================
 \begin{document}
+\pagestyle{headings}
+\mainmatter{}
+
+\def\ACCV16SubNumber{***}  % Insert your submission number here
+
+%===========================================================
+\title{Author Guidelines for ACCV Submission} % Replace with your title
+\titlerunning{ACCV-16 submission ID \ACCV16SubNumber}
+\authorrunning{ACCV-16 submission ID \ACCV16SubNumber}
+
+\author{Anonymous ACCV 2016 submission}
+\institute{Paper ID \ACCV16SubNumber}
 
 \maketitle
+
+% Misc formatting notes:
+% - Use "This is not a pipe~\cite{sourceYY}." to cite papers (not fancy natbib
+%   stuff)
+% - They want punctuated equations and a ~ space between the end of the equation
+%   and the punctuation (either comma or full stop).
 
 \begin{abstract}
 The problem of human pose estimation in still images has been well-studied in
@@ -236,8 +213,14 @@ sequence of poses across every frame of a video. %TODO
 
 \section*{Acknowledgments}
 
-\verb|citet|: \citet{tompson2014joint}
+\verb|cite|: \cite{tompson2014joint}
 
-\bibliographystyle{abbrvnat}
+%References are listed in alphabetic order by the surname of the first author, or the identifying word (e.g., in case of a website). Have
+%all anonymized references at the beginning of the list.
+
+%here would be your acknowledgement (if any) in the final accepted paper
+
+%===========================================================
+\bibliographystyle{splncs}
 \bibliography{citations}
 \end{document}
