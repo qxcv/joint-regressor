@@ -9,7 +9,7 @@ conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights
 conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 % Different for each dataset, I guess
-conf.cnn.gpu = 1;
+conf.cnn.gpu = 0;
 
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 
@@ -20,9 +20,9 @@ conf.cnn.gpu = 1;
 % which doesn't count random translations on images which aren't sub-scale.
 
 % Range of random rotations
-conf.aug.rot_range = [-50, 50];
+conf.aug.rot_range = [-35, 35];
 % Number of random rotations for each datum
-conf.aug.rand_rots = 4;
+conf.aug.rand_rots = 5;
 % Random translations at each scale where it's possible to translate whilst
 % keeping the pose in-frame; 0 to disable. Should probably pad all images
 % by step size and then randomly translate by [step, step] (both axes)
@@ -43,7 +43,7 @@ conf.aug.easy_negs = 15;
 conf.aug.hard_negs = 3;
 conf.aug.inria_negs = 0;
 
-% Validation augmentations are less aggressive (24x instead)
+% Validation augmentations are less aggressive
 conf.val_aug.rot_range = [-30, 30];
 conf.val_aug.rand_rots = 2;
 conf.val_aug.rand_trans = 1;
@@ -144,6 +144,14 @@ conf.limbs = struct(...
     'indices', {[7 9],   [9 11],  [2 4],   [4 6],   [2 7]}, ...
     'names',   {'ruarm', 'rfarm', 'luarm', 'lfarm', 'shoul'});
 conf.limb_combinations = containers.Map(...
-    {'uarm', 'farm', 'shoul'}, ...
+    {'Upper arms', 'Lower arms', 'Shoulders'}, ...
     {{'ruarm', 'luarm'}, {'rfarm', 'lfarm'}, {'shoul'}}...
 );
+% Now list of joints for PCK calculation
+conf.pck_joints = containers.Map(...
+    {'Shoulders', 'Elbows', 'Wrists'}, ...
+    {[2 7], [4 9], [6 11]}...
+);
+
+% Turning it up so that I can make use of the CNN's huge receptive field
+conf.template_scale = 1.4;
