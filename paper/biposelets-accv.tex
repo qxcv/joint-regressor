@@ -105,13 +105,59 @@ pose estimation benchmarks.
 %   subpose.
 
 In the first stage of our pipeline, we consider each neighbouring pair of frames
-in a sequence, and try to simultaneously infer the pose present in both frames
-of each pair. %TODO
+in a sequence and simultaneously infer the poses present in each. %TODO
+
+\subsection{Biposelets}
 
 We decompose pairs of poses in neighbouring frames into a fixed set of subposes,
 each of which correspond to a subset of joints in the original pose skeleton.
 Rather than representing the locations of each joint in each subpose directly,
 we assign a biposelet type to each subpose %TODO
+
+For each subpose, we discretise the space of configurations for joints within
+the subpose into $K$ \textit{biposelets}. Biposelets are so named in analogy to
+the \textit{poselets} of Bourdev and Malik~\cite{bourdev2009poselets}. Unlike
+its namesake, however, the biposelet gives a location for each joint in a
+subpose across two video frames instead of a just a single image. This allows
+biposelets to represent both the relative positions of joints and their movement
+over time. A representative set of biposelets learnt from MPII Cooking
+Activities~\cite{rohrbach2012database} is shown in Figure~\ref{fig:biposelets}.
+
+\begin{figure*}[t]
+\begin{center}
+\begin{tabular}{@{}c@{}c@{}c@{}c@{}c@{}c@{}c@{}c@{}}
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-1-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-2-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-3-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-4-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-5-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-6-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-7-f0.jpg}\\
+%
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-1-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-2-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-3-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-4-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-5-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-6-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-7-f0.jpg}\\
+%
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-1-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-2-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-3-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-4-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-5-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-6-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-7-f0.jpg}\\
+\end{tabular}
+\end{center}
+\caption{Biposelets learnt for left elbows in the MPII Cooking Activities
+dataset. Different rows show different biposelets. For brevity,
+only the first frame associated with each biposelet is shown.}
+\label{fig:biposelets}
+\end{figure*}
+
+\subsection{Frame pair model}
 
 \begin{equation}
 \label{eqn:full-cost}
@@ -212,8 +258,6 @@ sequence of poses across every frame of a video. %TODO
 \section{Conclusion}
 
 \section*{Acknowledgments}
-
-\verb|cite|: \cite{tompson2014joint}
 
 %References are listed in alphabetic order by the surname of the first author, or the identifying word (e.g., in case of a website). Have
 %all anonymized references at the beginning of the list.
