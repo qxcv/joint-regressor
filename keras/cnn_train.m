@@ -47,6 +47,10 @@ train_cmdline = to_cmdline(train_script_path, ...
     ... TODO: Need better stopping rule than this :/
     '--max-iter', '1000', ...
     train_files, val_files, checkpoint_dir);
+save_dest = fullfile(cache_dir, 'keras_train_call.txt');
+tc_fp = fopen(save_dest, 'a');
+fprintf(tc_fp, '%s\n', train_cmdline);
+fclose(tc_fp);
 display(['Running "' train_cmdline '"']);
 assert(system(train_cmdline, '-echo') == 0, 'CNN training failed');
 end
