@@ -60,7 +60,7 @@ store_mean_pixel(train_patch_dir, conf.cache_dir);
 
 fprintf('Training CNN\n');
 train_h5s = files_with_extension(train_patch_dir, '.h5');
-val_h5s = files_with_extension(train_patch_dir, '.h5');
+val_h5s = files_with_extension(val_patch_dir, '.h5');
 cnn_train(conf.cnn, conf.cache_dir, train_h5s, val_h5s);
 
 fprintf('Computing ideal poselet displacements\n');
