@@ -37,9 +37,9 @@ parfor param_idx=1:length(param_configs)
     results(param_idx).pck_fit = fitness_pck(flat_dets, flat_gts, pck_thresholds);
     results(param_idx).pcp_fit = fitness_pcp(flat_dets, flat_gts, limbs);
     
-    fprintf('Got scores %f (PCK), %f (PCP) for configuration %i/%i\n', ...
+    fprintf('Got scores %f (PCK), %f (PCP) for configuration %i/%i (dist=%f)\n', ...
         results(param_idx).pck_fit, results(param_idx).pcp_fit, ...
-        param_idx, length(param_configs));
+        param_idx, length(param_configs), results(param_idx).config.dist);
 end
 end
 

@@ -24,12 +24,12 @@ conf.cnn.step = 32;
 %% Inference stuff
 % Scales used in each level of the feature pyramid (reversed so that
 % biggest is at the beginning)
-conf.pyra.scales = sort(1.12 .^ (-3:3), 'ascend');
+conf.pyra.scales = sort(1.12 .^ (-1:1), 'ascend');
 % This defines the maximum size for the QP solver's support vector cache
 % (in GiB).
 conf.memsize = 0.5;
-% Number of biposes to fetch for each frame pair
-conf.num_dets = 300;
+% Number of biposes (pose across two frames) to fetch for each frame pair
+conf.num_dets = 10000;
 % Weights for stitching biposelet sequences. rscore is root score of
 % biposelet, dist is L2 distance between neighbouring poses
 conf.stitch_weights.rscore = 1;

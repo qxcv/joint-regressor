@@ -1,0 +1,270 @@
+\documentclass[runningheads]{llncs}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb} % define this before the line numbering.
+\usepackage{ruler}
+\usepackage{color}
+
+%===========================================================
+% Custom commands
+\newcommand{\mat}{\mathbf}
+
+%===========================================================
+\begin{document}
+\pagestyle{headings}
+\mainmatter{}
+
+\def\ACCV16SubNumber{***}  % Insert your submission number here
+
+%===========================================================
+\title{Author Guidelines for ACCV Submission} % Replace with your title
+\titlerunning{ACCV-16 submission ID \ACCV16SubNumber}
+\authorrunning{ACCV-16 submission ID \ACCV16SubNumber}
+
+\author{Anonymous ACCV 2016 submission}
+\institute{Paper ID \ACCV16SubNumber}
+
+\maketitle
+
+% Misc formatting notes:
+% - Use "This is not a pipe~\cite{sourceYY}." to cite papers (not fancy natbib
+%   stuff)
+% - They want punctuated equations and a ~ space between the end of the equation
+%   and the punctuation (either comma or full stop).
+
+\begin{abstract}
+The problem of human pose estimation in still images has been well-studied in
+recent years, but making effective use of the temporal information inherent in
+videos is still an open problem. We propose a new model which attempts to learn
+temporal relationships by using a CNN to predict poses for several frames at a
+time; our model caters to the detection capabilities of CNNs by casting pose
+estimation as a problem of predicting the \textit{biposelets} which poses in
+adjacent frames are composed of. Predicting poses in two frames at a time
+reduces pose estimation over an entire video sequence to the problem of choosing
+a pose for each frame from a set of high-scoring poses, which can be achieved by
+minimising a trivial pairwise cost with dynamic programming. Experiments show
+that our approach performs competitively with existing approaches on established
+pose estimation benchmarks.
+\end{abstract}
+
+\section{Introduction}
+
+% Things I want to say:
+% Why pose estimation in general is interesting:
+%  - Challenging task in general
+%  - Use it for 3D pose estimation
+%  - Use it for action recognition (P-CNN paper is relevant example)
+%  - Use it for just about everything else
+% Why video pose estimation in particular is interesting:
+%  - Few results so far
+%  - Intuitively seems like temporal information should lead to big improvement
+%  - Hard to actually get solid improvement in practice
+% How we approach the problem; briefly summarise the biposelet detection and
+% sequence stitching stages here.
+% Our results
+
+\section{Related work}
+
+% Work I want to mention:
+% Some papers on poselets
+% Xianjie Chen's stuff (graphical models!)
+% Toshev & Szegedy (CNNs)
+% Modeep
+% Convolutional pose machines
+% Anoop's stuff
+% Flowing convnets
+% "Recurrent human dynamics paper" (poor results, interesting approach)
+
+\section{Detecting pose pairs}
+
+% What I want to say:
+% - Objective of this stage of pipeline is to find a pose in each frame of each
+%   neighbouring frame pair.
+% - Decompose pose into several subposes.
+% - Intuitively: want to predict a configuration (poselet) for each subpose.
+%   Choose configurations by applying K-means to all relative positions.
+% - In our method: each configuration gives a location for each joint within
+%   both frames. This allows configurations to capture both location and motion.
+%   Call these configurations biposelets.
+% - NOW talk about cost function.
+% - Talk about pairwise costs and how the means are found for the pairwise
+%   costs.
+% - Talk about maximising cost function.
+%   - Just message passing.
+% - How unaries are produced and learnt by CNN (one follows from the other):
+%   - CNN architecture
+%   - CNN input (two frames + flow between them)
+%   - CNN output
+%   - CNN objective.
+%   - Fully convolutional inference
+%   - Learning (just SGD) --> maybe put the training details in the experiments
+%     section.
+% - How SSVM is learnt. Talk about learning target, how positives/negatives are
+%   used, where supervision comes in (if anywhere), how things are optimised
+%   (just cite ramanan2013dual).
+% - How poses are recovered from a set of subpose locations and types for each
+%   subpose.
+
+In the first stage of our pipeline, we consider each neighbouring pair of frames
+in a sequence and simultaneously infer the poses present in each. %TODO
+
+\subsection{Biposelets}
+
+We decompose pairs of poses in neighbouring frames into a fixed set of subposes,
+each of which correspond to a subset of joints in the original pose skeleton.
+Rather than representing the locations of each joint in each subpose directly,
+we assign a biposelet type to each subpose %TODO
+
+For each subpose, we discretise the space of configurations for joints within
+the subpose into $K$ \textit{biposelets}. Biposelets are so named in analogy to
+the \textit{poselets} of Bourdev and Malik~\cite{bourdev2009poselets}. Unlike
+its namesake, however, the biposelet gives a location for each joint in a
+subpose across two video frames instead of a just a single image. This allows
+biposelets to represent both the relative positions of joints and their movement
+over time. A representative set of biposelets learnt from MPII Cooking
+Activities~\cite{rohrbach2012database} is shown in Figure~\ref{fig:biposelets}.
+
+\begin{figure*}[t]
+\begin{center}
+\begin{tabular}{@{}c@{}c@{}c@{}c@{}c@{}c@{}c@{}c@{}}
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-1-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-2-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-3-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-4-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-5-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-6-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-7-f0.jpg}\\
+%
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-1-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-2-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-3-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-4-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-5-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-6-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-7-f0.jpg}\\
+%
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-1-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-2-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-3-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-4-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-5-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-6-f0.jpg}\,&
+\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-7-f0.jpg}\\
+\end{tabular}
+\end{center}
+\caption{Biposelets learnt for left elbows in the MPII Cooking Activities
+dataset. Different rows show different biposelets. For brevity,
+only the first frame associated with each biposelet is shown.}
+\label{fig:biposelets}
+\end{figure*}
+
+\subsection{Frame pair model}
+
+\begin{equation}
+\label{eqn:full-cost}
+C(\vec l, \vec t \mid \mat I)
+= w_0 + \sum_{s \in \mathcal V} \phi_s(\vec l_s, t_s \mid \mat I)
++ \sum_{(s_1, s_2) \in \mathcal E}
+    \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2),
+\end{equation}
+
+\begin{equation}
+\label{eqn:unary-cost}
+\phi_s(\vec l_s, t_s \mid \mat I) = w_s p(s, t_s \mid \mat I(\vec l_s))
+\end{equation}
+
+\begin{equation}
+\label{eqn:pair-cost}
+\psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2)
+= \langle
+    \vec w_{s_1 s_2},
+    \vec \Delta(\vec l_{s_1} - \vec l_{s_2}  - \vec m_{t_1 t_2})
+\rangle,
+\end{equation}
+where $\vec \Delta(\begin{bmatrix}\delta_x & \delta_y\end{bmatrix}) =
+\begin{bmatrix}\delta_x^2 & \delta_x & \delta_y^2 & \delta_y\end{bmatrix}$ is a
+deformation feature.
+
+\subsection{Pose recovery}
+
+\section{Sequence stitching}
+
+% Things I want to talk about:
+%
+% - TODO
+
+In the second stage of our pipeline, we attempt to produce a temporally coherent
+sequence of poses across every frame of a video. %TODO
+
+\section{Experiments}
+
+% Things I want to include:
+% - Some sort of performance evaluation. Probably just measure eval time on
+%   Poses in the Wild, or perhaps time-per-frame-pair for each pair in each of
+%   the datasets, then mean recombination time per frame. Over all the test
+%   sequences.
+
+\subsection{MPII Cooking}
+
+% TODO: PCKh graphs (raw PCK given elsewhere, but I can probably ignore that),
+% PCP for each limb, qualitative results
+
+% Other papers I will try to use:
+% - This paper: http://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Cheron_P-CNN_Pose-Based_CNN_ICCV_2015_paper.pdf
+%   ^ Very relevant! Seems to be action recognition paper where they've also
+%     tackled pose estimation. Also check out http://jhmdb.is.tue.mpg.de/ (SHIT!)
+%   ^ https://github.com/gcheron/P-CNN has a link to computed joint positions
+%     over all of MPII cooking activities (!!)
+%   ^ Oh wait, they're using Anoop's CVPR '14 paper to compute poses :( At least
+%     they show that using the GT poses (which I'll hopefully be closer to)
+%     improves performance by double-digits.
+% - Project results here into 2D: https://www.mpi-inf.mpg.de/fileadmin/inf/d2/amin/sikandar2013bmvc.pdf
+% - Results from here (shitty): https://www.mpi-inf.mpg.de/fileadmin/inf/d2/amin/rohrbach12cvpr.pdf
+% - Here: http://link.springer.com/chapter/10.1007/978-3-319-11752-2_20#page-1
+
+\subsection{FLIC and PIW}
+
+% TODO: PCKh graphs, PCP for each limb, qualitative results
+
+% Other papers I will try to use:
+% - Anoop's original paper
+% - Xianjie Chen's paper from last year (just collapse my model into Chen &
+%   Yuille's model, or maybe use their code but with FLIC stuff)
+% - Flowing convnets paper
+
+% Note that I already have (un-normalised results) for each of those sitting on
+% Github, and they are comparable with the Flowing Convnets paper
+% (http://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Pfister_Flowing_ConvNets_for_ICCV_2015_paper.pdf),
+% which also fails to normalise anything.
+
+\subsection{H3.6M}
+
+% TODO: PCKsh (as in shoulder->hip normalised) plots, qualitative results
+
+% Other papers I will try to use:
+% - Don't bother with Anoop's code or Xianjie Chen's code! This is a totally
+%   alien dataset which will require a LOT of hacking.
+% - http://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Fragkiadaki_Recurrent_Network_Models_ICCV_2015_paper.pdf
+%   ^ May also be able to use PF and VITERBI baselines
+%   ^ Project page at http://www.cs.berkeley.edu/~katef/humandynamics.html but
+%     no results or code. WTF :(
+%   ^ Can probably rip their results out of their PDF using some sort of hacks.
+%     The problem is that the plots are stored as PNG images, which makes it
+%     hard to extract their stats *accurately*
+% - Cast to 2D: http://www.cv-foundation.org/openaccess/content_cvpr_2014/papers/Ionescu_Iterated_Second-Order_Label_2014_CVPR_paper.pdf
+%   ^ There's a project page at http://catalinionescu.weebly.com/label-sensitive-pooling.html
+%     but no results to download
+% - Cast to 2D: http://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7293666
+
+\section{Conclusion}
+
+\section*{Acknowledgments}
+
+%References are listed in alphabetic order by the surname of the first author, or the identifying word (e.g., in case of a website). Have
+%all anonymized references at the beginning of the list.
+
+%here would be your acknowledgement (if any) in the final accepted paper
+
+%===========================================================
+\bibliographystyle{splncs}
+\bibliography{citations}
+\end{document}

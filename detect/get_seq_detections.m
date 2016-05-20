@@ -27,7 +27,7 @@ for pair_idx = 1:num_pairs
     time_taken = toc(start);
     
     % Debugging output
-    assert(length(boxes) == num_results, ...
+    assert(length(boxes) <= num_results, ...
         'Expected %i detections, got %i', num_results, length(boxes));
     p95_score = prctile([boxes.rscore], 0.95);
     max_score = max([boxes.rscore]);
