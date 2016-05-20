@@ -1,4 +1,4 @@
-function pcps = pcp(preds, gts, limbs)
+function pcps = pcp(preds, gts, limbs, dist_thresh)
 %PCP Compute Percentage Correct Parts (strict) on input sequences
 assert(iscell(preds) && iscell(gts));
 assert(length(preds) >= 1);
@@ -9,12 +9,19 @@ pred_mat = cat(3, preds{:});
 gt_mat = cat(3, gts{:});
 pcps = nan([1 length(limbs)]);
 
+if ~exist('dist_thresh', 'var')
+    % dist_thresh is the tolerance for error, as a fraction of limb length
+    % ordinary PCP uses 0.5, but sweeping the value across a range can tell
+    % you more about accuracy
+    dist_thresh = 0.5;
+end
+
 for limb_id=1:length(limbs)
     limb = limbs{limb_id};
     start_gts = squeeze(gt_mat(limb(1), :, :));
     end_gts = squeeze(gt_mat(limb(2), :, :));
     lengths = dists_2d(start_gts, end_gts);
-    threshs = lengths / 2;
+    threshs = lengths * dist_thresh;
     
     start_preds = squeeze(pred_mat(limb(1), :, :));
     end_preds = squeeze(pred_mat(limb(2), :, :));
