@@ -60,7 +60,9 @@ for data_idx=1:num_data
     datum.visible = trans_visible(orig_datum.visible, trans_spec);
     [seq_num, frame_num] = get_seq_frame(datum.image_path);
     datum.orig_seq = seq_num;
-    datum.joint_locs(~datum.visible, :) = -1;
+    % Invalid stuff gets set to nan just so that I can see that it's
+    % invalid
+    datum.joint_locs(~datum.visible, :) = nan;
     data(data_idx) = datum;
     
     % Now handle sequences
@@ -108,7 +110,7 @@ function check_vis(data)
 % (but not converse, which fails to hold for some reason)
 for i=1:length(data)
     jl = data(i).joint_locs;
-    invalid = any(abs(jl + 1) < 1e-5, 2);
+    invalid = any(isnan(jl), 2);
     visible = data(i).visible;
     % Read this is as "invalid implies invisible"
     assert(all(~invalid | ~visible));
