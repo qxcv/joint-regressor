@@ -16,7 +16,7 @@
 \def\ACCV16SubNumber{***}  % Insert your submission number here
 
 %===========================================================
-\title{Author Guidelines for ACCV Submission} % Replace with your title
+\title{Exploiting Temporal Relationships for Human Pose Estimation using Biposelets}
 \titlerunning{ACCV-16 submission ID \ACCV16SubNumber}
 \authorrunning{ACCV-16 submission ID \ACCV16SubNumber}
 
@@ -30,6 +30,35 @@
 %   stuff)
 % - They want punctuated equations and a ~ space between the end of the equation
 %   and the punctuation (either comma or full stop).
+% - Don't feel obligated to go to 14 pages. A quick skim of accepted papers from
+%   ACCV 2014 shows that going above 10 pages is the norm (shortest I saw was 12
+%   pages), but that fewer than 14 pages of actual content is totally
+%   acceptable.
+% - Structure is flexible. For instance:
+%   - There's no need for a separate discussion section (apart from discussion
+%     in experiments section)
+%   - Some authors don't include a separate section for related work, some do.
+%   - Long sections are acceptable (but poor practice, IMO)
+
+% Tentative list of figures to produce:
+% - One flow chart for the entire pose estimation process (re-use images from
+%   PowerPoint, but in Inkscape or something that plays nicely with LaTeX)
+% - Big panel of biposelets
+% - Illustration of stitching model for single frames (much like the one in my
+%   PowerPoint)
+% - Panels of good at bad predictions for MPII Cooking Activities, Poses in the
+%   Wild and H3.6M
+% - Possibly a small summary figure at the beginning showing some representative
+%   detections to lend flavour to the rest of the paper.
+% - Possibly CNN architecture diagram showing how flow is merged with RGB
+%   images---would prefer not to do that, since it's not a well-explored aspect
+%   of my approach.
+% - Plots of PCK and strict PCP:
+%   - Raw PCK for Poses in the Wild
+%   - PCP-strict at various thresholds for PIW (include table for PCP@0.5)
+%   - PCP-strict at various thresholds for MPII Cooking Activities (also needs
+%     table for PCP@0.5)
+%   - PCKh for H3.6M in same format as recurrent convnet paper
 
 \begin{abstract}
 The problem of human pose estimation in still images has been well-studied in
@@ -81,15 +110,18 @@ pose estimation benchmarks.
 %   neighbouring frame pair.
 % - Decompose pose into several subposes.
 % - Intuitively: want to predict a configuration (poselet) for each subpose.
-%   Choose configurations by applying K-means to all relative positions.
+%   Choose configurations by applying K-means to all relative positions. This is
+%   tied to the CNN training step, so I will have to explain it there.
 % - In our method: each configuration gives a location for each joint within
 %   both frames. This allows configurations to capture both location and motion.
 %   Call these configurations biposelets.
 % - NOW talk about cost function.
 % - Talk about pairwise costs and how the means are found for the pairwise
 %   costs.
+% - Need to mention optical flow implementation in use
 % - Talk about maximising cost function.
-%   - Just message passing.
+%   - Just message passing with distance transforms.
+%   - Need complexity mentioned in there somewhere.
 % - How unaries are produced and learnt by CNN (one follows from the other):
 %   - CNN architecture
 %   - CNN input (two frames + flow between them)
@@ -100,28 +132,31 @@ pose estimation benchmarks.
 %     section.
 % - How SSVM is learnt. Talk about learning target, how positives/negatives are
 %   used, where supervision comes in (if anywhere), how things are optimised
-%   (just cite ramanan2013dual).
+%   (just cite ramanan2013dual). <-- Maybe put in learning section
 % - How poses are recovered from a set of subpose locations and types for each
 %   subpose.
 
+\subsection{Subposes and biposelets}
+
 In the first stage of our pipeline, we consider each neighbouring pair of frames
-in a sequence and simultaneously infer the poses present in each. %TODO
+in a sequence and simultaneously infer the poses present in each. For the
+purposes of this stage, we decompose a pair of poses in neighbouring frames into
+a fixed set of subposes, each of which correspond to a subset of joints in the
+original pose. For instance, a pose containing shoulder, elbow and wrist joints
+could be decomposed into one subpose containing joints associated with the left
+forearm, one subpose containing joints associated with the left upper arm, one
+subpose containing both the left and right shoulders, etc.
 
-\subsection{Biposelets}
-
-We decompose pairs of poses in neighbouring frames into a fixed set of subposes,
-each of which correspond to a subset of joints in the original pose skeleton.
 Rather than representing the locations of each joint in each subpose directly,
-we assign a biposelet type to each subpose %TODO
-
-For each subpose, we discretise the space of configurations for joints within
-the subpose into $K$ \textit{biposelets}. Biposelets are so named in analogy to
-the \textit{poselets} of Bourdev and Malik~\cite{bourdev2009poselets}. Unlike
-its namesake, however, the biposelet gives a location for each joint in a
-subpose across two video frames instead of a just a single image. This allows
-biposelets to represent both the relative positions of joints and their movement
-over time. A representative set of biposelets learnt from MPII Cooking
-Activities~\cite{rohrbach2012database} is shown in Figure~\ref{fig:biposelets}.
+we discretise the space of configurations for joints within each subpose into
+$K$ \textit{biposelets}. Biposelets are so named in analogy to the
+\textit{poselets} of Bourdev and Malik~\cite{bourdev2009poselets}. Unlike their
+namesake, however, biposelets give a position for each joint in a subpose across
+two video frames instead of a single one. This allows biposelets to represent
+both the relative positions of joints and their movement over time. A
+representative set of biposelets learnt for the MPII Cooking Activities pose
+estimation dataset~\cite{rohrbach2012database} is shown in
+Figure~\ref{fig:biposelets}.
 
 \begin{figure*}[t]
 \begin{center}
@@ -157,15 +192,14 @@ only the first frame associated with each biposelet is shown.}
 \label{fig:biposelets}
 \end{figure*}
 
+% TODO: Give motivation for decomposing into subposes and biposelets instead of:
+% 1) Considering a single joint at a time
+% 2) Considering the entire pose
+
 \subsection{Frame pair model}
 
-\begin{equation}
-\label{eqn:full-cost}
-C(\vec l, \vec t \mid \mat I)
-= w_0 + \sum_{s \in \mathcal V} \phi_s(\vec l_s, t_s \mid \mat I)
-+ \sum_{(s_1, s_2) \in \mathcal E}
-    \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2),
-\end{equation}
+Formally, in the first stage of our pipeline, we are given a pair of frames
+$\mat I_1$ and $\mat I_2$---which will be abbreviated $\mat D_{1,2}$ herein
 
 \begin{equation}
 \label{eqn:unary-cost}
@@ -184,16 +218,58 @@ where $\vec \Delta(\begin{bmatrix}\delta_x & \delta_y\end{bmatrix}) =
 \begin{bmatrix}\delta_x^2 & \delta_x & \delta_y^2 & \delta_y\end{bmatrix}$ is a
 deformation feature.
 
-\subsection{Pose recovery}
+% Representing subpose locations as a vector is not strictly accurate
+Given a pair of frames $\mat I_1$ and $\mat I_2$, the dense optical flow $\mat
+F_{12}$ between those frames, a subpose location $\vec l_s$ for each subpose
+$s$, and a biposelet $t_s$ for each subpose $s$, the full cost is
+%
+\begin{equation}
+\label{eqn:full-cost}
+C(\vec l, \vec t \mid \mat D_{12})
+= w_0 + \sum_{s \in \mathcal V} \phi_s(\vec l_s, t_s \mid \mat D_{12})
++ \sum_{(s_1, s_2) \in \mathcal E}
+    \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2),
+\end{equation}
+%
+where $w_0$ is a bias and $\mat D_{12}$ is the concatenation of $\mat I_1$,
+$\mat I_2$ and $\mat F_{12}$.
+
+\subsection{Inference on frame pair model}
 
 \section{Sequence stitching}
 
 % Things I want to talk about:
 %
-% - TODO
+% - How sequence stitching actually works
+% - Why this is an improvement over other methods (fewer parameters, less
+%   complicated implementation)
+% - How we find our parameters (randomized search on validation set showed that
+%   stitching is pretty much invariant to order-of-magnitude changes in relative
+%   values of variables, so in practice you can probably pick coefficients by
+%   hand)
 
 In the second stage of our pipeline, we attempt to produce a temporally coherent
-sequence of poses across every frame of a video. %TODO
+sequence of poses across every frame of a video.%TODO
+
+After determining a location and biposelet type for each subpose, we can recover
+a location for each joint in the original pose model%TODO
+
+\section{Learning}
+
+% Things I need to explain:
+% - How CNN is learnt (what is the general learning setup? What augmentations do
+%   we apply? What about SGD parameters?)
+% - How biposelets are clustered (apply K-means to joints in CNN training
+%   patches)
+% - Structural SVM things
+
+\subsection{Learning unaries}
+
+\subsection{Clustering biposelets}
+
+\subsection{Single-pair detector}
+
+\subsection{Stitching weights}
 
 \section{Experiments}
 
