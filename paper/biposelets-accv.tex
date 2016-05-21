@@ -3,10 +3,13 @@
 \usepackage{amsmath,amssymb} % define this before the line numbering.
 \usepackage{ruler}
 \usepackage{color}
+\usepackage{censor}
 
 %===========================================================
 % Custom commands
 \newcommand{\mat}{\mathbf}
+\DeclareMathOperator{\pa}{pa}
+\DeclareMathOperator{\argmin}{arg min}
 
 %===========================================================
 \begin{document}
@@ -25,7 +28,9 @@
 
 \maketitle
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Misc formatting notes:
+%
 % - Use "This is not a pipe~\cite{sourceYY}." to cite papers (not fancy natbib
 %   stuff)
 % - They want punctuated equations and a ~ space between the end of the equation
@@ -40,7 +45,9 @@
 %   - Some authors don't include a separate section for related work, some do.
 %   - Long sections are acceptable (but poor practice, IMO)
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Tentative list of figures to produce:
+%
 % - One flow chart for the entire pose estimation process (re-use images from
 %   PowerPoint, but in Inkscape or something that plays nicely with LaTeX)
 % - Big panel of biposelets
@@ -59,6 +66,15 @@
 %   - PCP-strict at various thresholds for MPII Cooking Activities (also needs
 %     table for PCP@0.5)
 %   - PCKh for H3.6M in same format as recurrent convnet paper
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Page budgeting (14 page content limit with unlimited references):
+%
+% - 1 page for introduction, abstract and title
+% - 1-2 pages for related work
+% - 4-5 pages for method (frame pair model + stitching + learning)
+% - 5-6 pages for experiments and discussion (depending on space available)
+% - 0.5 pages for conclusion and acknowledgement
 
 \begin{abstract}
 The problem of human pose estimation in still images has been well-studied in
@@ -136,16 +152,19 @@ pose estimation benchmarks.
 % - How poses are recovered from a set of subpose locations and types for each
 %   subpose.
 
-\subsection{Subposes and biposelets}
+\subsection{Subposes and biposelets}\label{sec:decomp}
 
 In the first stage of our pipeline, we consider each neighbouring pair of frames
 in a sequence and simultaneously infer the poses present in each. For the
 purposes of this stage, we decompose a pair of poses in neighbouring frames into
 a fixed set of subposes, each of which correspond to a subset of joints in the
-original pose. For instance, a pose containing shoulder, elbow and wrist joints
-could be decomposed into one subpose containing joints associated with the left
-forearm, one subpose containing joints associated with the left upper arm, one
-subpose containing both the left and right shoulders, etc.
+original pose. Subposes are chosen so that each subpose shares exactly a joint
+with at least one neighbouring subpose, and each joint in the original pose is
+present in at least one subpose. For instance, a pose containing shoulder, elbow
+and wrist joints could be decomposed into one subpose containing wrist and elbow
+joints on the left side of the body, one subpose containing elbow and shoulder
+joints on the left hand side, one subpose containing both the left and right
+shoulders, etc.
 
 Rather than representing the locations of each joint in each subpose directly,
 we discretise the space of configurations for joints within each subpose into
@@ -198,55 +217,126 @@ only the first frame associated with each biposelet is shown.}
 
 \subsection{Frame pair model}
 
-Formally, in the first stage of our pipeline, we are given a pair of frames
-$\mat I_1$ and $\mat I_2$---which will be abbreviated $\mat D_{1,2}$ herein
-
-\begin{equation}
-\label{eqn:unary-cost}
-\phi_s(\vec l_s, t_s \mid \mat I) = w_s p(s, t_s \mid \mat I(\vec l_s))
+Formally, our frame pair model conceptualises a pose as a tree-structured graph
+$\mathcal G = (\mathcal S, \mathcal E)$ consisting of a set of subposes
+$\mathcal S$ and a set of edges $\mathcal E \subset \mathcal S \times \mathcal
+S$. Subposes are chosen according to the constraints listed in
+Section~\ref{sec:decomp}, and a pair of subposes $(s_1, s_2)$ will have an edge
+between them iff they have a joint in common. The objective of the first stage
+of our pipeline is to take a pair of frames $(\mat I_1, \mat I_2)$ and output,
+for each subpose $s$, a subpose location $\vec l_s \in \mathbb R^2$ within the
+frame pair and a biposelet type $t_s \in \{1, \ldots, K\}$. Specifically, the
+first stage must find some $\mat L = \begin{bmatrix}\vec l_1 & \vec l_2 & \cdots
+& \vec l_{|\mathcal S|}\end{bmatrix}^T$ and $\vec t = \begin{bmatrix}t_1 & t_2 &
+\cdots & t_{|\mathcal S|}\end{bmatrix}$ which minimises the cost
+%
+\begin{equation}\label{eqn:full-cost}
+C(\mat L, \vec t \mid \mat D_{12})
+= w_0 + \sum_{s \in \mathcal V} \phi_s(\vec l_s, t_s; \mat D_{12})
++ \sum_{(s_1, s_2) \in \mathcal E}
+    \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2),
 \end{equation}
+%
+where $w_0$ is a bias, each $\phi_s(\cdot)$ is an appearance term, each
+$\psi_{s_1,s_2}$ is a pairwise cost, and $\mat D_{12}$ is the concatenation
+of $\mat I_1$ and $\mat I_2$.
 
-\begin{equation}
-\label{eqn:pair-cost}
+Recall that each pair of neighbouring subposes have a single joint in common;
+the aim of the pairwise terms is to ensure that locations of neighbouring
+subposes are chosen so that predicted locations for their shared joints are
+consistent. Concretely, each pairwise cost can be written out in full as
+%
+\begin{equation}\label{eqn:pair-cost}
 \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2)
 = \langle
     \vec w_{s_1 s_2},
     \vec \Delta(\vec l_{s_1} - \vec l_{s_2}  - \vec m_{t_1 t_2})
 \rangle,
 \end{equation}
+%
 where $\vec \Delta(\begin{bmatrix}\delta_x & \delta_y\end{bmatrix}) =
 \begin{bmatrix}\delta_x^2 & \delta_x & \delta_y^2 & \delta_y\end{bmatrix}$ is a
-deformation feature.
+deformation feature, $\vec w_{s_1 s_2}$ is a learnt weight vector, and
+$\vec m_{t_1 t_2}$ is an ``ideal'' displacement between $s_1$ and $s_2$. %TODO
 
-% Representing subpose locations as a vector is not strictly accurate
-Given a pair of frames $\mat I_1$ and $\mat I_2$, the dense optical flow $\mat
-F_{12}$ between those frames, a subpose location $\vec l_s$ for each subpose
-$s$, and a biposelet $t_s$ for each subpose $s$, the full cost is
-%
-\begin{equation}
-\label{eqn:full-cost}
-C(\vec l, \vec t \mid \mat D_{12})
-= w_0 + \sum_{s \in \mathcal V} \phi_s(\vec l_s, t_s \mid \mat D_{12})
-+ \sum_{(s_1, s_2) \in \mathcal E}
-    \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2),
+%TODO
+\begin{equation}\label{eqn:unary-cost}
+\phi_s(\vec l_s, t_s; \mat D_{12}) = -w_s \log p(s, t_s \mid \mat D_{12}(\vec l_s))
 \end{equation}
 %
-where $w_0$ is a bias and $\mat D_{12}$ is the concatenation of $\mat I_1$,
-$\mat I_2$ and $\mat F_{12}$.
+where $w_s$ is a learnt weight and $\mat D_{12}(\vec l_s)$ denotes a crop of the
+frame pair $(\mat I_1, I_2)$ and the optical flow between them at location $\vec
+l_s$.
+
+\subsection{Computation of appearance terms}
+\label{sec:unaries}
+
+% TODO: Describe the CNN used to calculate appearance terms in depth (so inputs,
+% outputs, use of fully convolutional network, etc.). Leave learning for the
+% learning section, though.
+
+% Inference on a frame pair proceeds in three steps: first, optical flow is
+% computed between the two frames using Brox et al.'s
+% approach~\cite{brox2004high}.
 
 \subsection{Inference on frame pair model}
 
-\section{Sequence stitching}
+The full cost (\ref{eqn:full-cost}) can be minimised efficiently by exploiting
+the subpose graph's tree structure. For each subpose $s$, define the minimal
+cost of the subtree rooted at $s$ as
+%
+\begin{equation}\label{eqn:reccost}
+\begin{split}
+M(\vec l_s, t_s; \mat D_{12}) =
+&\sum_{s' : \pa(s') = s} \min_{\vec l_{s'}, t_{s'}} \left(\psi_{s s'}(\vec l_s,
+\vec l_{s'}, t_s, t_{s'}) + M(\vec l_{s'}, t_{s'}; \mat D_{12})\right)
+\\&\quad+ \phi_s(\vec l_s, t_s; \mat D_{12}),
+\end{split}
+\end{equation}
+%
+where $\vec l_s$ and $t_s$ are the location and biposelet type, respectively, of
+$s$, and $\pa(s') = s$ iff subpose $s$ is the parent of subpose $s'$ in
+$\mathcal G$.
+
+$M$ can be calculated for location and type of the root subpose subpose by
+proceeding from the leaves of $\mathcal G$ upwards: for each leaf subpose $s_l$,
+$M(\vec l_{s_l}, t_{s_l}; \mat D_{12})$ is simply $\phi_{s_l}(\vec l_{s_l},
+t_{s_l}; \mat D_{12})$. For a non-leaf subpose $s$, $M(\vec l_s, \vec t_s; \mat
+D_{12})$ can be computed by first evaluating $M(\vec l_{s_c}, t_{s_c}; \mat
+D_{12})$ for each child $s_c$ of $s$, then applying Felzenszwalb and
+Huttenlocher's distance transform technique~\cite{felzenszwalb2012distance} to
+find the $\vec l_{s_c}$ which minimises $\psi_{s s_c}(\vec l_s, \vec l_{s_c},
+t_s, t_{s_c})$ for each $t_{s_c}$.
+
+$\mathcal O(N K^2)$ time.
+%TODO: Complexity analysis
+In a frame pair with $N$ unary map locations, calculating $M$ for all locations
+and types of the root subpose takes $\mathcal O(|\mathcal S| N K^2)$ time.
+
+Having evaluated (\ref{eqn:reccost}) for each possible $\vec l_{s_R}$ and
+$t_{s_R}$, finding the pose configuration which minimises (\ref{eqn:full-cost})
+is a simple matter of looking up
+%
+\begin{equation}
+\argmin_{\vec l_{s_R}, t_{s_R}} M(\vec l_{s_R}, \vec t_{s_R}; \mat D_{12})
+\end{equation}
+%
+and then backtracking to recover the locations
+and types of all other subposes. This backtracking process can be repeated for
+several root locations and types to produce a set of low-cost pose
+configurations for each frame pair; having several such configurations is
+important during the sequence stitching stage of the pipeline, as explained in
+Section~\ref{sec:stitching}.
+
+\section{Sequence stitching}\label{sec:stitching}
 
 % Things I want to talk about:
 %
-% - How sequence stitching actually works
+% - How to go from a sequence of subpose types and locations for each pair to a
+%   set of poses for each frame.
+% - Sequence stitching cost and cost minimisation (dynamic programming).
 % - Why this is an improvement over other methods (fewer parameters, less
 %   complicated implementation)
-% - How we find our parameters (randomized search on validation set showed that
-%   stitching is pretty much invariant to order-of-magnitude changes in relative
-%   values of variables, so in practice you can probably pick coefficients by
-%   hand)
 
 In the second stage of our pipeline, we attempt to produce a temporally coherent
 sequence of poses across every frame of a video.%TODO
@@ -257,19 +347,27 @@ a location for each joint in the original pose model%TODO
 \section{Learning}
 
 % Things I need to explain:
-% - How CNN is learnt (what is the general learning setup? What augmentations do
-%   we apply? What about SGD parameters?)
-% - How biposelets are clustered (apply K-means to joints in CNN training
-%   patches)
-% - Structural SVM things
 
 \subsection{Learning unaries}
 
+% How CNN is learnt (what is the general learning setup? What augmentations do
+% we apply? What about SGD parameters?)
+
 \subsection{Clustering biposelets}
+
+% How biposelets are clustered (apply K-means to joints in CNN training patches)
 
 \subsection{Single-pair detector}
 
+% Structural SVM things
+\cite{ramanan2013dual}
+
 \subsection{Stitching weights}
+
+% Randomized search on validation set showed that stitching is pretty much
+% invariant to order-of-magnitude changes in relative values of variables, so in
+% practice you can probably pick coefficients by hand). Need to explain this in
+% a way which sounds reasonable sophisticated.
 
 \section{Experiments}
 
@@ -279,7 +377,10 @@ a location for each joint in the original pose model%TODO
 %   the datasets, then mean recombination time per frame. Over all the test
 %   sequences.
 
-\subsection{MPII Cooking}
+% XXX: Remove censor box for camera-ready version
+Code for all experiments is available at \censor{\url{https://github.com/qxcv/joint-regressor}}.
+
+\paragraph{MPII Cooking Activities}
 
 % TODO: PCKh graphs (raw PCK given elsewhere, but I can probably ignore that),
 % PCP for each limb, qualitative results
@@ -297,7 +398,7 @@ a location for each joint in the original pose model%TODO
 % - Results from here (shitty): https://www.mpi-inf.mpg.de/fileadmin/inf/d2/amin/rohrbach12cvpr.pdf
 % - Here: http://link.springer.com/chapter/10.1007/978-3-319-11752-2_20#page-1
 
-\subsection{FLIC and PIW}
+\paragraph{FLIC and PIW}
 
 % TODO: PCKh graphs, PCP for each limb, qualitative results
 
@@ -312,7 +413,7 @@ a location for each joint in the original pose model%TODO
 % (http://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Pfister_Flowing_ConvNets_for_ICCV_2015_paper.pdf),
 % which also fails to normalise anything.
 
-\subsection{H3.6M}
+\paragraph{Human3.6M} Human3.6M~\cite{ionescu2014human,ionescu2011latent} (herein abbreviated as H3.6M)
 
 % TODO: PCKsh (as in shoulder->hip normalised) plots, qualitative results
 
@@ -334,6 +435,10 @@ a location for each joint in the original pose model%TODO
 \section{Conclusion}
 
 \section*{Acknowledgments}
+
+We would like to thank various authors whose code we have extended or used to
+produce baseline
+comparisons~\cite{pfister2015flowing,chen2014articulated,cherian2014mixing}.
 
 %References are listed in alphabetic order by the surname of the first author, or the identifying word (e.g., in case of a website). Have
 %all anonymized references at the beginning of the list.
