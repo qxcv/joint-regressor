@@ -11,6 +11,10 @@ extra_args = {'MarkerEdgeColor', colour, 'MarkerFaceColor', colour};
 for i=1:size(locs, 1);
     x = locs(i, 1);
     y = locs(i, 2);
+    if any(isnan([x y]))
+        fprintf('Skipping joint %i due to NaNs\n', i);
+        continue
+    end
     h = plot(x, y, 'LineStyle', 'none', 'Marker', '+', 'MarkerSize', 15, extra_args{:});
     text(double(x+8), double(y+8), cellstr(num2str(i)), 'Color', h.MarkerEdgeColor, 'FontSize', 15);
 end
