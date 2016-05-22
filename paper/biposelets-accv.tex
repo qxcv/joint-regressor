@@ -257,11 +257,21 @@ consistent. Concretely, each pairwise cost can be written out in full as
 where $\vec \Delta(\begin{bmatrix}\delta_x & \delta_y\end{bmatrix}) =
 \begin{bmatrix}\delta_x^2 & \delta_x & \delta_y^2 & \delta_y\end{bmatrix}$ is a
 deformation feature, $\vec w_{s_1 s_2}$ is a learnt weight vector, and
-$\vec m_{t_1 t_2}$ is an ``ideal'' displacement between $s_1$ and $s_2$. %TODO
+$\vec m_{t_1 t_2}$ is an ``ideal'' displacement between $s_1$ and $s_2$. If the
+joint shared between $s_1$ and $s_2$ is at location $\vec r_{t,f}$ in frame $f$
+and biposelet $t$ (relative to the centre of the biposelet), then $\vec m_{t_1
+t_2}$ is simply
+\begin{equation}
+\frac{
+    \left(\vec r_{t_2,1} - \vec r_{t_1,1}\right)
+    + \left(\vec r_{t_2,2} - \vec r_{t_1,2}\right)
+}{2}.
+\end{equation}
 
-%TODO
+Each unary cost takes the form
 \begin{equation}\label{eqn:unary-cost}
-\phi_s(\vec l_s, t_s; \mat D_{12}) = -w_s \log p(s, t_s \mid \mat D_{12}(\vec l_s))
+\phi_s(\vec l_s, t_s; \mat D_{12}) = -w_s \log p(s, t_s \mid \mat D_{12}(\vec
+l_s)),
 \end{equation}
 %
 where $w_s$ is a learnt weight and $\mat D_{12}(\vec l_s)$ denotes a crop of the
@@ -298,7 +308,7 @@ where $\vec l_s$ and $t_s$ are the location and biposelet type, respectively, of
 $s$, and $\pa(s') = s$ iff subpose $s$ is the parent of subpose $s'$ in
 $\mathcal G$.
 
-$M$ can be calculated for location and type of the root subpose subpose by
+$M$ can be calculated for each location and type of the root subpose by
 proceeding from the leaves of $\mathcal G$ upwards: for each leaf subpose $s_l$,
 $M(\vec l_{s_l}, t_{s_l}; \mat D_{12})$ is simply $\phi_{s_l}(\vec l_{s_l},
 t_{s_l}; \mat D_{12})$. For a non-leaf subpose $s$, $M(\vec l_s, \vec t_s; \mat
@@ -306,12 +316,10 @@ D_{12})$ can be computed by first evaluating $M(\vec l_{s_c}, t_{s_c}; \mat
 D_{12})$ for each child $s_c$ of $s$, then applying Felzenszwalb and
 Huttenlocher's distance transform technique~\cite{felzenszwalb2012distance} to
 find the $\vec l_{s_c}$ which minimises $\psi_{s s_c}(\vec l_s, \vec l_{s_c},
-t_s, t_{s_c})$ for each $t_{s_c}$.
-
-$\mathcal O(N K^2)$ time.
-%TODO: Complexity analysis
-In a frame pair with $N$ unary map locations, calculating $M$ for all locations
-and types of the root subpose takes $\mathcal O(|\mathcal S| N K^2)$ time.
+t_s, t_{s_c})$ for each $t_{s_c}$. If there are $N$ locations in the image and
+$K$ possible values for $t_{s_c}$ and $t_s$, then this will take $\mathcal O(N
+K^2)$ time for each child and each $\vec l_s$; repeating the procedure for all
+subposes in $\mathcal G$ thus takes $\mathcal O(|\mathcal S| N K^2)$ time.
 
 Having evaluated (\ref{eqn:reccost}) for each possible $\vec l_{s_R}$ and
 $t_{s_R}$, finding the pose configuration which minimises (\ref{eqn:full-cost})
