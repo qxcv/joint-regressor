@@ -122,20 +122,20 @@ pose estimation benchmarks.
 \section{Detecting pose pairs}
 
 % What I want to say:
-% - Objective of this stage of pipeline is to find a pose in each frame of each
+% - (✓) Objective of this stage of pipeline is to find a pose in each frame of each
 %   neighbouring frame pair.
-% - Decompose pose into several subposes.
-% - Intuitively: want to predict a configuration (poselet) for each subpose.
+% - (✓) Decompose pose into several subposes.
+% - (✓) Intuitively: want to predict a configuration (poselet) for each subpose.
 %   Choose configurations by applying K-means to all relative positions. This is
 %   tied to the CNN training step, so I will have to explain it there.
-% - In our method: each configuration gives a location for each joint within
+% - (✓) In our method: each configuration gives a location for each joint within
 %   both frames. This allows configurations to capture both location and motion.
 %   Call these configurations biposelets.
 % - NOW talk about cost function.
-% - Talk about pairwise costs and how the means are found for the pairwise
+% - (✓) Talk about pairwise costs and how the means are found for the pairwise
 %   costs.
 % - Need to mention optical flow implementation in use
-% - Talk about maximising cost function.
+% - (✓) Talk about maximising cost function.
 %   - Just message passing with distance transforms.
 %   - Need complexity mentioned in there somewhere.
 % - How unaries are produced and learnt by CNN (one follows from the other):
@@ -268,7 +268,7 @@ t_2}$ is simply
 }{2}.
 \end{equation}
 
-Each unary cost takes the form
+Each appearance cost takes the form
 \begin{equation}\label{eqn:unary-cost}
 \phi_s(\vec l_s, t_s; \mat D_{12}) = -w_s \log p(s, t_s \mid \mat D_{12}(\vec
 l_s)),
@@ -276,7 +276,9 @@ l_s)),
 %
 where $w_s$ is a learnt weight and $\mat D_{12}(\vec l_s)$ denotes a crop of the
 frame pair $(\mat I_1, I_2)$ and the optical flow between them at location $\vec
-l_s$.
+l_s$. $p(s, t \mid \mat D(\vec l))$ is produced by a CNN trained to classify
+image patches containing biposelets; this is explained further in the next
+section.
 
 \subsection{Computation of appearance terms}
 \label{sec:unaries}
@@ -329,12 +331,14 @@ is a simple matter of looking up
 \argmin_{\vec l_{s_R}, t_{s_R}} M(\vec l_{s_R}, \vec t_{s_R}; \mat D_{12})
 \end{equation}
 %
-and then backtracking to recover the locations
-and types of all other subposes. This backtracking process can be repeated for
-several root locations and types to produce a set of low-cost pose
-configurations for each frame pair; having several such configurations is
-important during the sequence stitching stage of the pipeline, as explained in
-Section~\ref{sec:stitching}.
+and then backtracking to recover the locations and types of all other subposes.
+This backtracking process can be repeated for several root locations and types
+to produce a set of low-cost pose configurations for each frame pair; having
+several such configurations is important during the sequence stitching stage of
+the pipeline, as explained in Section~\ref{sec:stitching}.
+
+After determining a location and biposelet type for each subpose, we can recover
+a location for each joint in the original pose model%TODO
 
 \section{Sequence stitching}\label{sec:stitching}
 
@@ -346,11 +350,22 @@ Section~\ref{sec:stitching}.
 % - Why this is an improvement over other methods (fewer parameters, less
 %   complicated implementation)
 
-In the second stage of our pipeline, we attempt to produce a temporally coherent
-sequence of poses across every frame of a video.%TODO
+After evaluating the first stage of our pipeline on every frame pair in a video
+sequence, we obtain a small candidate set of poses for each pair. The task of
+the second stage of our pipeline is to obtain a single pose for each frame in
+the sequence using those candidate sets. %TODO
 
-After determining a location and biposelet type for each subpose, we can recover
-a location for each joint in the original pose model%TODO
+Let $\mat p_f$ denote the locations of each joint in the pose chosen for frame
+$f \in \{1, \ldots, F\}$, and $C(\mat p_f)$ denote the cost associated with the
+subpose %TODO
+
+For a sequence of $F$ frames, we %TODO
+$(\mathcal P_{n-1,n}, \mathcal P_{n,n+1})$
+
+\begin{equation}\label{eqn:stitch-cost}
+\sum_{f=2}^{F-1} \|\mat p_{f-1} - \mat p_f\|_2^2 
++ \sum_{f=1}^{F-1} C(\mat L_f, \vec t_f \mid \mat D_{f,f+1})
+\end{equation}
 
 \section{Learning}
 
@@ -365,7 +380,7 @@ a location for each joint in the original pose model%TODO
 
 % How biposelets are clustered (apply K-means to joints in CNN training patches)
 
-\subsection{Single-pair detector}
+\subsection{Frame pair model}
 
 % Structural SVM things
 \cite{ramanan2013dual}

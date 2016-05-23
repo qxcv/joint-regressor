@@ -43,6 +43,9 @@ parser.add_argument(
     help='Produce a plot for the poster rather than the report.'
 )
 parser.add_argument(
+    '--xmax', type=float, default=None, help='Maximum value along the x-axis'
+)
+parser.add_argument(
     '--dims', nargs=2, type=float, metavar=('WIDTH', 'HEIGHT'),
     default=[6, 3], help="Dimensions (in inches) for saved plot"
 )
@@ -61,9 +64,9 @@ def load_data(inputs):
         if thresholds is None:
             thresholds = csv[THRESH]
         if parts is None:
-            parts = {part: [] for part in csv.columns - [THRESH]}
+            parts = {part: [] for part in csv.columns.difference([THRESH])}
 
-        assert len(parts) == len(csv.columns - [THRESH])
+        assert len(parts) == len(csv.columns.difference([THRESH]))
         assert (csv[THRESH] == thresholds).all()
 
         for part in parts:
@@ -127,6 +130,9 @@ if __name__ == '__main__':
         subplot.set_title(part_name)
         subplot.set_xlabel('Threshold (px)')
         subplot.grid(which='both')
+
+        if args.xmax is not None:
+            subplot.set_xlim(xmax=args.xmax)
 
     subplots[0].set_ylabel('Accuracy (%)')
     subplots[0].set_ylim(ymin=0, ymax=100)
