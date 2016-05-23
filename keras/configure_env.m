@@ -18,7 +18,9 @@ if ~exist('./keras/env', 'dir')
 end
 % Set some environment variables
 py_weak_setenv('HDF5_DISABLE_VERSION_CHECK', '1');
-THEANO_FLAGS = sprintf('floatX=float32,device=gpu%i,lib.cnmem=%f', ...
+% dnn.enabled is for cuDNN, lib.cnmem is for Nvidia's fancy memory manager
+% (0 to disable)
+THEANO_FLAGS = sprintf('floatX=float32,device=gpu%i,lib.cnmem=%f,dnn.enabled=True', ...
     cnn_conf.gpu, cnn_conf.cnmem);
 py_weak_setenv('THEANO_FLAGS', THEANO_FLAGS);
 fprintf('THEANO_FLAGS=%s\n', py_getenv('THEANO_FLAGS'));
