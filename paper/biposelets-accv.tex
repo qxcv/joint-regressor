@@ -4,6 +4,12 @@
 \usepackage{ruler}
 \usepackage{color}
 \usepackage{censor}
+% See
+% https://stackoverflow.com/questions/1061112/eliminate-space-before-beginitemize
+% Lots of authors seem to hate the spacing before lists in LaTeX. nolistsep
+% takes it out.
+\usepackage{enumitem}
+%\setlist{nolistsep}
 
 %===========================================================
 % Custom commands
@@ -53,13 +59,13 @@
 % - Big panel of biposelets
 % - Illustration of stitching model for single frames (much like the one in my
 %   PowerPoint)
-% - Panels of good at bad predictions for MPII Cooking Activities, Poses in the
-%   Wild and H3.6M
 % - Possibly a small summary figure at the beginning showing some representative
 %   detections to lend flavour to the rest of the paper.
-% - Possibly CNN architecture diagram showing how flow is merged with RGB
+% - Possibly a CNN architecture diagram showing how flow is merged with RGB
 %   images---would prefer not to do that, since it's not a well-explored aspect
 %   of my approach.
+% - Panels of good at bad predictions for MPII Cooking Activities, Poses in the
+%   Wild and H3.6M
 % - Plots of PCK and strict PCP:
 %   - Raw PCK for Poses in the Wild
 %   - PCP-strict at various thresholds for PIW (include table for PCP@0.5)
@@ -112,7 +118,7 @@ pose estimation benchmarks.
 % Work I want to mention:
 % Some papers on poselets
 % Xianjie Chen's stuff (graphical models!)
-% Toshev & Szegedy (CNNs)
+% Toshev & Szegedy (CNNs) --> not terribly relevant any more
 % Modeep
 % Convolutional pose machines
 % Anoop's stuff
@@ -134,7 +140,7 @@ pose estimation benchmarks.
 % - NOW talk about cost function.
 % - (✓) Talk about pairwise costs and how the means are found for the pairwise
 %   costs.
-% - Need to mention optical flow implementation in use
+% - Need to mention optical flow implementation in use.
 % - (✓) Talk about maximising cost function.
 %   - Just message passing with distance transforms.
 %   - Need complexity mentioned in there somewhere.
@@ -234,7 +240,7 @@ first stage must find some $\mat L = \begin{bmatrix}\vec l_1 & \vec l_2 & \cdots
 C(\mat L, \vec t \mid \mat D_{12})
 = w_0 + \sum_{s \in \mathcal V} \phi_s(\vec l_s, t_s; \mat D_{12})
 + \sum_{(s_1, s_2) \in \mathcal E}
-    \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2),
+    \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2)~,
 \end{equation}
 %
 where $w_0$ is a bias, each $\phi_s(\cdot)$ is an appearance term, each
@@ -251,7 +257,7 @@ consistent. Concretely, each pairwise cost can be written out in full as
 = \langle
     \vec w_{s_1 s_2},
     \vec \Delta(\vec l_{s_1} - \vec l_{s_2}  - \vec m_{t_1 t_2})
-\rangle,
+\rangle~,
 \end{equation}
 %
 where $\vec \Delta(\begin{bmatrix}\delta_x & \delta_y\end{bmatrix}) =
@@ -265,13 +271,13 @@ t_2}$ is simply
 \frac{
     \left(\vec r_{t_2,1} - \vec r_{t_1,1}\right)
     + \left(\vec r_{t_2,2} - \vec r_{t_1,2}\right)
-}{2}.
+}{2}~.
 \end{equation}
 
 Each appearance cost takes the form
 \begin{equation}\label{eqn:unary-cost}
 \phi_s(\vec l_s, t_s; \mat D_{12}) = -w_s \log p(s, t_s \mid \mat D_{12}(\vec
-l_s)),
+l_s))~,
 \end{equation}
 %
 where $w_s$ is a learnt weight and $\mat D_{12}(\vec l_s)$ denotes a crop of the
@@ -287,9 +293,7 @@ section.
 % outputs, use of fully convolutional network, etc.). Leave learning for the
 % learning section, though.
 
-% Inference on a frame pair proceeds in three steps: first, optical flow is
-% computed between the two frames using Brox et al.'s
-% approach~\cite{brox2004high}.
+% Reference for flow: Brox et al.~\cite{brox2004high}
 
 \subsection{Inference on frame pair model}
 
@@ -302,7 +306,7 @@ cost of the subtree rooted at $s$ as
 M(\vec l_s, t_s; \mat D_{12}) =
 &\sum_{s' : \pa(s') = s} \min_{\vec l_{s'}, t_{s'}} \left(\psi_{s s'}(\vec l_s,
 \vec l_{s'}, t_s, t_{s'}) + M(\vec l_{s'}, t_{s'}; \mat D_{12})\right)
-\\&\quad+ \phi_s(\vec l_s, t_s; \mat D_{12}),
+\\&\quad+ \phi_s(\vec l_s, t_s; \mat D_{12})~,
 \end{split}
 \end{equation}
 %
@@ -338,7 +342,10 @@ several such configurations is important during the sequence stitching stage of
 the pipeline, as explained in Section~\ref{sec:stitching}.
 
 After determining a location and biposelet type for each subpose, we can recover
-a location for each joint in the original pose model%TODO
+a location for each joint in the original pose model using the stored joint
+offsets associated with each assigned biposelet. In cases where two subposes
+share a joint, the final joint location is the average of the joint locations
+predicted by the biposelets associated with the two subposes.
 
 \section{Sequence stitching}\label{sec:stitching}
 
@@ -350,47 +357,81 @@ a location for each joint in the original pose model%TODO
 % - Why this is an improvement over other methods (fewer parameters, less
 %   complicated implementation)
 
+% TODO: Might need some more motivation here.
+
 After evaluating the first stage of our pipeline on every frame pair in a video
-sequence, we obtain a small candidate set of poses for each pair. The task of
-the second stage of our pipeline is to obtain a single pose for each frame in
-the sequence using those candidate sets. %TODO
+sequence, we obtain a small candidate set of pose pairs for each frame pair. The
+second stage of the pipeline attempts to pick a single pose pair from each
+candidate set of pose pairs, then combines poses from overlapping pairs to obtain
+a single pose for each frame. Chosen pose pairs should meet two criteria:
+%
+\begin{description}
+\item[Individual plausibility] Low cost poses (in the sense of
+Equation~\ref{eqn:full-cost}), should be preferred over high cost ones.
+\item[Temporal consistency] Where two selected pose pairs overlap on a frame,
+the selected poses for that frame should be similar.
+\end{description}
 
-Let $\mat p_f$ denote the locations of each joint in the pose chosen for frame
-$f \in \{1, \ldots, F\}$, and $C(\mat p_f)$ denote the cost associated with the
-subpose %TODO
-
-For a sequence of $F$ frames, we %TODO
-$(\mathcal P_{n-1,n}, \mathcal P_{n,n+1})$
-
+The pair selection criteria are easy to express mathematically. For a sequence
+of $F$ frames, let $\mathcal P_f$ denote the set of pose pairs detected between
+frame $f$ and $f + 1$, where $f \in \{1, \ldots, F - 1\}$. Further, let $(\mat
+p_{f,1}, \mat p_{f_2})$ denote the specific pose pair which the sequence
+stitcher chooses from set $\mathcal P_f$, and $c_f$ be cost associated with the
+subpose locations and types defining that pose pair, as given by
+Equation~\ref{eqn:full-cost}. The objective of the stitcher is to find a
+sequence of pose pairs $(\mat p_{1,1}, \mat p_{1,2}), (\mat p_{2,1}, \mat
+p_{2,2}), \ldots, (\mat p_{f-1,1}, \mat p_{f-1,2})$ from the sets $\mathcal P_1,
+\mathcal P_2, \ldots, \mathcal P_{F-1}$ which minimises
+%
 \begin{equation}\label{eqn:stitch-cost}
-\sum_{f=2}^{F-1} \|\mat p_{f-1} - \mat p_f\|_2^2 
-+ \sum_{f=1}^{F-1} C(\mat L_f, \vec t_f \mid \mat D_{f,f+1})
+\sum_{f=1}^{F-1} \|\mat p_{f,2} - \mat p_{f+1,1}\|_2^2
++ \lambda \sum_{f=1}^{F-1} c_f~.
 \end{equation}
+%
+The first term encourages temporal consistency, whilst the second favours
+low-cost pose pairs over high-cost ones. $\lambda$ is a constant which balances
+the two considerations.
+
+Once an appropriate sequence of pose pairs has been chosen, a final pose may be
+produced for each frame frame $1 < f < F$ by averaging $\mat p_{f-1,2}$ and
+$\mat p_{f,1}$. In the first and last frames, there will only be one selected
+pose to begin with, as there is only one pose pair associated with each of those
+frames.
+
+Equation~\ref{eqn:stitch-cost} can be efficiently minimised using a dynamic
+programming approach analogous to the Viterbi algorithm. If there are $|\mathcal
+P|$ pose pairs in each candidate set, then this maximisation will take $\mathcal
+O(|\mathcal P|^2)$ time. Thus, it is important to produce only a small selection
+of the best pose pairs during inference on the frame pair model. In practice, we
+found that $|\mathcal P|$ between 100 and 1000 generally gave an ample selection
+of poses without imposing too great a computational burden.
 
 \section{Learning}
 
-% Things I need to explain:
-
-\subsection{Learning unaries}
+Learnt parameters for our model include:
+%
+\begin{enumerate}
+\item CNN weights for the appearance terms defined by
+Equation~\ref{eqn:unary-cost}.
+\item Biposelet types for each subpose.
+\item Weights $\{w_0\} \cup \{w_s : s \in \mathcal S\} \cup\{w_{s_1 s_2} : s_1,
+s_2 \in \mathcal S\}$ for Equation~\ref{eqn:full-cost} in the frame pair model.
+% \item The $\lambda$ which balances temporal consistency against pose
+% plausibility during stitching.
+\end{enumerate}
 
 % How CNN is learnt (what is the general learning setup? What augmentations do
 % we apply? What about SGD parameters?)
 
-\subsection{Clustering biposelets}
-
 % How biposelets are clustered (apply K-means to joints in CNN training patches)
-
-\subsection{Frame pair model}
 
 % Structural SVM things
 \cite{ramanan2013dual}
 
-\subsection{Stitching weights}
-
 % Randomized search on validation set showed that stitching is pretty much
 % invariant to order-of-magnitude changes in relative values of variables, so in
 % practice you can probably pick coefficients by hand). Need to explain this in
-% a way which sounds reasonable sophisticated.
+% a way which sounds reasonably sophisticated.
 
 \section{Experiments}
 
