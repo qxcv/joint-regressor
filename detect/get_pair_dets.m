@@ -15,6 +15,6 @@ catch
         pair_dets{seq_num} = get_seq_detections(test_seqs, seq_num, ssvm_model, biposelets, ...
             subposes, num_joints, num_dets, cache_dir);
     end
-    save(pd_path, 'pair_dets');
+    save(pd_path, 'pair_dets', '-v7.3');
 end
 end
