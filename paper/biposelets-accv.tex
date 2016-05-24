@@ -321,7 +321,7 @@ class.
 
 At test time, we efficiently apply the network as a sliding window detector by
 converting the final dense layers to produce a fully convolutional
-network~\ref{sec:sermanet2013overfeat}. Section~\ref{sec:learning} discusses
+network~\cite{sermanet2013overfeat}. Section~\ref{sec:learning} discusses
 training-time considerations.
 
 % Reference for flow: Brox et al.~\cite{brox2004high}
@@ -390,8 +390,9 @@ candidate set of pose pairs, then combines poses from overlapping pairs to obtai
 a single pose for each frame. Chosen pose pairs should meet two criteria:
 %
 \begin{description}
-\item[Individual plausibility] Low cost poses (in the sense of
-Equation~\ref{eqn:full-cost}), should be preferred over high cost ones.
+\item[Individual plausibility] Low cost poses, in the sense of the cost
+function (\ref{eqn:full-cost}) for the frame-pair model, should be preferred over
+high cost ones.
 \item[Temporal consistency] Where two selected pose pairs overlap on a frame,
 the selected poses for that frame should be similar.
 \end{description}
@@ -400,12 +401,12 @@ The pair selection criteria are easy to express mathematically. For a sequence
 of $F$ frames, let $\mathcal P_f$ denote the set of pose pairs detected between
 frame $f$ and $f + 1$, where $f \in \{1, \ldots, F - 1\}$. Further, let $(\mat
 p_{f,1}, \mat p_{f_2})$ denote the specific pose pair which the sequence
-stitcher chooses from set $\mathcal P_f$, and $c_f$ be cost associated with the
-subpose locations and types defining that pose pair, as given by
-Equation~\ref{eqn:full-cost}. The objective of the stitcher is to find a
-sequence of pose pairs $(\mat p_{1,1}, \mat p_{1,2}), (\mat p_{2,1}, \mat
-p_{2,2}), \ldots, (\mat p_{f-1,1}, \mat p_{f-1,2})$ from the sets $\mathcal P_1,
-\mathcal P_2, \ldots, \mathcal P_{F-1}$ which minimises
+stitcher chooses from set $\mathcal P_f$, and $c_f$ be cost
+(\ref{eqn:full-cost}) associated with the subpose locations and types defining
+that pose pair. The objective of the stitcher is to find a sequence of pose
+pairs $(\mat p_{1,1}, \mat p_{1,2}), (\mat p_{2,1}, \mat p_{2,2}), \ldots, (\mat
+p_{f-1,1}, \mat p_{f-1,2})$ from the sets $\mathcal P_1, \mathcal P_2, \ldots,
+\mathcal P_{F-1}$ which minimises
 %
 \begin{equation}\label{eqn:stitch-cost}
 \sum_{f=1}^{F-1} \|\mat p_{f,2} - \mat p_{f+1,1}\|_2^2
@@ -422,33 +423,34 @@ $\mat p_{f,1}$. In the first and last frames, there will only be one selected
 pose to begin with, as there is only one pose pair associated with each of those
 frames.
 
-Equation~\ref{eqn:stitch-cost} can be efficiently minimised using a dynamic
-programming approach analogous to the Viterbi algorithm. If there are $|\mathcal
-P|$ pose pairs in each candidate set, then this maximisation will take $\mathcal
-O(|\mathcal P|^2)$ time. Thus, it is important to produce only a small selection
-of the best pose pairs during inference on the frame pair model. In practice, we
-found that $|\mathcal P|$ between 100 and 1000 generally gave an ample selection
-of poses without imposing too great a computational burden.
+The stitching cost (\ref{eqn:stitch-cost}) can be efficiently minimised using a
+dynamic programming approach analogous to the Viterbi algorithm. If there are
+$|\mathcal P|$ pose pairs in each candidate set, then this maximisation will
+take $\mathcal O(|\mathcal P|^2)$ time. Thus, it is important to produce only a
+small selection of the best pose pairs during inference on the frame pair model.
+In practice, we found that $|\mathcal P|$ between 100 and 1000 generally gave an
+ample selection of poses without imposing too great a computational burden.
 
-\section{Learning}
+\section{Learning}\label{sec:learning}
 
-Learnt parameters for our model include:
-%
-\begin{enumerate}
-\item CNN weights for the appearance terms defined by
-Equation~\ref{eqn:unary-cost}.
-\item Biposelets for each subpose.
-\item Weights $\{w_0\} \cup \{w_s : s \in \mathcal S\} \cup\{w_{s_1 s_2} : s_1,
-s_2 \in \mathcal S\}$ for Equation~\ref{eqn:full-cost} in the frame pair model.
-% \item The $\lambda$ which balances temporal consistency against pose
-% plausibility during stitching.
-\end{enumerate}
+Our model contains a number of learnable parameters, including:
 
-The CNN was trained %TODO
-To improve convergence speed, the network was initialised with the weights of a
-VGGNet trained for ILSVRC classification. The same weights were applied to both
-the flow and RGB streams of the network, with filters for the input RGBRGB layer
-duplicated to accommodate the change from three image input channels to six.
+\paragraph{CNN weights} The CNN was trained to predict the joint
+biposelet-subpose distribution for fixed-size crops of the training data with a
+standard softmax objective. Positive (subpose-containing) crops were taken
+around ground truth subposes in the training set, with a small margin around the
+subpose to ensure that all joints were in view. Negative (background) crops were
+initially taken from regions of frame pairs in the training set not containing
+any people.
+
+We found that using only pure background crops as negatives left the CNN unable
+to discriminate between subposes in the centre of the receptive field and
+subposes at the edges. This significantly harmed localisation accuracy for the
+joints themselves, as the CNN would predict certain biposelets with high
+confidence even when the true centre of the biposelet lay far from the centre of
+the receptive field. To rectify this issue, we also include more challenging
+negative crops which include off-centre subposes which do not correspond well
+(in terms of $L_2$ distance) to any of the learnt biposelets.
 
 Past work has shown that two-stream CNNs are prone to
 overfitting~\cite{wang2015towards}, and our experience training a two-stream
@@ -459,38 +461,50 @@ performance, and the use of large random translations was precluded by the need
 to keep the entire subpose in view for the sake of accurate biposelet
 prediction.
 
-In addition to writing out a label identifying which subpose each positive
-training sample corresponds to, we also write out the locations of each joint in
-each subpose relative to the crop used to produce the sample. After the positive
-training samples have been written, a set of biposelets can be produced for each
-subpose by clustering those crop-relative coordinates using $K$-means. The
-clustering process also yields a biposelet type for each positive training
-sample which we can train the network to predict. Clustering on the same samples
-used to train the CNN ensures that the learnt biposelets reflect the range of
-augmentations applied to that data, and makes it less likely that some
-biposelets will be underrepresented (or not represented at all) in the CNN
-training set.
+To improve convergence speed, the network was initialised with the weights of a
+VGGNet trained for ILSVRC classification. The same weights were applied to both
+the flow and RGB streams of the network, with filters for the input RGBRGB layer
+duplicated to accommodate the change from three image input channels to six.
 
-Initially, we trained the CNN to recognise background image patches by including
-random crops taken from image regions in the training set not containing any
-people. However, we found that using only pure background crops left the CNN
-unable to discriminate between subposes in the centre of the receptive field and
-subposes at the edges. This significantly harmed localisation accuracy for the
-joints themselves, as the CNN would predict certain biposelets with high
-confidence even when the true centre of the biposelet lay far from the centre of
-the receptive field. To rectify this issue, we also include more challenging
-negative crops which include off-centre subposes which do not correspond well
-(in terms of $L_2$ distance) to any of biposelets learnt from the non-background
-training samples.
+\paragraph{Biposelet centroids} While writing the positive training samples for
+the CNN, we also write out the locations of each joint of each subpose relative
+to the crop used to produce the sample. After the positives been written, a set
+of biposelets can be produced for each subpose by clustering those crop-relative
+coordinates using $K$-means. The clustering process also yields a biposelet type
+for each positive training sample which we can train the network to predict.
+Clustering on the same samples used to train the CNN ensures that the learnt
+biposelets reflect the range of augmentations applied to that data, and makes it
+less likely that some biposelets will be underrepresented (or not represented at
+all) in the CNN training set.
 
-% Structural SVM things
-\cite{ramanan2013dual}
+\paragraph{Weights for frame-pair model} The frame-pair cost
+(\ref{eqn:full-cost}) can be written as the inner product between a feature
+vector comprised of deformation and appearance terms and a weight vector
+composed of the bias $w_0$, the deformation parameters $\{w_{s_1 s_2} : s_1, s_2
+\in \mathcal S\}$ and the appearance parameters $\{w_s : s \in \mathcal S\}$.
+Hence, it is possible to learn the weights using a structural SVM formulation.
 
-In principle, the $\lambda$ used to balance appearance and temporal consistency
-during pose stitching can be also be learnt using a simple global optimisation
-method like randomised search. In practice, we found that stitching performance
-was largely invariant to choices of $\lambda$ within several orders of magnitude
-of the (presumed) global optimum. As a result, the values of $\lambda$ used in
+Concretely, we initialise the model with an intuitively reasonable set of
+weights, then perform inference over the entire training set to extract a set of
+positive feature vectors. We then extract a set of negative feature vectors by
+performing inference over the human-free portion of the INRIA Person
+dataset~\cite{dalal2005histograms} using the same parameters. An SVM can then be
+trained to label the positive feature vectors with $+1$ and the negatives with
+$-1$.
+
+Minimisation of the SVM objective was performed using the dual coordinate
+descent solver of Ramanan~\cite{ramanan2013dual}. We found that one iteration of
+the detect-and-optimisation process was sufficient to train the model. In
+contrast to Chen et al.~\cite{chen2014articulate}, who used a similar learning
+formulation, we did not find that location or type supervision improved the
+final weights learnt by the SVM.
+
+\paragraph{Stitching parameters} In principle, the $\lambda$ used to balance
+appearance and temporal consistency during pose sequence stitching can be also
+be learnt using a simple global optimisation method like randomised search. In
+practice, we found that stitching performance was largely invariant to choices
+of $\lambda$ within several orders of magnitude of the (presumed) global
+optimum. As a result, the values of $\lambda$ used in
 Section~\ref{sec:experiments} were simply chosen by eyeballing the datasets in
 question.
 
@@ -505,40 +519,77 @@ question.
 % XXX: Remove censor box for camera-ready version
 Code for all experiments is available at \censor{\url{https://github.com/qxcv/joint-regressor}}.
 
-\paragraph{MPII Cooking Activities}
+\paragraph{FLIC and PIW} Poses in the Wild (PIW)~\cite{cherian2014mixing} is a
+video pose estimation dataset of with frames drawn from Hollywood movies. Scene
+clutter, camera motion, subject occlusion and rapid subject motion all make the
+dataset a challenging benchmark.
 
-% TODO: PCKh graphs (raw PCK given elsewhere, but I can probably ignore that),
-% PCP for each limb, qualitative results
+Unfortunately, at under a thousand frames, Poses in the Wild is not large enough
+to both test and evaluate on. Thus, we follow the example of previous authors in
+training our model on the Frames Labelled in Cinema (FLIC)
+dataset~\cite{sapp2013modec} and then evaluating on PIW\@. As we require
+adjacent labelled frames to train our frame-pair model, we used a subset of
+FLIC-full for training which consisted of around 8000 reliably annotated pairs.
 
-% Other papers I will try to use:
-% - This paper: http://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Cheron_P-CNN_Pose-Based_CNN_ICCV_2015_paper.pdf
-%   ^ Very relevant! Seems to be action recognition paper where they've also
-%     tackled pose estimation. Also check out http://jhmdb.is.tue.mpg.de/ (SHIT!)
-%   ^ https://github.com/gcheron/P-CNN has a link to computed joint positions
-%     over all of MPII cooking activities (!!)
-%   ^ Oh wait, they're using Anoop's CVPR '14 paper to compute poses :( At least
-%     they show that using the GT poses (which I'll hopefully be closer to)
-%     improves performance by double-digits.
-% - Project results here into 2D: https://www.mpi-inf.mpg.de/fileadmin/inf/d2/amin/sikandar2013bmvc.pdf
-% - Results from here (shitty): https://www.mpi-inf.mpg.de/fileadmin/inf/d2/amin/rohrbach12cvpr.pdf
-% - Here: http://link.springer.com/chapter/10.1007/978-3-319-11752-2_20#page-1
+All baselines used for comparison were produced using publicly released
+evaluation code and models trained on FLIC in a similar manner to ours.
+Percentage Correct Keypoints (PCK) at image scale is shown in
+Figure~\ref{fig:piw-pck}, whilst Percentage Correct Parts (PCP) is shown in
+Table~\ref{tbl:piw-pcp}.
 
-\paragraph{FLIC and PIW}
+% TODO: Un-normalised PCK, PCP@0.5. Compare against CY, CMAS, PCZ and (again)
+% maybe my stuff from last semester.
 
-% TODO: PCKh graphs, PCP for each limb, qualitative results
+\begin{figure*}[t]
+\begin{center}
+\includegraphics[draft,width=\textwidth,height=4cm]{dummy.png}
+\end{center}
+\caption{Unnormalised PCK on Poses in the Wild.}
+\label{fig:piw-pck}
+\end{figure*}
 
-% Other papers I will try to use:
-% - Anoop's original paper
-% - Xianjie Chen's paper from last year (just collapse my model into Chen &
-%   Yuille's model, or maybe use their code but with FLIC stuff)
-% - Flowing convnets paper
+\paragraph{MPII Cooking Activities} The MPII Cooking Activities action
+recognition dataset~\cite{rohrbach2012database} includes %TODO
 
-% Note that I already have (un-normalised results) for each of those sitting on
-% Github, and they are comparable with the Flowing Convnets paper
-% (http://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Pfister_Flowing_ConvNets_for_ICCV_2015_paper.pdf),
-% which also fails to normalise anything.
+We train our model on the continuous pose estimation dataset released with MPII
+Cooking Activities, while using the training set for the Cooking Activities
+``pose challenge'' to evaluate both our model and the baselines. It should be
+noted that we are evaluating on the \textit{training} set of the pose challenge
+as the test set is not continuous; despite the confusing nomenclature, the
+training set of the pose challenge is not the same as the continuous pose
+estimation dataset.
 
-\paragraph{Human3.6M} Human3.6M~\cite{ionescu2014human,ionescu2011latent} (herein abbreviated as H3.6M)
+As with the comparison on PIW, all baselines used here were
+produced using publicly released evaluation code and models trained for the FLIC
+dataset.
+
+\paragraph{Human3.6M} Human3.6M~\cite{ionescu2014human,ionescu2011latent} is a
+pose estimation and action recognition dataset which includes full depth and 3D
+pose data recorded with a motion capture system, although we evaluate only on
+the RGB video and 2D pose portions of the dataset. As a motion capture dataset,
+Human3.6M is recorded in a controlled environment with a uniform background and
+no camera motion. However, in other respects it is significantly more
+challenging than PIW or MPII Cooking Activities: not only do the
+actors exhibit a wider range of motion, but all motion is recorded from four
+cameras spaced evenly around the scene, meaning that a significant portion of
+poses are non-frontal.
+
+Our primary motivation in evaluating on Human3.6M is to compare to the recent
+results reported by Fragkiadaki et al.~\cite{fragkiadaki2015recurrent} for a
+sophisticated recurrent neural network architecture. For the sake of fair
+comparison, we follow the same training protocol as Fragkiadaki et al.\ by
+using subject five for evaluation and all other subjects for training.
+Normalised PCK for both our model and the recurrent network approach are given
+in Figure~\ref{fig:h36m-pckh}.
+
+\begin{figure*}[t]
+\begin{center}
+\includegraphics[draft,width=\textwidth,height=4cm]{dummy.png}
+\end{center}
+\caption{Comparison of PCK for subject five on the Human3.6M dataset, normalised
+to the distance between the subject's left hip and right shoulder.}
+\label{fig:h36m-pckh}
+\end{figure*}
 
 % TODO: PCKsh (as in shoulder->hip normalised) plots, qualitative results
 
