@@ -12,15 +12,26 @@ if isunix && usejava('jvm') && isempty(gcp('nocreate'))
 end
 
 addpath_full ./;
-addpath_full ./eval;
-addpath_full ./datasets/;
-addpath_full ./detect/;
-addpath_full ./util/;
-addpath_full ./train/;
-addpath_full ./visualisation/;
-addpath_full ./tests/;
-addpath_full ./keras/;
+% Things used at training- and test-time
+addpath_full ./common/;
+% Chen & Yuille code
 addpath_full ./cy/;
+% Dataset loading code
+addpath_full ./datasets/;
+% Things used for test-time detection
+addpath_full ./detect/;
+% Things used or statistical evaluation
+addpath_full ./eval;
+% CNN-related code (mostly Python)
+addpath_full ./keras/;
+% Small selection of (unit-style) tests
+addpath_full ./tests/;
+% Code for training CNN, SSVM, etc.
+addpath_full ./train/;
+% Utilities not specific to this project (e.g. Matlab helpers)
+addpath_full ./util/;
+% Visualisation code
+addpath_full ./visualisation/;
 
 % Chen & Yuille code
 
