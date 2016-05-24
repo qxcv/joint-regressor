@@ -1,7 +1,6 @@
 \documentclass[runningheads]{llncs}
 \usepackage{graphicx}
 \usepackage{amsmath,amssymb} % define this before the line numbering.
-\usepackage{ruler}
 \usepackage{color}
 \usepackage{censor}
 % See
@@ -17,20 +16,38 @@
 \DeclareMathOperator{\pa}{pa}
 \DeclareMathOperator{\argmin}{arg min}
 
+% For final copy (from WACV style)
+\newif\ifaccvfinal{}
+\accvfinalfalse{}
+\def\accvfinalcopy{\global\accvfinaltrue}
+% Here's how you enable final copy styles (be careful of the acknowledgements!)
+% \accvfinalcopy{}
+
+\ifaccvfinal\else
+\usepackage{ruler}
+\fi
+
 %===========================================================
 \begin{document}
 \pagestyle{headings}
 \mainmatter{}
 
+\ifaccvfinal\else
 \def\ACCV16SubNumber{***}  % Insert your submission number here
+\fi
 
 %===========================================================
 \title{Exploiting Temporal Relationships for Human Pose Estimation using Biposelets}
-\titlerunning{ACCV-16 submission ID \ACCV16SubNumber}
-\authorrunning{ACCV-16 submission ID \ACCV16SubNumber}
+\ifaccvfinal{}
+    \author{Sam Toyer\\\texttt{u5568237@anu.edu.au}}
+    \institute{Australian National University}
+\else
+    \titlerunning{ACCV-16 submission ID \ACCV16SubNumber}
+    \authorrunning{ACCV-16 submission ID \ACCV16SubNumber}
 
-\author{Anonymous ACCV 2016 submission}
-\institute{Paper ID \ACCV16SubNumber}
+    \author{Anonymous ACCV 2016 submission}
+    \institute{Paper ID \ACCV16SubNumber}
+\fi
 
 \maketitle
 
@@ -63,7 +80,9 @@
 %   detections to lend flavour to the rest of the paper.
 % - Possibly a CNN architecture diagram showing how flow is merged with RGB
 %   images---would prefer not to do that, since it's not a well-explored aspect
-%   of my approach.
+%   of my approach. If I do choose to do that, I can probably stick to boxes to
+%   represent the CNN layers, with some images of RGB input and flow on one side
+%   and biposelets on the other
 % - Panels of good at bad predictions for MPII Cooking Activities, Poses in the
 %   Wild and H3.6M
 % - Plots of PCK and strict PCP:
@@ -137,7 +156,7 @@ pose estimation benchmarks.
 % - (✓) In our method: each configuration gives a location for each joint within
 %   both frames. This allows configurations to capture both location and motion.
 %   Call these configurations biposelets.
-% - NOW talk about cost function.
+% - (✓) NOW talk about cost function.
 % - (✓) Talk about pairwise costs and how the means are found for the pairwise
 %   costs.
 % - Need to mention optical flow implementation in use.
@@ -155,8 +174,8 @@ pose estimation benchmarks.
 % - How SSVM is learnt. Talk about learning target, how positives/negatives are
 %   used, where supervision comes in (if anywhere), how things are optimised
 %   (just cite ramanan2013dual). <-- Maybe put in learning section
-% - How poses are recovered from a set of subpose locations and types for each
-%   subpose.
+% - (✓) How poses are recovered from a set of subpose locations and types for
+%   each subpose.
 
 \subsection{Subposes and biposelets}\label{sec:decomp}
 
@@ -268,30 +287,42 @@ joint shared between $s_1$ and $s_2$ is at location $\vec r_{t,f}$ in frame $f$
 and biposelet $t$ (relative to the centre of the biposelet), then $\vec m_{t_1
 t_2}$ is simply
 \begin{equation}
-\frac{
+\frac{%
     \left(\vec r_{t_2,1} - \vec r_{t_1,1}\right)
     + \left(\vec r_{t_2,2} - \vec r_{t_1,2}\right)
 }{2}~.
 \end{equation}
 
-Each appearance cost takes the form
+Each appearance term $\phi_s(\vec l_s, t_s; \mat D_{12})$ reflects the degree to
+which a small region around the location $\vec l_s$ looks like the subpose $s$
+of type $t$. Concretely,
 \begin{equation}\label{eqn:unary-cost}
-\phi_s(\vec l_s, t_s; \mat D_{12}) = -w_s \log p(s, t_s \mid \mat D_{12}(\vec
-l_s))~,
+\phi_s(\vec l_s, t_s; \mat D_{12}) = -w_s \log p(s, t_s \mid \mat D_{12}(
+\vec l_s))~,
 \end{equation}
 %
 where $w_s$ is a learnt weight and $\mat D_{12}(\vec l_s)$ denotes a crop of the
-frame pair $(\mat I_1, I_2)$ and the optical flow between them at location $\vec
-l_s$. $p(s, t \mid \mat D(\vec l))$ is produced by a CNN trained to classify
-image patches containing biposelets; this is explained further in the next
-section.
+frame pair $(\mat I_1, I_2)$ and the optical flow between them at location
+$\vec l_s$. $p(s, t \mid \mat D(\vec l))$ is the probability that the patch
+$\mat D(\vec l)$ contains a subpose $s$ with biposelet $t$, with the special
+values $(s, t) = (0, 0)$ denoting a background patch with no subpose.
 
-\subsection{Computation of appearance terms}
-\label{sec:unaries}
+% TODO: Should consider motivating design decision instead of just documenting
+% it
+$p(s, t \mid \mat D(\vec l))$ is produced by a two-stream convolutional neural
+network with an architecture loosely following the 16 layer architecture of
+Simonyan et al.~\cite{simonyan2014very}. Specifically, we use a two-stream
+architecture in which one stream processes a stacked pair of RGB video frames
+and another stream processes the flow; the two streams are merged by
+concatenating them after the third pooling layer. The output is a probability
+distribution over all subposes $s$ and biposelets $t$ for each subpose, with the
+aforementioned special values of $(s, t) = (0, 0)$ denoting the background
+class.
 
-% TODO: Describe the CNN used to calculate appearance terms in depth (so inputs,
-% outputs, use of fully convolutional network, etc.). Leave learning for the
-% learning section, though.
+At test time, we efficiently apply the network as a sliding window detector by
+converting the final dense layers to produce a fully convolutional
+network~\ref{sec:sermanet2013overfeat}. Section~\ref{sec:learning} discusses
+training-time considerations.
 
 % Reference for flow: Brox et al.~\cite{brox2004high}
 
@@ -349,15 +380,8 @@ predicted by the biposelets associated with the two subposes.
 
 \section{Sequence stitching}\label{sec:stitching}
 
-% Things I want to talk about:
-%
-% - How to go from a sequence of subpose types and locations for each pair to a
-%   set of poses for each frame.
-% - Sequence stitching cost and cost minimisation (dynamic programming).
-% - Why this is an improvement over other methods (fewer parameters, less
-%   complicated implementation)
-
-% TODO: Might need some more motivation here.
+% TODO: Might need some more motivation here. There's an interesting comparison
+% with Anoop's past work to be made, but I haven't written it yet :P
 
 After evaluating the first stage of our pipeline on every frame pair in a video
 sequence, we obtain a small candidate set of pose pairs for each frame pair. The
@@ -413,27 +437,64 @@ Learnt parameters for our model include:
 \begin{enumerate}
 \item CNN weights for the appearance terms defined by
 Equation~\ref{eqn:unary-cost}.
-\item Biposelet types for each subpose.
+\item Biposelets for each subpose.
 \item Weights $\{w_0\} \cup \{w_s : s \in \mathcal S\} \cup\{w_{s_1 s_2} : s_1,
 s_2 \in \mathcal S\}$ for Equation~\ref{eqn:full-cost} in the frame pair model.
 % \item The $\lambda$ which balances temporal consistency against pose
 % plausibility during stitching.
 \end{enumerate}
 
-% How CNN is learnt (what is the general learning setup? What augmentations do
-% we apply? What about SGD parameters?)
+The CNN was trained %TODO
+To improve convergence speed, the network was initialised with the weights of a
+VGGNet trained for ILSVRC classification. The same weights were applied to both
+the flow and RGB streams of the network, with filters for the input RGBRGB layer
+duplicated to accommodate the change from three image input channels to six.
 
-% How biposelets are clustered (apply K-means to joints in CNN training patches)
+Past work has shown that two-stream CNNs are prone to
+overfitting~\cite{wang2015towards}, and our experience training a two-stream
+network anecdotally confirmed that finding. Overfitting was addressed with
+aggressive use of dropout and dataset augmentation, including random rotations,
+flips, and small translations. Random scaling was not found to improve network
+performance, and the use of large random translations was precluded by the need
+to keep the entire subpose in view for the sake of accurate biposelet
+prediction.
+
+In addition to writing out a label identifying which subpose each positive
+training sample corresponds to, we also write out the locations of each joint in
+each subpose relative to the crop used to produce the sample. After the positive
+training samples have been written, a set of biposelets can be produced for each
+subpose by clustering those crop-relative coordinates using $K$-means. The
+clustering process also yields a biposelet type for each positive training
+sample which we can train the network to predict. Clustering on the same samples
+used to train the CNN ensures that the learnt biposelets reflect the range of
+augmentations applied to that data, and makes it less likely that some
+biposelets will be underrepresented (or not represented at all) in the CNN
+training set.
+
+Initially, we trained the CNN to recognise background image patches by including
+random crops taken from image regions in the training set not containing any
+people. However, we found that using only pure background crops left the CNN
+unable to discriminate between subposes in the centre of the receptive field and
+subposes at the edges. This significantly harmed localisation accuracy for the
+joints themselves, as the CNN would predict certain biposelets with high
+confidence even when the true centre of the biposelet lay far from the centre of
+the receptive field. To rectify this issue, we also include more challenging
+negative crops which include off-centre subposes which do not correspond well
+(in terms of $L_2$ distance) to any of biposelets learnt from the non-background
+training samples.
 
 % Structural SVM things
 \cite{ramanan2013dual}
 
-% Randomized search on validation set showed that stitching is pretty much
-% invariant to order-of-magnitude changes in relative values of variables, so in
-% practice you can probably pick coefficients by hand). Need to explain this in
-% a way which sounds reasonably sophisticated.
+In principle, the $\lambda$ used to balance appearance and temporal consistency
+during pose stitching can be also be learnt using a simple global optimisation
+method like randomised search. In practice, we found that stitching performance
+was largely invariant to choices of $\lambda$ within several orders of magnitude
+of the (presumed) global optimum. As a result, the values of $\lambda$ used in
+Section~\ref{sec:experiments} were simply chosen by eyeballing the datasets in
+question.
 
-\section{Experiments}
+\section{Experiments}\label{sec:experiments}
 
 % Things I want to include:
 % - Some sort of performance evaluation. Probably just measure eval time on
@@ -498,16 +559,17 @@ Code for all experiments is available at \censor{\url{https://github.com/qxcv/jo
 
 \section{Conclusion}
 
+% XXX: These should not be included in ACCV submission
+% \ifaccvfinal
 \section*{Acknowledgments}
 
 We would like to thank various authors whose code we have extended or used to
 produce baseline
 comparisons~\cite{pfister2015flowing,chen2014articulated,cherian2014mixing}.
+% \fi
 
 %References are listed in alphabetic order by the surname of the first author, or the identifying word (e.g., in case of a website). Have
 %all anonymized references at the beginning of the list.
-
-%here would be your acknowledgement (if any) in the final accepted paper
 
 %===========================================================
 \bibliographystyle{splncs}
