@@ -32,7 +32,7 @@ clear empty_cells;
 
 % Change down max_batch_size if you don't have enough memory for your
 % choice of scales
-max_batch_size = 4; % TODO: Intelligently decide what this should be based
+max_batch_size = 1; % TODO: Intelligently decide what this should be based
                     % approximate memory constraints
 for octave = 1:max_batch_size:length(scales)
     batch_size = min(max_batch_size, length(scales)-octave+1);
