@@ -246,7 +246,7 @@ for level = levels
         % TODO: If some of our num_results boxes have rscores below those
         % of the boxes we've seen already (at other levels), then they will
         % be ignored, so we should not both backtracking to fetch them.
-        [Y, X, T] = ndbestn(rscore, num_results);
+        [Y, X, T] = ndbestn(rscore, min(num_results, numel(rscore)));
     end
 
     % Walk back down tree following pointers
