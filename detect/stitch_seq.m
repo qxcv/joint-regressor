@@ -1,4 +1,5 @@
-function pose_detections = stitch_seq(pair_detections, weights, valid_parts)
+function pose_detections = stitch_seq(pair_detections, num_stitch_dets, ...
+    weights, valid_parts)
 %STITCH_SEQ Turn biposelet detection seq into pair seq
 num_bps = length(pair_detections);
 assert(num_bps > 1, 'Need to implement one-BP trivial case');
@@ -12,9 +13,13 @@ parfor bp_pair_idx=1:ksp_size
     bp1_poses = pair_detections(bp_pair_idx).recovered;
     bp2_poses = pair_detections(bp_pair_idx+1).recovered;
     first_set = cellfun(@(p) p{2}, bp1_poses, 'UniformOutput', false);
+    first_set = first_set(1:min(end, num_stitch_dets));
     first_set = sanitise_poses(first_set, valid_parts);
     second_set = cellfun(@(p) p{1}, bp2_poses, 'UniformOutput', false);
+    second_set = second_set(1:min(end, num_stitch_dets));
     second_set = sanitise_poses(second_set, valid_parts);
+    lengths = cellfun(@length, {first_set, second_set});
+    assert(all(lengths <= num_stitch_dets));
     cost_mat = weights.dist .* pose_distance_matrix(first_set, second_set); %#ok<PFBNS>
     
     % Now add rscores; will be negated, since higher rscore = better but

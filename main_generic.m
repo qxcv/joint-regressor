@@ -80,8 +80,8 @@ pair_dets = get_pair_dets(conf.cache_dir, test_seqs, ssvm_model, ...
     biposelets, conf.subposes, conf.num_joints, conf.num_dets);
 
 fprintf('Stitching detections into sequence\n');
-pose_dets = stitch_all_seqs(pair_dets, conf.stitch_weights, ...
-    conf.valid_parts, conf.cache_dir);
+pose_dets = stitch_all_seqs(pair_dets, conf.num_stitch_dets, ...
+    conf.stitch_weights, conf.valid_parts, conf.cache_dir);
 pose_gts = get_gts(test_seqs);
 
 fprintf('Calculating statistics\n');
