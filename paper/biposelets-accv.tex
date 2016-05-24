@@ -134,15 +134,43 @@ pose estimation benchmarks.
 
 \section{Related work}
 
-% Work I want to mention:
+% TODO: Pose estimation in general (incl. use of graphical models, use of CNNs
+% to produce heatmaps).
+
+% TODO: Poselet models OR explanation of what we take from other approaches
+
+% TODO: Pose estimation in videos
+
+There have been several attempts to exploit motion information at the network
+level: MoDeep~\cite{jain2014modeep} simply augmented a heatmap regressor for
+joint positions with ``motion features'' derived from the frame for which a pose
+was being predicted and the one prior to it. For localisation of fast-moving
+joints, the authors reported a boost in performance over an equivalent model
+without motion features, but little boost in performance for slower-moving
+joints like the elbows. This suggests that an understanding of the temporal
+relationships between joint positions is either unhelpful to pose estimation or
+was not being learnt effectively.
+
+% TODO: Do I actually show that the recurrent approach is inferior? I should be
+% able to, but 
+Other approaches to learning temporal relationships at the network level include
+the ``flowing convnets'' of Pfister et al.~\cite{pfister2015flowing} and the
+recurrent networks of Fragkiadaki et al.~\cite{fragkiadaki2015recurrent}. The
+former approach achieved state-of-the-art accuracy by using optical flow to
+backwarp joint position heatmaps to adjacent frames, then pooling the heatmaps
+to produce a final pose estimate; nevertheless, its ``learning'' of temporal
+relationships was limited to choosing a set of pooling weights for combining
+backwarped heatmaps. The latter approach attempted to make use of information
+from adjacent frames using a recurrent architecture which included LSTM nodes,
+but failed to achieve state-of-the-art performance, as our experiments in
+Section~\ref{sec:experiments} show.
+
+% XXX old stuff delete soon
 % Some papers on poselets
 % Xianjie Chen's stuff (graphical models!)
 % Toshev & Szegedy (CNNs) --> not terribly relevant any more
-% Modeep
 % Convolutional pose machines
 % Anoop's stuff
-% Flowing convnets
-% "Recurrent human dynamics paper" (poor results, interesting approach)
 
 \section{Detecting pose pairs}
 
