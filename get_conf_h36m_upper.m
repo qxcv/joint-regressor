@@ -4,6 +4,8 @@ conf = get_conf;
 
 % Directory for temporary files
 conf.cache_dir = 'cache/h36m-upper/';
+% Directory for final results (for accum_stats)
+conf.results_dir = 'results/h36m-upper/';
 % Fully convolutional network definition for Keras
 conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights (fully convolutional)
@@ -49,6 +51,7 @@ conf.trans_spec = struct(...
         [1/3 2/3], ... Right forearm        #10
         1.0, ... Right wrist                #11
     });
+conf.test_trans_spec = conf.trans_spec;
 
 % Rest of this is basically the same as MPII (or the same as MPII used to be)
 conf.right_parts = 7:11;

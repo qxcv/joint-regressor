@@ -94,6 +94,19 @@ all_pcps = pcp(flat_dets, flat_gts, {limbs.indices}); %#ok<NASGU>
 save(fullfile(conf.cache_dir, 'final-stats.mat'), 'all_pcks', ...
     'all_pcps', 'pck_thresholds', 'limbs');
 
+fprintf('Saving in flat format\n');
+% Get joint transform spec and number of joints for original test seq data
+t_ts = conf.test_trans_spec;
+t_njs = size(test_seqs.data(1).orig_joint_locs, 1);
+cells_to_flat = @(cells) cellfun(@(j) spec_trans_back(j, t_ts, t_njs), ...
+    cells, 'UniformOutput', false);
+results = cellfun(cells_to_flat, pose_dets, 'UniformOutput', false); %#ok<NASGU>
+mkdir_p(conf.results_dir);
+results_path = fullfile(conf.results_dir, 'results.mat');
+found_pose_dets = pose_dets; %#ok<NASGU>
+found_pose_gts = pose_gts; %#ok<NASGU>
+save(results_path, 'results', 'test_seqs', 'found_pose_dets', 'found_pose_gts');
+
 fprintf('Done!\n');
 end
 

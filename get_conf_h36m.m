@@ -4,6 +4,8 @@ conf = get_conf;
 
 % Directory for temporary files
 conf.cache_dir = 'cache/h36m/';
+% Directory for final results (for accum_stats)
+conf.results_dir = 'results/h36m/';
 % Fully convolutional network definition for Keras
 conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights (fully convolutional)
@@ -82,6 +84,7 @@ conf.trans_spec = struct(...
         [3/4 1/4], ... Left below-knee      #22
         1.0, ... Left ankle                 #23
     });
+conf.test_trans_spec = conf.trans_spec;
 
 % Subposes. llarm = left lower arm, lutor = left upper torso, etc.
 % TODO: Figure out how to fit the head in somewhere. It's probably a really

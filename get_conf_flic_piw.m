@@ -4,12 +4,14 @@ conf = get_conf;
 
 % Cache directory (per-dataset)
 conf.cache_dir = 'cache/flic-piw/';
+% Directory for final results (for accum_stats)
+conf.results_dir = 'results/piw/';
 % Fully convolutional network definition for Keras
 conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights
 conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 % Different for each dataset, I guess
-conf.cnn.gpu = 1;
+conf.cnn.gpu = 0;
 
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 
@@ -123,6 +125,8 @@ conf.piw_trans_spec = struct(...
         [2/3 1/3], ... Right forearm        #10
         1,         ... Right wrist          #11
     });
+% Used for reconstructing original joint positions
+conf.test_tran_spec = conf.piw_trans_spec;
 
 % right_parts and left_parts are used to ensure that the meanings of "left"
 % and "right" are preserved when doing flip augmentations.

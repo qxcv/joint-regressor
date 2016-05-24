@@ -4,6 +4,8 @@ conf = get_conf;
 
 % Cache directory (per-dataset)
 conf.cache_dir = 'cache/mpii-cooking/';
+% Directory for final results (for accum_stats)
+conf.results_dir = 'results/mpii/';
 % Fully convolutional network definition for Keras
 conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights
@@ -103,6 +105,7 @@ conf.trans_spec = struct(...
         [2/3 1/3], ... Right forearm        #10
         1,         ... Right wrist          #11
     });
+conf.test_trans_spec = conf.trans_spec;
 
 % right_parts and left_parts are used to ensure that the meanings of "left"
 % and "right" are preserved when doing flip augmentations.
