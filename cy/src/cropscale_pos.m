@@ -45,9 +45,13 @@ box.xy(:,[2 4]) = box.xy(:,[2 4]) - y1 + 1;
 scale = cnn_window / true_scale;
 % Just a heuristic check. If it trigers, make sure everything is working
 % okay and then change the bounds so that it stops triggering.
-assert(1/4 <= scale && scale <= 4, 'Scale %f seems too large', scale);
+if scale <= 1/4 || scale >= 4
+    warning('JointRegressor:cropscale_pos:crazyScale', ...
+        'Scale %f seems too large', scale);
+end
 im_stack = imresize(im_stack, scale);
 flow = smart_resize_flow(flow, size(im_stack));
 assert(all(size(im_stack) == size(flow) | [0 0 1]));
 
 box.xy = (box.xy - 1)*scale + 1;
+end
