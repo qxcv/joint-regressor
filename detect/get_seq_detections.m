@@ -4,6 +4,21 @@ function detections = get_seq_detections(dataset, seq_num, ssvm_model, ...
 % Differs from get_test_detections in that this only works on a single
 % sequence, whereas get_test_detections works on a whole set of detections
 seq = dataset.seqs{seq_num};
+
+% Is it possible for joints to be marked invisible?
+has_vis = hasfield(dataset.data, 'visible');
+if has_vis
+    % First, find bounding boxes for the entire sequence. This will be used
+    % as a backup if there are no appropriate bounding boxes for a subpose
+    % in a particular frame.
+    seq_bboxes = get_subpose_bboxes({dataset.data(seq).joint_locs}, subposes);
+    use_bbox = ~any(isnan(seq_bboxes.xy));
+    if ~use_bbox
+        warning('JointRegressor:get_seq_detections:noBBox', ...
+            'No bounding box available for sequence %i', seq_num);
+    end
+end
+
 num_pairs = length(seq) - 1;
 empt = @() cell([1 num_pairs]);
 detections = struct('raw', empt, 'recovered', empt);
@@ -15,15 +30,38 @@ for pair_idx = 1:num_pairs
     im2_info = dataset.data(idx2);
     fst_joints = im1_info.joint_locs;
     snd_joints = im2_info.joint_locs;
-    bbox = get_subpose_bboxes(fst_joints, snd_joints, subposes);
+    if use_bbox
+        if has_vis
+            % Replace bounding box for subpose with sequence bounding box if no
+            % bounding box can be found for a subpose.
+            bbox = get_subpose_bboxes({fst_joints, snd_joints}, subposes, ...
+                {im1_info.visible, im2_info.visible}, seq_bboxes);
+        else
+            bbox = get_subpose_bboxes({fst_joints, snd_joints}, subposes);
+        end
+        
+        % The image will be cropped and scaled around the bbox we give it
+        % if this is defined.
+        bbox_args = {'BBox', bbox};
+    else
+        % If we don't have a bounding box for some subpose *anywhere in the
+        % sequence* then we can't really crop reliably.
+        bbox_args = {};
+    end
+    % This should work fine regardless of whether joints are invisible
     true_scale = calc_pair_scale(fst_joints, snd_joints, subposes, ...
         ssvm_model.template_scale);
+    
+    % Where do we cache the results?
+    cnn_save_path = fullfile(cache_dir, ...
+        sprintf('test-pyra/seq%i/pyra-pair-%i.mat', seq_num, pair_idx));
     
     % Run the detector
     start = tic;
     [boxes, ~, ~] = detect(im1_info, im2_info, ssvm_model, ...
         'NumResults', num_results, 'CacheDir', cache_dir, ...
-        'BBox', bbox, 'TrueScale', true_scale);
+        'TrueScale', true_scale, 'CNNSavePath', cnn_save_path, ...
+        bbox_args{:});
     time_taken = toc(start);
     
     % Debugging output

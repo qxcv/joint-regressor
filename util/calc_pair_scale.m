@@ -15,6 +15,12 @@ for subpose_idx=1:length(subposes)
     subpose_locs = all_joints(all_inds, :);
     bbox = get_bbox(subpose_locs);
     assert(numel(bbox) == 4);
+    if any(isnan(bbox))
+        assert(all(isnan(subpose_locs(:))), ...
+            'All joints should be nans if bounding box is');
+        subpose_sizes(subpose_idx) = nan;
+        continue
+    end
     % bbox(3:4) is width and height
     patch_size = max(bbox(3:4));
     assert(patch_size > 1);
@@ -23,6 +29,6 @@ end
 
 datum_scale = round(template_scale * max(subpose_sizes));
 
-assert(isscalar(datum_scale));
+assert(isscalar(datum_scale) && ~isnan(datum_scale));
 end
 
