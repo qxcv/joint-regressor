@@ -94,9 +94,10 @@ for pair_idx = 1:num_pairs
     % Recover poses from biposelet detections
     detections(pair_idx).raw = boxes;
     recovered = cell([1 length(boxes)]);
-    for det=1:length(boxes)
+    window = ssvm_model.cnn.window;
+    parfor det=1:length(boxes)
         recovered{det} = boxes2pose(boxes(det), biposelets, ...
-            ssvm_model.cnn.window, subposes, num_joints);
+            window, subposes, num_joints);
     end
     detections(pair_idx).recovered = recovered; 
 end
