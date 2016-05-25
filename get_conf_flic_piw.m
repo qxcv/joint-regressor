@@ -126,7 +126,7 @@ conf.piw_trans_spec = struct(...
         1,         ... Right wrist          #11
     });
 % Used for reconstructing original joint positions
-conf.test_tran_spec = conf.piw_trans_spec;
+conf.test_trans_spec = conf.piw_trans_spec;
 
 % right_parts and left_parts are used to ensure that the meanings of "left"
 % and "right" are preserved when doing flip augmentations.
