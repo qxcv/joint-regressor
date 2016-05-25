@@ -1,5 +1,6 @@
 \documentclass[runningheads]{llncs}
 \usepackage{graphicx}
+\usepackage{tabu}
 \usepackage{amsmath,amssymb} % define this before the line numbering.
 \usepackage{color}
 \usepackage{censor}
@@ -552,9 +553,9 @@ $-1$.
 Minimisation of the SVM objective was performed using the dual coordinate
 descent solver of Ramanan~\cite{ramanan2013dual}. We found that one iteration of
 the detect-and-optimisation process was sufficient to train the model. In
-contrast to Chen et al.~\cite{chen2014articulate}, who used a similar learning
+contrast to Chen et al.~\cite{chen2014articulated}, who used a similar learning
 formulation, we did not find that location or type supervision improved the
-final weights learnt by the SVM.
+final weights learnt by the SVM.%
 
 \paragraph{Stitching parameters} In principle, the $\lambda$ used to balance
 appearance and temporal consistency during pose sequence stitching can be also
@@ -587,12 +588,14 @@ training our model on the Frames Labelled in Cinema (FLIC)
 dataset~\cite{sapp2013modec} and then evaluating on PIW\@. As we require
 adjacent labelled frames to train our frame-pair model, we used a subset of
 FLIC-full for training which consisted of around 8000 reliably annotated pairs.
+The remaining pairs had a mixture of incorrect annotations and excessive
+occlusion which made them unsuitable for training our appearance model.
 
 All baselines used for comparison were produced using publicly released
 evaluation code and models trained on FLIC in a similar manner to ours.
 Percentage Correct Keypoints (PCK) at image scale is shown in
-Figure~\ref{fig:piw-pck}, whilst Percentage Correct Parts (PCP) is shown in
-Table~\ref{tbl:piw-pcp}.
+Figure~\ref{fig:piw-pcks}, whilst Percentage Correct Parts (PCP) is shown in
+Table~\ref{tbl:piw-pcps}.
 
 % TODO: Un-normalised PCK, PCP@0.5. Compare against CY, CMAS, PCZ and (again)
 % maybe my stuff from last semester.
@@ -602,11 +605,36 @@ Table~\ref{tbl:piw-pcp}.
 \includegraphics[draft,width=\textwidth,height=4cm]{dummy.png}
 \end{center}
 \caption{Unnormalised PCK on Poses in the Wild.}
-\label{fig:piw-pck}
+\label{fig:piw-pcks}
 \end{figure*}
 
-\paragraph{MPII Cooking Activities} The MPII Cooking Activities action
-recognition dataset~\cite{rohrbach2012database} includes %TODO
+\begin{table}
+{\small\tabulinesep=1.5mm
+\begin{tabu} to \textwidth {X[2l] || X[c]X[c]X[c] | X[c]X[c]X[c]}
+& \multicolumn{3}{c|}{Lower arms} & \multicolumn{3}{c}{Upper arms}\\
+PCP threshold & 0.3 & 0.5 & 0.8 & 0.3 & 0.5 & 0.8\\
+\tabucline-
+Chen \& Yuille~\cite{chen2014articulated} &
+48.30\% & 73.55\% & 85.19\% & 32.31\% & 75.91\% & 94.21\%\\
+Cherian et al.~\cite{cherian2014mixing} &
+30.26\% & 50.32\% & 61.44\% & 27.66\% & 57.14\% & 78.04\%\\
+Pfister et al. SpatialNet~\cite{pfister2015flowing} &
+36.90\% & 54.36\% & 65.37\% & 51.89\% & 72.50\% & 83.11\%\\
+Ours
+& & &
+& & \\
+\end{tabu}}\\
+\caption{Strict PCP at various thresholds on Poses in the Wild. 0.5 is the
+standard threshold, but other thresholds have been included for comparison.}
+\label{tab:piw-pcps}
+\end{table}
+
+\paragraph{MPII Cooking Activities} MPII Cooking
+Activities~\cite{rohrbach2012database} includes two pose estimation datasets
+which we use for comparison with existing work. The Cooking Activities data
+represents a near-ideal case for video pose estimation: all videos are recorded
+from the same static camera in the same kitchen, with minimal occlusion and only
+one subject per video sequence.
 
 We train our model on the continuous pose estimation dataset released with MPII
 Cooking Activities, while using the training set for the Cooking Activities
@@ -619,6 +647,27 @@ estimation dataset.
 As with the comparison on PIW, all baselines used here were
 produced using publicly released evaluation code and models trained for the FLIC
 dataset.
+
+\begin{table}
+{\small\tabulinesep=1.5mm
+\begin{tabu} to \textwidth {X[2l] || X[c]X[c]X[c] | X[c]X[c]X[c]}
+& \multicolumn{3}{c|}{Lower arms} & \multicolumn{3}{c}{Upper arms}\\
+PCP threshold & 0.3 & 0.5 & 0.8 & 0.3 & 0.5 & 0.8\\
+\tabucline-
+Chen \& Yuille~\cite{chen2014articulated} &
+80.03\% & 96.00\% & 97.90\% & 79.44\% & 95.07\% & 98.39\%\\
+Cherian et al.~\cite{cherian2014mixing} &
+55.71\% & 75.93\% & 83.45\% & 67.97\% & 80.91\% & 88.62\%\\
+Pfister et al. SpatialNet~\cite{pfister2015flowing} &
+0.29\% & 14.37\% & 70.97\% & 1.52\% & 28.93\% & 57.18\%\\
+Ours
+& & &
+& & \\
+\end{tabu}}\\
+\caption{Strict PCP at various thresholds on the MPII Cooking Activities
+pose estimation dataset.}
+\label{tab:mpii-pcps}
+\end{table}
 
 \paragraph{Human3.6M} Human3.6M~\cite{ionescu2014human,ionescu2011latent} is a
 pose estimation and action recognition dataset which includes full depth and 3D
@@ -634,10 +683,13 @@ poses are non-frontal.
 Our primary motivation in evaluating on Human3.6M is to compare to the recent
 results reported by Fragkiadaki et al.~\cite{fragkiadaki2015recurrent} for a
 sophisticated recurrent neural network architecture. For the sake of fair
-comparison, we follow the same training protocol as Fragkiadaki et al.\ by
-using subject five for evaluation and all other subjects for training.
-Normalised PCK for both our model and the recurrent network approach are given
-in Figure~\ref{fig:h36m-pckh}.
+comparison, we a similar training protocol as Fragkiadaki et al.\ by using
+subject five for evaluation and all other subjects for training. Due to time
+constraints, we were unable to evaluate our model on all frames associated with
+Subject 5, and had to settle for a randomly selected set of half the 120
+available scenes, each of which was further trimmed to 5\% of its original
+length. Normalised PCK for both our model and the recurrent network approach are
+given in Figure~\ref{fig:h36m-pckh}.
 
 \begin{figure*}[t]
 \begin{center}
