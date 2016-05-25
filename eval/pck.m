@@ -26,7 +26,7 @@ end
 
 % Now find distances for each joint
 all_diffs = pred_mat - gt_mat;
-all_norms = squeeze(sqrt(sum(all_diffs.^2, 2))) ./ scales;
+all_norms = bsxfun(@rdivide, squeeze(sqrt(sum(all_diffs.^2, 2))), scales);
 assert(all(size(all_norms) == [size(pred_mat, 1), length(preds)]));
 
 % Remove stuff that's NaN

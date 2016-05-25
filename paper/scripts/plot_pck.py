@@ -46,35 +46,41 @@ parser.add_argument(
     '--xmax', type=float, default=None, help='Maximum value along the x-axis'
 )
 parser.add_argument(
+    '--colnames', type=str, nargs='*', default=None, help='Names of columns to use'
+)
+parser.add_argument(
+    '--no-thresh-px', action='store_false', dest='thresh_is_px', default=True,
+    help='disable (px) annotation for threshold'
+)
+parser.add_argument(
     '--dims', nargs=2, type=float, metavar=('WIDTH', 'HEIGHT'),
     default=[6, 3], help="Dimensions (in inches) for saved plot"
 )
 
 
-def load_data(inputs):
+def load_data(inputs, part_names=None):
     labels = []
-    thresholds = None
-    parts = None
+    all_thresholds = []
+    if part_names is not None:
+        parts = {part: [] for part in part_names}
+    else:
+        parts = None
 
     for name, path in inputs:
         labels.append(name)
-
         csv = read_csv(path)
+        thresholds = csv[THRESH]
+        all_thresholds.append(thresholds)
 
-        if thresholds is None:
-            thresholds = csv[THRESH]
         if parts is None:
             parts = {part: [] for part in csv.columns.difference([THRESH])}
-
-        assert len(parts) == len(csv.columns.difference([THRESH]))
-        assert (csv[THRESH] == thresholds).all()
 
         for part in parts:
             part_vals = csv[part]
             assert len(part_vals) == len(thresholds)
             parts[part].append(part_vals)
 
-    return labels, thresholds, parts
+    return labels, all_thresholds, parts
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -105,7 +111,7 @@ if __name__ == '__main__':
             'axes.titlesize': 'small',
         })
 
-    labels, thresholds, parts = load_data(args.input)
+    labels, all_thresholds, parts = load_data(args.input, args.colnames)
 
     _, subplots = plt.subplots(1, len(parts), sharey=True)
     common_handles = None
@@ -115,20 +121,24 @@ if __name__ == '__main__':
         if common_handles is None:
             # Record first lot of handles for reuse
             common_handles = []
-            for pck, label, marker in zip(pcks, labels, cycle(MARKERS)):
+            for pck, label, thresholds, marker in zip(pcks, labels,
+                    all_thresholds, cycle(MARKERS)):
                 handle, = subplot.plot(
                     thresholds, 100 * pck, label=label, marker=marker
                 )
                 common_handles.append(handle)
         else:
-            for pck, handle in zip(pcks, common_handles):
+            for pck, thresholds, handle in zip(pcks, all_thresholds, common_handles):
                 props = handle.properties()
                 kwargs = {k: v for k, v in props.items() if k in COMMON_PROPS}
                 subplot.plot(thresholds, 100 * pck, **kwargs)
 
         # Labels, titles
         subplot.set_title(part_name)
-        subplot.set_xlabel('Threshold (px)')
+        if args.thresh_is_px:
+            subplot.set_xlabel('Threshold (px)')
+        else:
+            subplot.set_xlabel('Threshold')
         subplot.grid(which='both')
 
         if args.xmax is not None:

@@ -1,5 +1,5 @@
 function accum_stats(test_seqs, preds, save_dir, ...
-    pck_thresholds, pck_joints, ...       For PCK
+    pck_thresholds, pck_joints, pck_norm_joints, ...       For PCK
     pcp_thresholds, limbs, limb_combos) % For PCP
 %ACCUM_STATS Compute statistics for detections over some test sequences
 % This should work even with detections I've accumulated from third party
@@ -21,7 +21,11 @@ flat_gts = cat(2, pose_gts{:});
 
 % Start with PCKs
 % TODO: Need to normalise PCK (using hips -> shoulders) for H3.6M
-all_pcks = pck(flat_dets, flat_gts, pck_thresholds);
+if isempty(pck_norm_joints)
+    all_pcks = pck(flat_dets, flat_gts, pck_thresholds);
+else
+    all_pcks = pck(flat_dets, flat_gts, pck_thresholds, pck_norm_joints);
+end
 pck_table = format_pcks(all_pcks, pck_thresholds, pck_joints);
 dest_path = fullfile(save_dir, 'pcks.csv');
 writetable(pck_table, dest_path);

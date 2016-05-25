@@ -602,10 +602,8 @@ Table~\ref{tbl:piw-pcps}.
 
 \begin{figure*}[t]
 \begin{center}
-\input{figures/plots/mpii-pck.pgf}
+%\input{figures/plots/piw-pck.pgf}
 \end{center}
-% I can't be boned fixing this on MPL side
-\vspace{-5mm}
 \caption{Unnormalised PCK on Poses in the Wild.}
 \label{fig:piw-pcks}
 \end{figure*}
@@ -650,6 +648,14 @@ As with the comparison on PIW, all baselines used here were
 produced using publicly released evaluation code and models trained for the FLIC
 dataset.
 
+\begin{figure*}[t]
+\begin{center}
+\input{figures/plots/mpii-pck.pgf}
+\end{center}
+\caption{Unnormalised PCK on MPII Cooking Activities.}
+\label{fig:mpii-pcks}
+\end{figure*}
+
 \begin{table}
 {\small\tabulinesep=1.5mm
 \begin{tabu} to \textwidth {X[2l] || X[c]X[c]X[c] | X[c]X[c]X[c]}
@@ -688,18 +694,18 @@ sophisticated recurrent neural network architecture. For the sake of fair
 comparison, we a similar training protocol as Fragkiadaki et al.\ by using
 subject five for evaluation and all other subjects for training. Due to time
 constraints, we were unable to evaluate our model on all frames associated with
-Subject 5, and had to settle for a randomly selected set of half the 120
+subject five, and had to settle for a randomly selected set of half the 120
 available scenes, each of which was further trimmed to 5\% of its original
 length. Normalised PCK for both our model and the recurrent network approach are
 given in Figure~\ref{fig:h36m-pckh}.
 
 \begin{figure*}[t]
 \begin{center}
-\includegraphics[draft,width=\textwidth,height=4cm]{dummy.png}
+\input{figures/plots/h36m-pck.pgf}
 \end{center}
-\caption{Comparison of PCK for subject five on the Human3.6M dataset, normalised
-to the distance between the subject's left hip and right shoulder.}
-\label{fig:h36m-pckh}
+\caption{Comparison of PCK for subject five on the Human3.6M dataset. Threshold
+is normalised to the distance between the subject's left hip and right shoulder.}
+\label{fig:h36m-pck}
 \end{figure*}
 
 \section{Conclusion}
