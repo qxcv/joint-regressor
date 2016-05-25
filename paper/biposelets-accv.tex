@@ -118,35 +118,54 @@ pose estimation benchmarks.
 
 \section{Introduction}
 
-2D pose estimation is also useful as a preprocessing step for higher-level
-vision tasks, including 3D pose
-estimation~\cite{andriluka2010monocular,zhou2016spatio}, activity
-recognition~\cite{cheron2015p,yao2011does}, %TODO
-
-% Things I want to say:
-% Why pose estimation in general is interesting:
+% TODO: Why pose estimation in general is interesting:
 %  - Challenging task in general
 %  - Use it for 3D pose estimation
 %  - Use it for action recognition (P-CNN paper is relevant example)
 %  - Use it for just about everything else
-% Why video pose estimation in particular is interesting:
-%  - Few results so far
+Human pose estimation aims to recover the locations of a person's joints from
+images of the person. %TODO
+2D pose estimation is also useful as a preprocessing step for higher-level
+vision tasks, including 3D pose
+estimation~\cite{andriluka2010monocular,zhou2016spatio} and action
+recognition~\cite{cheron2015p,yao2011does}.
+
+% TODO: Why video pose estimation in particular is interesting:
+%  - Few results so far (--> is this true? There seem to be lots of results, but
+%    they're just dwarfed by the number of static pose estimation papers!)
 %  - Intuitively seems like temporal information should lead to big improvement
 %  - Hard to actually get solid improvement in practice
-% How we approach the problem; briefly summarise the biposelet detection and
-% sequence stitching stages here.
-% Our results
+Intuitively, pose estimation in videos ought to be more effective than pose
+estimation in static images. Even if a pose is blurred or occluded in one frame
+of a video, it is often possible for humans to approximate it well by making use
+of the context provided by surrounding frames.
+
+% TODO: How we approach the problem; briefly summarise the biposelet detection
+% and sequence stitching stages here.
 
 \section{Related work}
 
-% TODO: Pose estimation in general (incl. use of graphical models, use of CNNs
-% to produce heatmaps).
+Pose estimation methods for static images typically build on an appearance model
+which can be applied in a sliding window fashion to locate joints. Linear
+classifiers applied to histogram-of-gradients features are commonly used for
+this purpose~\cite{yang2011articulated,cherian2014mixing}, but have been
+eclipsed by increasingly sophisticated convolutional network
+architectures~\cite{jain2014modeep,tompson2014joint,chen2014articulated,pfister2015flowing,wei2016convolutional},
+and our appearance model reflects this trend.
 
-
-% TODO: Poselet models OR explanation of what we take from other approaches
+Appearance models can be complemented by global constraints on the relative
+positions of joints. For instance, Yang and Ramanan~\cite{yang2011articulated}
+define a graphical model which encourages joint locations to fall in regions of
+the image with high appearance scores while penalising atypical limb lengths and
+orientations. Several approaches also use the appearance of body parts to infer
+``types'' which characterise those parts' positions relative to their
+neighbours~\cite{yang2011articulated,chen2014articulated}. Our approach is
+similar, although we break with past work by attempting to simultaneously
+localise entire subsets of a person's joints instead of a single joint at a
+time.
 
 In videos, pose estimation is frequently accomplished using a
-tracking-by-detection approach in which a set of pose is estimated
+tracking-by-detection approach in which a set of poses is estimated
 independently for each frame of the video and then combined into a single
 temporally coherent
 sequence~\cite{andriluka2010monocular,ferrari2008progressive,cherian2014mixing,ramanan2005strike}.
@@ -181,13 +200,6 @@ latter approach attempted to make use of information from adjacent frames using
 a recurrent architecture which included LSTM nodes, but failed to achieve
 state-of-the-art performance, as our experiments in
 Section~\ref{sec:experiments} show.
-
-% XXX old stuff delete soon
-% Some papers on poselets
-% Xianjie Chen's stuff (graphical models!)
-% Toshev & Szegedy (CNNs) --> not terribly relevant any more
-% Convolutional pose machines
-% Anoop's stuff
 
 \section{Detecting pose pairs}
 
