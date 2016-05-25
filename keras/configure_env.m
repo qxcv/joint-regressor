@@ -8,6 +8,15 @@ if ~isempty(configured)
     return;
 end
 
+env_gpu = getenv('JR_GPU');
+if ~isempty(env_gpu)
+    gpu_num = str2double(env_gpu);
+    warning('JointRegressor:cnn_get_model:gpuOverride', ...
+        'Overriding config to use JR_GPU=%i instead of GPU %i', ...
+        gpu_num, cnn_conf.gpu);
+    cnn_conf.gpu = gpu_num;
+end
+
 if ~exist('./keras/env', 'dir')
     fprintf('Installing virtualenv in keras/env\n');
     init_command = ['virtualenv --system-site-packages ./keras/env '...
