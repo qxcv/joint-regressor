@@ -142,10 +142,16 @@ if __name__ == '__main__':
     ax = plt.gca()
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-    legend = plt.figlegend(
-        common_handles, labels, 'center left', bbox_to_anchor=(0.965, 0.5),
-        borderaxespad=0.
-    )
+    if args.is_poster:
+        legend = plt.figlegend(
+            common_handles, labels, 'center left', bbox_to_anchor=(0.965, 0.5),
+            borderaxespad=0.
+        )
+    else:
+        legend = plt.figlegend(
+            common_handles, labels, bbox_to_anchor=(0.05, 0.02, 0.9, 0.1),
+            loc=3, ncol=3, mode="expand", borderaxespad=0
+        )
 
     if args.save is None:
         plt.show()

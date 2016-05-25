@@ -1,5 +1,6 @@
 \documentclass[runningheads]{llncs}
 \usepackage{graphicx}
+\usepackage{pgf}
 \usepackage{tabu}
 \usepackage{amsmath,amssymb} % define this before the line numbering.
 \usepackage{color}
@@ -491,7 +492,9 @@ ample selection of poses without imposing too great a computational burden.
 
 \section{Learning}\label{sec:learning}
 
-Our model contains a number of learnable parameters, including:
+Our model contains a number of learnable parameters, including CNN weights,
+biposelet centroids, and weights for the frame-pair cost in
+(\ref{eqn:full-cost}); here we describe how each is learnt.
 
 \paragraph{CNN weights} The CNN was trained to predict the joint
 biposelet-subpose distribution for fixed-size crops of the training data with a
@@ -597,13 +600,12 @@ Percentage Correct Keypoints (PCK) at image scale is shown in
 Figure~\ref{fig:piw-pcks}, whilst Percentage Correct Parts (PCP) is shown in
 Table~\ref{tbl:piw-pcps}.
 
-% TODO: Un-normalised PCK, PCP@0.5. Compare against CY, CMAS, PCZ and (again)
-% maybe my stuff from last semester.
-
 \begin{figure*}[t]
 \begin{center}
-\includegraphics[draft,width=\textwidth,height=4cm]{dummy.png}
+\input{figures/plots/mpii-pck.pgf}
 \end{center}
+% I can't be boned fixing this on MPL side
+\vspace{-5mm}
 \caption{Unnormalised PCK on Poses in the Wild.}
 \label{fig:piw-pcks}
 \end{figure*}
@@ -700,24 +702,9 @@ to the distance between the subject's left hip and right shoulder.}
 \label{fig:h36m-pckh}
 \end{figure*}
 
-% TODO: PCKsh (as in shoulder->hip normalised) plots, qualitative results
-
-% Other papers I will try to use:
-% - Don't bother with Anoop's code or Xianjie Chen's code! This is a totally
-%   alien dataset which will require a LOT of hacking.
-% - http://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Fragkiadaki_Recurrent_Network_Models_ICCV_2015_paper.pdf
-%   ^ May also be able to use PF and VITERBI baselines
-%   ^ Project page at http://www.cs.berkeley.edu/~katef/humandynamics.html but
-%     no results or code. WTF :(
-%   ^ Can probably rip their results out of their PDF using some sort of hacks.
-%     The problem is that the plots are stored as PNG images, which makes it
-%     hard to extract their stats *accurately*
-% - Cast to 2D: http://www.cv-foundation.org/openaccess/content_cvpr_2014/papers/Ionescu_Iterated_Second-Order_Label_2014_CVPR_paper.pdf
-%   ^ There's a project page at http://catalinionescu.weebly.com/label-sensitive-pooling.html
-%     but no results to download
-% - Cast to 2D: http://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7293666
-
 \section{Conclusion}
+
+% TODO
 
 % XXX: These should not be included in ACCV submission
 % \ifaccvfinal
