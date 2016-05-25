@@ -4,6 +4,8 @@
     --input 'Cherian et al.~\cite{cherian2014mixing}' ../stats/mpii/cmas/pcks.csv \
     --input 'Chen \& Yuille~\cite{chen2014articulated}' ../stats/mpii/cy/pcks.csv \
     --input 'Pfister et al. (SpatialNet)~\cite{pfister2015flowing}' ../stats/mpii/pcz/pcks.csv \
-    --dims 4.8 1.6 \
+    --input 'Combined~\cite{cherian2014mixing} and~\cite{chen2014articulated}' ../stats/mpii/comp2560/pcks.csv \
+    --input 'Ours' ../stats/mpii/biposelets/pcks.csv \
+    --dims 4.8 2 \
     --xmax 30 \
     $@

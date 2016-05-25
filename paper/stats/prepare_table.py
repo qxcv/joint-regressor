@@ -9,7 +9,9 @@ import pandas as pd
 SOURCES = {
         'cmas': r'Cherian et al.~\cite{cherian2014mixing}',
         'cy': r'Chen \& Yuille~\cite{chen2014articulated}',
-        'pcz': r'Pfister et al. SpatialNet~\cite{pfister2015flowing}'
+        'pcz': r'Pfister et al. SpatialNet~\cite{pfister2015flowing}',
+        'comp2560': r'Combined~\cite{cherian2014mixing} and ~\cite{chen2014articulated}',
+        'biposelets': r'Ours'
 }
 DATASETS = ['mpii', 'piw']
 THRESHOLDS = [0.3, 0.5, 0.8]
