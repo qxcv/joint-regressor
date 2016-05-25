@@ -6,5 +6,5 @@ orig_idxs = [trans_spec(single_joints).indices];
 assert(length(unique(orig_idxs)) == length(orig_idxs), ...
     'trans_spec.indices not injective');
 orig_joints = nan([orig_num_joints, 2]);
-orig_joints(~~single_joints, :) = joints(orig_idxs, :);
+orig_joints(orig_idxs, :) = joints(~~single_joints, :);
 end
