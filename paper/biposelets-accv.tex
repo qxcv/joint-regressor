@@ -120,15 +120,13 @@ pose estimation benchmarks.
 
 \section{Introduction}
 
-% TODO: Why pose estimation in general is interesting:
-%  - Challenging task in general
-%  - Use it for 3D pose estimation
-%  - Use it for action recognition (P-CNN paper is relevant example)
-%  - Use it for just about everything else
-Human pose estimation aims to recover the locations of a person's joints from
-images of the person. %TODO
-2D pose estimation is also useful as a preprocessing step for higher-level
-vision tasks, including 3D pose
+Human pose estimation is the task of localising the joints of a person in an
+image or throughout a video sequence. Effective pose estimation techniques must
+accommodate motion blur and self-occlusion, be invariant to subject clothing and
+scene clutter, and exhibit an understanding of anatomic constraints on poses;
+these requirements make pose estimation a challenging task in computer vision.
+In practice, 2D pose estimation is useful as a preprocessing step for
+higher-level tasks, including 3D pose
 estimation~\cite{andriluka2010monocular,zhou2016spatio} and action
 recognition~\cite{cheron2015p,yao2011does}.
 
@@ -140,7 +138,9 @@ recognition~\cite{cheron2015p,yao2011does}.
 Intuitively, pose estimation in videos ought to be more effective than pose
 estimation in static images. Even if a pose is blurred or occluded in one frame
 of a video, it is often possible for humans to approximate it well by making use
-of the context provided by surrounding frames.
+of the context provided by surrounding frames. %TODO
+
+Our contribution is %TODO
 
 % TODO: How we approach the problem; briefly summarise the biposelet detection
 % and sequence stitching stages here.
@@ -189,8 +189,6 @@ joints like the elbows. This suggests that an understanding of the temporal
 relationships between joint positions is either unhelpful to pose estimation or
 was not being learnt effectively.
 
-% TODO: Do I actually show that the recurrent approach is inferior? I should be
-% able to, but if I can't then I need to change this.
 Other approaches to learning temporal relationships at the network level include
 the ``flowing convnets''~\cite{pfister2015flowing} and the recurrent networks of
 Fragkiadaki et al.~\cite{fragkiadaki2015recurrent}. The former approach achieved
@@ -203,37 +201,6 @@ a recurrent architecture which included LSTM nodes, and we benchmark it against
 our approach in Section~\ref{sec:experiments}.
 
 \section{Detecting pose pairs}
-
-% What I want to say:
-% - (✓) Objective of this stage of pipeline is to find a pose in each frame of each
-%   neighbouring frame pair.
-% - (✓) Decompose pose into several subposes.
-% - (✓) Intuitively: want to predict a configuration (poselet) for each subpose.
-%   Choose configurations by applying K-means to all relative positions. This is
-%   tied to the CNN training step, so I will have to explain it there.
-% - (✓) In our method: each configuration gives a location for each joint within
-%   both frames. This allows configurations to capture both location and motion.
-%   Call these configurations biposelets.
-% - (✓) NOW talk about cost function.
-% - (✓) Talk about pairwise costs and how the means are found for the pairwise
-%   costs.
-% - Need to mention optical flow implementation in use.
-% - (✓) Talk about maximising cost function.
-%   - Just message passing with distance transforms.
-%   - Need complexity mentioned in there somewhere.
-% - How unaries are produced and learnt by CNN (one follows from the other):
-%   - CNN architecture
-%   - CNN input (two frames + flow between them)
-%   - CNN output
-%   - CNN objective.
-%   - Fully convolutional inference
-%   - Learning (just SGD) --> maybe put the training details in the experiments
-%     section.
-% - How SSVM is learnt. Talk about learning target, how positives/negatives are
-%   used, where supervision comes in (if anywhere), how things are optimised
-%   (just cite ramanan2013dual). <-- Maybe put in learning section
-% - (✓) How poses are recovered from a set of subpose locations and types for
-%   each subpose.
 
 \subsection{Subposes and biposelets}\label{sec:decomp}
 
@@ -576,8 +543,29 @@ question.
 %   the datasets, then mean recombination time per frame. Over all the test
 %   sequences.
 
+To evaluate the effectiveness of our model, we apply it to three continuous pose
+estimation datasets: Poses in the Wild, MPII Cooking Activities and Human3.6M.
+The following parameters were used for all datasets:
+
+\begin{enumerate}
+% Consider putting in initial values for appearance and deformation terms (in
+% SVM)
+\item Seven subposes were used by the frame pair model: one for each forearm
+(one left and one right), one for each elbow, one for each upper arm, and one
+root subpose containing both shoulders.
+\item $K = 100$ biposelet types were learnt for each subpose.
+\item $|\mathcal P| = 300$ candidate pose pairs were extracted from each frame
+pair.
+\item $\lambda = 10^5$ was used during stitching.
+\end{enumerate}
+
+To measure localisation error, we employ variants on Percentage Correct
+Keypoints (PCK) and Percentage Correct Parts (PCP)~\cite{yang2013articulated}.
+
 % XXX: Remove censor box for camera-ready version
 Code for all experiments is available at \censor{\url{https://github.com/qxcv/joint-regressor}}.
+
+\subsection{Datasets}
 
 \paragraph{FLIC and PIW} Poses in the Wild (PIW)~\cite{cherian2014mixing} is a
 video pose estimation dataset of with frames drawn from Hollywood movies. Scene
@@ -594,9 +582,8 @@ The remaining pairs had a mixture of incorrect annotations and excessive
 occlusion which made them unsuitable for training our appearance model.
 
 All baselines used for comparison were produced using publicly released
-evaluation code and models trained on FLIC in a similar manner to ours.
-Percentage Correct Keypoints (PCK) at image scale is shown in
-Figure~\ref{fig:piw-pcks}, whilst Percentage Correct Parts (PCP) is shown in
+evaluation code and models trained on FLIC in a similar manner to ours. PCK at
+image scale is shown in Figure~\ref{fig:piw-pcks} and PCP is shown in
 Table~\ref{tbl:piw-pcps}.
 
 \begin{figure*}[t]
@@ -626,7 +613,7 @@ Ours &
 \end{tabu}}\\
 \caption{Strict PCP at various thresholds on Poses in the Wild. 0.5 is the
 standard threshold, but other thresholds have been included for comparison.}
-\label{tab:piw-pcps}
+\label{tbl:piw-pcps}
 \end{table}
 
 \paragraph{MPII Cooking Activities} MPII Cooking
@@ -675,7 +662,7 @@ Ours &
 \end{tabu}}\\
 \caption{Strict PCP at various thresholds on the MPII Cooking Activities
 pose estimation dataset.}
-\label{tab:mpii-pcps}
+\label{tbl:mpii-pcps}
 \end{table}
 
 \paragraph{Human3.6M} Human3.6M~\cite{ionescu2014human,ionescu2011latent} is a
@@ -698,7 +685,7 @@ constraints, we were unable to evaluate our model on all frames associated with
 subject five, and had to settle for a randomly selected set of half the 120
 available scenes, each of which was further trimmed to 5\% of its original
 length. Normalised PCK for both our model and the recurrent network approach are
-given in Figure~\ref{fig:h36m-pckh}.
+given in Figure~\ref{fig:h36m-pck}.
 
 \begin{figure*}[t]
 \begin{center}
@@ -708,6 +695,8 @@ given in Figure~\ref{fig:h36m-pckh}.
 is normalised to the distance between the subject's left hip and right shoulder.}
 \label{fig:h36m-pck}
 \end{figure*}
+
+\subsection{Discussion}
 
 \section{Conclusion}
 
