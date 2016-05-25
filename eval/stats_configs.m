@@ -6,7 +6,7 @@ function stat = stats_configs
 
 %% Global settings
 stat.pck_thresholds = 0:2.5:100;
-stat.pcp_thresholds = 0:0.1:1;
+stat.pcp_thresholds = 0:0.025:1;
 
 %% MPII Cooking Activities
 mpii.limbs = struct(...

@@ -15,7 +15,6 @@ if ~any(0.5 == pcp_thresholds)
 end
 
 mkdir_p(save_dir);
-
 pose_gts = get_gts(test_seqs, true);
 flat_dets = cat(2, preds{:});
 flat_gts = cat(2, pose_gts{:});
@@ -28,15 +27,17 @@ dest_path = fullfile(save_dir, 'pcks.csv');
 writetable(pck_table, dest_path);
 
 % Now do PCPs
-for thresh=pcp_thresholds
+pcps_at_thresh = cell([1 length(pcp_thresholds)]);
+for thresh_idx=1:length(pcp_thresholds)
+    thresh = pcp_thresholds(thresh_idx);
     assert(thresh >= 0, 'Threshold shouldn''t be negative');
     assert(thresh <= 1, 'PCP of >=1 is probably too big');
     all_pcps = pcp(flat_dets, flat_gts, {limbs.indices}, thresh);
-    pcp_table = format_pcps(all_pcps, limbs, limb_combos);
-    dest_fn = sprintf('pcp_at_%0.3f.csv', thresh);
-    dest_path = fullfile(save_dir, dest_fn);
-    writetable(pcp_table, dest_path);
+    pcps_at_thresh{thresh_idx} = all_pcps;
 end
+pcp_table = format_pcps(pcps_at_thresh, pcp_thresholds, limbs, limb_combos);
+dest_path = fullfile(save_dir, 'pcps.csv');
+writetable(pcp_table, dest_path);
 end
 
 function pck_table = format_pcks(all_pcks, pck_thresholds, pck_joints)
@@ -52,15 +53,16 @@ pck_table = table(pck_thresholds', accs{:}, ...
     'VariableNames', ['Threshold' joint_names]);
 end
 
-function pcp_table = format_pcps(all_pcps, limbs, limb_combinations)
+function pcp_table = format_pcps(all_pcps, pcp_thresholds, limbs, limb_combinations)
 limb_names = limb_combinations.keys;
-combined_pcps = zeros([length(limb_names), 1]);
+combined_pcps = cell([1, length(limb_names)]);
 for limb_idx=1:length(limb_names)
     str_names = limb_combinations(limb_names{limb_idx});
     [~, limb_indices] = intersect({limbs.names}, str_names);
-    limb_pcps = all_pcps(limb_indices);
-    combined_pcps(limb_idx) = mean(limb_pcps);
+    limb_pcps = cellfun(@(pcps) mean(pcps(limb_indices)), all_pcps);
+    combined_pcps{limb_idx} = limb_pcps';
 end
-pcp_table = table(limb_names', combined_pcps, ...
-    'VariableNames', {'Limb', 'PCP'});
+safe_limb_names = cellfun(@genvarname, limb_names, 'UniformOutput', false);
+pcp_table = table(pcp_thresholds', combined_pcps{:}, ...
+    'VariableNames', [{'Threshold'} safe_limb_names]);
 end
