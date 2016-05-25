@@ -118,6 +118,11 @@ pose estimation benchmarks.
 
 \section{Introduction}
 
+2D pose estimation is also useful as a preprocessing step for higher-level
+vision tasks, including 3D pose
+estimation~\cite{andriluka2010monocular,zhou2016spatio}, activity
+recognition~\cite{cheron2015p,yao2011does}, %TODO
+
 % Things I want to say:
 % Why pose estimation in general is interesting:
 %  - Challenging task in general
@@ -137,9 +142,21 @@ pose estimation benchmarks.
 % TODO: Pose estimation in general (incl. use of graphical models, use of CNNs
 % to produce heatmaps).
 
+
 % TODO: Poselet models OR explanation of what we take from other approaches
 
-% TODO: Pose estimation in videos
+In videos, pose estimation is frequently accomplished using a
+tracking-by-detection approach in which a set of pose is estimated
+independently for each frame of the video and then combined into a single
+temporally coherent
+sequence~\cite{andriluka2010monocular,ferrari2008progressive,cherian2014mixing,ramanan2005strike}.
+Our work follows a similar pattern, except we perform pose estimation at the
+level of frame pairs instead of individual frames. Predicting pairs of poses
+makes it simple to combine our set of detections for each frame pair into a
+sequence of poses for each frame, as described in Section~\ref{sec:stitching}.
+In contrast, past work using the frame-at-a-time method has had to resort to
+more complex flow- and appearance-based heuristics to ensure temporal
+consistency between predicted poses~\cite{cherian2014mixing}.
 
 There have been several attempts to exploit motion information at the network
 level: MoDeep~\cite{jain2014modeep} simply augmented a heatmap regressor for
@@ -152,17 +169,17 @@ relationships between joint positions is either unhelpful to pose estimation or
 was not being learnt effectively.
 
 % TODO: Do I actually show that the recurrent approach is inferior? I should be
-% able to, but 
+% able to, but if I can't then I need to change this.
 Other approaches to learning temporal relationships at the network level include
-the ``flowing convnets'' of Pfister et al.~\cite{pfister2015flowing} and the
-recurrent networks of Fragkiadaki et al.~\cite{fragkiadaki2015recurrent}. The
-former approach achieved state-of-the-art accuracy by using optical flow to
-backwarp joint position heatmaps to adjacent frames, then pooling the heatmaps
-to produce a final pose estimate; nevertheless, its ``learning'' of temporal
-relationships was limited to choosing a set of pooling weights for combining
-backwarped heatmaps. The latter approach attempted to make use of information
-from adjacent frames using a recurrent architecture which included LSTM nodes,
-but failed to achieve state-of-the-art performance, as our experiments in
+the ``flowing convnets''~\cite{pfister2015flowing} and the recurrent networks of
+Fragkiadaki et al.~\cite{fragkiadaki2015recurrent}. The former approach achieved
+state-of-the-art accuracy by using optical flow to backwarp joint position
+heatmaps to adjacent frames, then pooling the heatmaps to produce a final pose
+estimate; nevertheless, its ``learning'' of temporal relationships was limited
+to choosing a set of pooling weights for combining backwarped heatmaps. The
+latter approach attempted to make use of information from adjacent frames using
+a recurrent architecture which included LSTM nodes, but failed to achieve
+state-of-the-art performance, as our experiments in
 Section~\ref{sec:experiments} show.
 
 % XXX old stuff delete soon
