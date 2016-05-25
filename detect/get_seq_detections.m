@@ -43,11 +43,9 @@ for pair_idx = 1:num_pairs
             % Only bother using a bounding box around each subpose when all
             % joints are visible
             use_bbox = use_bbox_seq && (all(im1_info.visible | im2_info.visible));
-        else
-            use_bbox = use_bbox_seq;
         end
         
-        if use_bbox
+        if ~has_vis || use_bbox
             if has_vis
                 % Replace bounding box for subpose with sequence bounding box if no
                 % bounding box can be found for a subpose.
