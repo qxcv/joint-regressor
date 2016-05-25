@@ -39,7 +39,7 @@
 \fi
 
 %===========================================================
-\title{Exploiting Temporal Relationships for Human Pose Estimation using Biposelets}
+\title{Human Pose Estimation in Videos with Biposelets}
 \ifaccvfinal{}
     \author{Sam Toyer\\\texttt{u5568237@anu.edu.au}}
     \institute{Australian National University}
@@ -63,7 +63,8 @@
 % - Don't feel obligated to go to 14 pages. A quick skim of accepted papers from
 %   ACCV 2014 shows that going above 10 pages is the norm (shortest I saw was 12
 %   pages), but that fewer than 14 pages of actual content is totally
-%   acceptable.
+%   acceptable. Edit: it turns out that 14 pages is not a lot when most of your
+%   page is margin. Meh.
 % - Structure is flexible. For instance:
 %   - There's no need for a separate discussion section (apart from discussion
 %     in experiments section)
@@ -93,15 +94,6 @@
 %   - PCP-strict at various thresholds for MPII Cooking Activities (also needs
 %     table for PCP@0.5)
 %   - PCKh for H3.6M in same format as recurrent convnet paper
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Page budgeting (14 page content limit with unlimited references):
-%
-% - 1 page for introduction, abstract and title
-% - 1-2 pages for related work
-% - 4-5 pages for method (frame pair model + stitching + learning)
-% - 5-6 pages for experiments and discussion (depending on space available)
-% - 0.5 pages for conclusion and acknowledgement
 
 \begin{abstract}
 The problem of human pose estimation in still images has been well-studied in
@@ -138,12 +130,35 @@ recognition~\cite{cheron2015p,yao2011does}.
 Intuitively, pose estimation in videos ought to be more effective than pose
 estimation in static images. Even if a pose is blurred or occluded in one frame
 of a video, it is often possible for humans to approximate it well by making use
-of the context provided by surrounding frames. %TODO
+of the context provided by surrounding frames. In practice %TODO
 
-Our contribution is %TODO
+Our contribution is to propose and test a new approach to human pose estimation
+in videos based on the concept of ``biposelets''. As explained in
+Section~\ref{sec:decomp}, a biposelet describes a configuration of some subset
+of a person's joints in two adjacent video frames; this allows biposelets to
+capture both joint location and joint motion. Casting pose estimation as a
+problem of localising and classifying biposelets in pairs of frames forces our
+model to learn to make use of the information present in both frames.
+As an added bonus, this pairwise detection approach yields a pair of poses for
+each pair of video frames; this gives rise to a relatively simple notion of
+temporal consistency of poses across a video sequence, which we describe in
+Section~\ref{sec:stitching}.
+
+The complete pose estimation pipeline is divided into two stages: in the first
+stage, each adjacent pair of frames is processed independently to produce a set
+of candidate pairs of poses for that frame pair. The first stage makes use of a
+Convolutional Neural Network (CNN) to find regions of each frame pair which
+visually resemble different subposes, followed by a graphical model which
+ensures that the relative positions of predicted subposes are anatomically
+reasonable. In the second ``stitching'' stage, a single pair of poses is chosen
+from each set of candidate pose pairs; the resultant sequence of pose pairs can
+then be turned into a sequence of single poses by averaging the two poses
+predicted for each frame.
 
 % TODO: How we approach the problem; briefly summarise the biposelet detection
 % and sequence stitching stages here.
+In Section~\ref{sec:experiments}, we evaluate this strategy on three
+established pose estimation benchmarks %TODO
 
 \section{Related work}
 
@@ -560,7 +575,15 @@ pair.
 \end{enumerate}
 
 To measure localisation error, we employ variants on Percentage Correct
-Keypoints (PCK) and Percentage Correct Parts (PCP)~\cite{yang2013articulated}.
+Keypoints (PCK) and Percentage Correct Parts (PCP), as explained by Yang \&
+Ramanan~\cite{yang2013articulated}. Except where hip and shoulder locations are
+available for normalisation, we use unnormalised PCK: that is, we consider a
+joint to be correctly localised for the purpose of PCK calculation if its
+predicted position in the image falls within a certain number of pixels of the
+ground truth location. For PCP, we consider a limb of length $l$ to be correctly
+localised at a threshold $t$ if both predicted endpoints fall within a distance
+$tl$ of their true locations; in the case of $t = 0.5$, this is simply ordinary
+strict PCP.
 
 % XXX: Remove censor box for camera-ready version
 Code for all experiments is available at \censor{\url{https://github.com/qxcv/joint-regressor}}.
@@ -582,8 +605,15 @@ The remaining pairs had a mixture of incorrect annotations and excessive
 occlusion which made them unsuitable for training our appearance model.
 
 All baselines used for comparison were produced using publicly released
-evaluation code and models trained on FLIC in a similar manner to ours. PCK at
-image scale is shown in Figure~\ref{fig:piw-pcks} and PCP is shown in
+evaluation code and models trained on FLIC in a similar manner to ours. Note
+that the ``combined'' baseline works by applying Chen \&
+Yuille's~\cite{chen2014articulated} detector to each frame of a video sequence,
+then combining the produced candidate pose sets for each frame into a pose
+sequence using the recombination method of Cherian et
+al.~\cite{cherian2014mixing}.
+
+PCK at image scale over all of Poses in the Wild is shown in
+Figure~\ref{fig:piw-pcks}, while PCP at various thresholds is shown in
 Table~\ref{tbl:piw-pcps}.
 
 \begin{figure*}[t]
@@ -631,9 +661,8 @@ as the test set is not continuous; despite the confusing nomenclature, the
 training set of the pose challenge is not the same as the continuous pose
 estimation dataset.
 
-As with the comparison on PIW, all baselines used here were
-produced using publicly released evaluation code and models trained for the FLIC
-dataset.
+As with the comparison on PIW, all baselines used here were produced using
+publicly released models trained for the FLIC dataset.
 
 \begin{figure*}[t]
 \begin{center}
@@ -671,28 +700,28 @@ pose data recorded with a motion capture system, although we evaluate only on
 the RGB video and 2D pose portions of the dataset. As a motion capture dataset,
 Human3.6M is recorded in a controlled environment with a uniform background and
 no camera motion. However, in other respects it is significantly more
-challenging than PIW or MPII Cooking Activities: not only do the
-actors exhibit a wider range of motion, but all motion is recorded from four
-cameras spaced evenly around the scene, meaning that a significant portion of
-poses are non-frontal.
+challenging than PIW or MPII Cooking Activities: not only do its actors exhibit
+a wider range of motion, but all motion is recorded from four cameras spaced
+evenly around the scene, meaning that a significant portion of poses are
+non-frontal.
 
 Our primary motivation in evaluating on Human3.6M is to compare to the recent
 results reported by Fragkiadaki et al.~\cite{fragkiadaki2015recurrent} for a
-sophisticated recurrent neural network architecture. For the sake of fair
-comparison, we a similar training protocol as Fragkiadaki et al.\ by using
-subject five for evaluation and all other subjects for training. Due to time
-constraints, we were unable to evaluate our model on all frames associated with
-subject five, and had to settle for a randomly selected set of half the 120
-available scenes, each of which was further trimmed to 5\% of its original
-length. Normalised PCK for both our model and the recurrent network approach are
-given in Figure~\ref{fig:h36m-pck}.
+sophisticated recurrent neural network architecture. We adopt a comparable
+training protocol to Fragkiadaki et al. by using subject five for evaluation and
+all other subjects for training. Due to time constraints, we were unable to
+evaluate our model on all frames associated with subject five, and had to settle
+for a randomly selected set of half the 120 available scenes, each of which was
+further trimmed to 5\% of its original length. PCK for both our model and the
+recurrent network approach are given in Figure~\ref{fig:h36m-pck}.
 
 \begin{figure*}[t]
 \begin{center}
 \input{figures/plots/h36m-pck.pgf}
 \end{center}
-\caption{Comparison of PCK for subject five on the Human3.6M dataset. Threshold
-is normalised to the distance between the subject's left hip and right shoulder.}
+\caption{Comparison of PCK for subject five on the Human3.6M dataset. Thresholds
+are expressed as fractions of the distance between the subject's left hip and
+right shoulder.}
 \label{fig:h36m-pck}
 \end{figure*}
 
@@ -702,14 +731,13 @@ is normalised to the distance between the subject's left hip and right shoulder.
 
 % TODO
 
-% XXX: These should not be included in ACCV submission
-% \ifaccvfinal
+\ifaccvfinal
 \section*{Acknowledgments}
 
 We would like to thank various authors whose code we have extended or used to
 produce baseline
 comparisons~\cite{pfister2015flowing,chen2014articulated,cherian2014mixing}.
-% \fi
+\fi
 
 %References are listed in alphabetic order by the surname of the first author, or the identifying word (e.g., in case of a website). Have
 %all anonymized references at the beginning of the list.

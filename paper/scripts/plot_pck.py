@@ -159,7 +159,7 @@ if __name__ == '__main__':
         )
     else:
         legend = plt.figlegend(
-            common_handles, labels, bbox_to_anchor=(0.05, 0.02, 0.9, 0.1),
+            common_handles, labels, bbox_to_anchor=(0.05, 0.9, 0.9, 0.1),
             loc=3, ncol=3, mode="expand", borderaxespad=0
         )
 
