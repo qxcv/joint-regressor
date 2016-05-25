@@ -7,3 +7,4 @@ val-patches.txt
 *.log
 logs/
 *.mexa64
+keras_train_call.txt

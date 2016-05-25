@@ -56,5 +56,5 @@ for joint_idx=1:2*num_joints
 end
 
 % Split into frames
-pose = {mean_pose_locs(1:num_joints, :), mean_pose_locs(num_joints+1:end, :)};
+pose = {single(mean_pose_locs(1:num_joints, :)), single(mean_pose_locs(num_joints+1:end, :))};
 end

@@ -29,7 +29,7 @@ conf.pyra.scales = sort(1.12 .^ (-1:1), 'ascend');
 % (in GiB).
 conf.memsize = 0.5;
 % Number of biposes (pose across two frames) to fetch for each frame pair
-conf.num_dets = 10000;
+conf.num_dets = 1000;
 % How many of those biposes to actually use during recombination
 conf.num_stitch_dets = 300;
 % Weights for stitching biposelet sequences. rscore is root score of

@@ -25,12 +25,12 @@ parfor bp_pair_idx=1:ksp_size
     % Now add rscores; will be negated, since higher rscore = better but
     % lower dist = better
     % bp{1,2}_rscores will be row vectors
-    bp1_rscores = [pair_detections(bp_pair_idx).raw.rscore];
+    bp1_rscores = pair_detections(bp_pair_idx).rscores;
     % Add bp1 scores to each row
     cost_mat = bsxfun(@minus, cost_mat, weights.rscore .* bp1_rscores');
     if bp_pair_idx == num_bps-1
         % Add second frame scores to each column if last biposelet
-        bp2_rscores = [pair_detections(bp_pair_idx+1).raw.rscore]; %#ok<PFBNS>
+        bp2_rscores = pair_detections(bp_pair_idx+1).rscores; %#ok<PFBNS>
         cost_mat = bsxfun(@minus, cost_mat, weights.rscore .* bp2_rscores);
     end
     

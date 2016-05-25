@@ -21,7 +21,7 @@ end
 
 num_pairs = length(seq) - 1;
 empt = @() cell([1 num_pairs]);
-detections = struct('raw', empt, 'recovered', empt);
+detections = struct('rscores', empt, 'recovered', empt);
 for pair_idx = 1:num_pairs
     fprintf('Working on pair %i/%i...', pair_idx, num_pairs);
     % Where do we cache the results?
@@ -90,10 +90,12 @@ for pair_idx = 1:num_pairs
     end
     
     % Recover poses from biposelet detections
-    detections(pair_idx).raw = boxes;
+    % Originally stored `boxes` in `raw` field, but that took a LOT of space
+    detections(pair_idx).rscores = [boxes.rscore];
     recovered = cell([1 length(boxes)]);
     window = ssvm_model.cnn.window;
     parfor det=1:length(boxes)
+        % This will actually produce singles
         recovered{det} = boxes2pose(boxes(det), biposelets, ...
             window, subposes, num_joints);
     end
