@@ -14,6 +14,14 @@ conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 conf.cnn.gpu = 2;
 
 conf.h36m_keep_frac = 0.15;
+% How many test sequences should we choose? There is something like 120
+% sequences normally, so we need to randomly choose a subset of them.
+conf.h36m_test.seqs = 60;
+% How many frames should we trim each test sequence to? Subsequence will be
+% randomly chosen for each sequence modulo this constraint.
+conf.h36m_test.seq_size = 15;
+% Random seed used for test sequence selection
+conf.h36m_test.seq_seed = 42;
 
 %% STUFF FOR MULTI-POSELET CODE BELOW HERE
 % Actual skeleton, adapted from 32-point H3.6M skeleton

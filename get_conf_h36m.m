@@ -16,6 +16,14 @@ conf.cnn.gpu = 0;
 % Keep only this fraction of train and validation pairs from H3.6M for CNN
 % training (there are so many!)
 conf.h36m_keep_frac = 0.1;
+% How many test sequences should we choose? There is something like 120
+% sequences normally, so we need to randomly choose a subset of them.
+conf.h36m_test.seqs = 60;
+% How many frames should we trim each test sequence to? Subsequence will be
+% randomly chosen for each sequence modulo this constraint.
+conf.h36m_test.seq_size = 15;
+% Random seed used for test sequence selection
+conf.h36m_test.seq_seed = 42;
 
 % right_parts and left_parts are used to ensure that the meanings of "left"
 % and "right" are preserved when doing flip augmentations.

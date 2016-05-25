@@ -1,6 +1,6 @@
 function [train_dataset, val_dataset, test_seqs] = get_h36m(...
     dest_dir, cache_dir, subposes, step, template_scale, trans_spec, ...
-    keep_frac)
+    keep_frac, test_par)
 %GET_H36M Fetches H3.6M pose estimation dataset (incl. videos)
 % You'll have to download all of the necessary files yourself, since the
 % dataset needs authentication & EULA acceptance for download (although
@@ -138,6 +138,10 @@ all_test_seqs = pairs2seqs(test_dataset, 10);
 fprintf('Test set has %i seqs and %i frames\n', ...
     length(all_test_seqs), sum(cellfun(@length, all_test_seqs)));
 test_seqs = make_test_set(test_dataset, all_test_seqs);
+test_seqs = trim_h36m_test_seq(test_seqs, test_par.seqs, ...
+    test_par.seq_size, test_par.seq_seed);
+fprintf('Trimmed to %i seqs and %i frames\n', ...
+    length(test_seqs.seqs), sum(cellfun(@length, test_seqs.seqs)));
 
 cd(old_dir);
 fprintf('Saving to %s\n', save_path);
