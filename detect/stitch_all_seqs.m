@@ -16,7 +16,7 @@ if should_cache
 end
 
 pose_dets = cell([1 length(pair_dets)]);
-parfor i=1:length(pair_dets)
+for i=1:length(pair_dets) % XXX: Reinstate parfor
     fprintf('Re-stitching sequence %i/%i\n', i, length(pair_dets));
     pairs = pair_dets{i};
     pose_dets{i} = stitch_seq(pairs, num_stitch_dets, stitch_weights, ...

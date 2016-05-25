@@ -11,7 +11,7 @@ conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights
 conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 % Different for each dataset, I guess
-conf.cnn.gpu = 0;
+conf.cnn.gpu = 1;
 
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 
