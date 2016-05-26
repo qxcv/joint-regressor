@@ -230,33 +230,30 @@ Fragkiadaki et al.\ attempt to learn temporal relationships directly using a
 recurrent neural network architecture. Both approaches are benchmarked in
 Section~\ref{sec:experiments}.
 
-% XXX: You've proof-read everything above here. Consider this your bookmark :)
 \section{Detecting pose pairs}
 
 \subsection{Subposes and biposelets}\label{sec:decomp}
 
-In the first stage of our pipeline, we consider each neighbouring pair of frames
-in a sequence and simultaneously infer the poses present in each. For the
-purposes of this stage, we decompose a pair of poses in neighbouring frames into
-a fixed set of subposes, each of which correspond to a subset of joints in the
-original pose. Subposes are chosen so that each subpose shares exactly a joint
-with at least one neighbouring subpose, and each joint in the original pose is
-present in at least one subpose. For instance, a pose containing shoulder, elbow
-and wrist joints could be decomposed into one subpose containing wrist and elbow
-joints on the left side of the body, one subpose containing elbow and shoulder
-joints on the left hand side, one subpose containing both the left and right
-shoulders, etc.
+The first stage of the pose estimation pipeline inspects two video frames at a
+time and infers a set of poses which may be present in each. For the purposes of
+this stage, a pose is decomposed into a fixed set of subposes, each of which
+correspond to a subset of joints in the original pose. Subposes are chosen so
+that each subpose shares exactly one joint with neighbouring subposes, and so
+that each joint in the original pose is present in at least one subpose. For
+instance, a pose containing shoulder, elbow and wrist joints could be decomposed
+into one subpose containing wrist and elbow joints on the left side of the body,
+one subpose containing elbow and shoulder joints on the left hand side, one
+subpose containing both the left and right shoulders, etc.
 
 Rather than representing the locations of each joint in each subpose directly,
-we discretise the space of configurations for joints within each subpose into
-$K$ \textit{biposelets}. Biposelets are so named in analogy to the
+this stage discretises the space of configurations for joints within each
+subpose into $K$ \textit{biposelets}. Biposelets are so named in analogy to the
 \textit{poselets} of Bourdev and Malik~\cite{bourdev2009poselets}. Unlike their
-namesake, however, biposelets give a position for each joint in a subpose across
-two video frames instead of a single one. This allows biposelets to represent
-both the relative positions of joints and their movement over time. A
-representative set of biposelets learnt for the MPII Cooking Activities pose
-estimation dataset~\cite{rohrbach2012database} is shown in
-Figure~\ref{fig:biposelets}.
+namesakes, however, biposelets define positions of joints in two frames rather
+than just one. This allows biposelets to represent both the relative positions
+of joints and their movement over time. A representative set of biposelets
+learnt for the MPII Cooking Activities pose estimation
+dataset~\cite{rohrbach2012database} is shown in Figure~\ref{fig:biposelets}.
 
 \begin{figure*}[t]
 \begin{center}
@@ -299,31 +296,32 @@ only the first frame associated with each biposelet is shown.}
 
 \subsection{Frame pair model}
 
-Formally, our frame pair model conceptualises a pose as a tree-structured graph
+Formally, the frame pair model conceptualises a pose as a tree-structured graph
 $\mathcal G = (\mathcal S, \mathcal E)$ consisting of a set of subposes
 $\mathcal S$ and a set of edges $\mathcal E \subset \mathcal S \times \mathcal
 S$. Subposes are chosen according to the constraints listed in
 Section~\ref{sec:decomp}, and a pair of subposes $(s_1, s_2)$ will have an edge
-between them iff they have a joint in common. The objective of the first stage
-of our pipeline is to take a pair of frames $(\mat I_1, \mat I_2)$ and output,
-for each subpose $s$, a subpose location $\vec l_s \in \mathbb R^2$ within the
-frame pair and a biposelet type $t_s \in \{1, \ldots, K\}$. Specifically, the
-first stage must find some $\mat L = \begin{bmatrix}\vec l_1 & \vec l_2 & \cdots
-& \vec l_{|\mathcal S|}\end{bmatrix}^T$ and $\vec t = \begin{bmatrix}t_1 & t_2 &
-\cdots & t_{|\mathcal S|}\end{bmatrix}$ which minimises the cost
+between them iff they have a joint in common. The formal objective of the first
+stage of the pipeline is to take a pair of frames $(\mat I_1, \mat I_2)$ and
+output, for each subpose $s$, a subpose location $\vec l_s \in \mathbb R^2$
+within the frame pair and a biposelet type $t_s \in \{1, \ldots, K\}$.
+Specifically, the first stage must find some $\mat L = \begin{bmatrix}\vec l_1 &
+\vec l_2 & \cdots & \vec l_{|\mathcal S|}\end{bmatrix}^T$ and $\vec t =
+\begin{bmatrix}t_1 & t_2 & \cdots & t_{|\mathcal S|}\end{bmatrix}$ which
+minimises the cost
 %
 \begin{equation}\label{eqn:full-cost}
 C(\mat L, \vec t \mid \mat D_{12})
-= w_0 + \sum_{s \in \mathcal V} \phi_s(\vec l_s, t_s; \mat D_{12})
+= w_0 + \sum_{s \in \mathcal S} \phi_s(\vec l_s, t_s; \mat D_{12})
 + \sum_{(s_1, s_2) \in \mathcal E}
     \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2)~,
 \end{equation}
 %
 where $w_0$ is a bias, each $\phi_s(\cdot)$ is an appearance term, each
 $\psi_{s_1,s_2}$ is a pairwise cost, and $\mat D_{12}$ is the concatenation
-of $\mat I_1$ and $\mat I_2$.
+of the frames $\mat I_1$ and $\mat I_2$.
 
-Recall that each pair of neighbouring subposes have a single joint in common;
+Recall that each pair of neighbouring subposes has a single joint in common;
 the aim of the pairwise terms is to ensure that locations of neighbouring
 subposes are chosen so that predicted locations for their shared joints are
 consistent. Concretely, each pairwise cost can be written out in full as
@@ -341,7 +339,7 @@ where $\vec \Delta(\begin{bmatrix}\delta_x & \delta_y\end{bmatrix}) =
 deformation feature, $\vec w_{s_1 s_2}$ is a learnt weight vector, and
 $\vec m_{t_1 t_2}$ is an ``ideal'' displacement between $s_1$ and $s_2$. If the
 joint shared between $s_1$ and $s_2$ is at location $\vec r_{t,f}$ in frame $f$
-and biposelet $t$ (relative to the centre of the biposelet), then $\vec m_{t_1
+and biposelet $t$ (relative to the centre of the subpose), then $\vec m_{t_1
 t_2}$ is simply
 \begin{equation}
 \frac{%
@@ -351,35 +349,33 @@ t_2}$ is simply
 \end{equation}
 
 Each appearance term $\phi_s(\vec l_s, t_s; \mat D_{12})$ reflects the degree to
-which a small region around the location $\vec l_s$ looks like the subpose $s$
-of type $t$. Concretely,
+which a small region around the location $\vec l_s$ looks like a subpose $s$
+with biposelet type $t_s$. Concretely,
 \begin{equation}\label{eqn:unary-cost}
 \phi_s(\vec l_s, t_s; \mat D_{12}) = -w_s \log p(s, t_s \mid \mat D_{12}(
 \vec l_s))~,
 \end{equation}
 %
 where $w_s$ is a learnt weight and $\mat D_{12}(\vec l_s)$ denotes a crop of the
-frame pair $(\mat I_1, I_2)$ and the optical flow between them at location
-$\vec l_s$. $p(s, t \mid \mat D(\vec l))$ is the probability that the patch
-$\mat D(\vec l)$ contains a subpose $s$ with biposelet $t$, with the special
-values $(s, t) = (0, 0)$ denoting a background patch with no subpose.
+frame pair $(\mat I_1, \mat I_2)$ and the optical flow between them at location
+$\vec l_s$. $p(s, t \mid \mat D(\vec l))$ is the probability that the image
+patch $\mat D(\vec l)$ contains a subpose $s$ with biposelet $t$, with the
+special values $(s, t) = (0, 0)$ denoting a background patch with no subpose.
 
-% TODO: Should consider motivating design decision instead of just documenting
-% it
 $p(s, t \mid \mat D(\vec l))$ is produced by a two-stream convolutional neural
 network with an architecture loosely following the 16 layer architecture of
-Simonyan et al.~\cite{simonyan2014very}. Specifically, we use a two-stream
-architecture in which one stream processes a stacked pair of RGB video frames
-and another stream processes the flow; the two streams are merged by
-concatenating them after the third pooling layer. The output is a probability
-distribution over all subposes $s$ and biposelets $t$ for each subpose, with the
-aforementioned special values of $(s, t) = (0, 0)$ denoting the background
-class.
+Simonyan et al.~\cite{simonyan2014very}. Specifically, Simonyan et al.'s
+original single-stream architecture has been split in two, with one stream
+processing a stacked pair of RGB video frames and the other processing the flow;
+the two streams are merged by concatenating them after the third pooling layer.
+The output is a probability distribution over all subposes $s$ and biposelets
+$t$ for each subpose, with the aforementioned special values of $(s, t) = (0,
+0)$ denoting the background class.
 
-At test time, we efficiently apply the network as a sliding window detector by
-converting the final dense layers to produce a fully convolutional
-network~\cite{sermanet2013overfeat}. Section~\ref{sec:learning} discusses
-training-time considerations.
+At test time, the network can be used as an efficient sliding window detector by
+converting the final dense layers to convolutions, which yields a fully
+convolutional network~\cite{sermanet2013overfeat}. Section~\ref{sec:learning}
+discusses training-time considerations.
 
 \subsection{Inference on frame pair model}
 
@@ -408,14 +404,19 @@ D_{12})$ can be computed by first evaluating $M(\vec l_{s_c}, t_{s_c}; \mat
 D_{12})$ for each child $s_c$ of $s$, then applying Felzenszwalb and
 Huttenlocher's distance transform technique~\cite{felzenszwalb2012distance} to
 find the $\vec l_{s_c}$ which minimises $\psi_{s s_c}(\vec l_s, \vec l_{s_c},
-t_s, t_{s_c})$ for each $t_{s_c}$. If there are $N$ locations in the image and
-$K$ possible values for $t_{s_c}$ and $t_s$, then this will take $\mathcal O(N
-K^2)$ time for each child and each $\vec l_s$; repeating the procedure for all
-subposes in $\mathcal G$ thus takes $\mathcal O(|\mathcal S| N K^2)$ time.
+t_s, t_{s_c})$ for each $t_{s_c}$.
 
-Having evaluated (\ref{eqn:reccost}) for each possible $\vec l_{s_R}$ and
-$t_{s_R}$, finding the pose configuration which minimises (\ref{eqn:full-cost})
-is a simple matter of looking up
+If there are $N$ locations in the image and $K$ possible biposelet types, then
+applying this procedure to a non-leaf node will take $\mathcal O(N K^2)$ time
+for each child and each $\vec l_s$. Repeating the procedure for all subposes in
+the subpose graph $\mathcal G$ thus takes $\mathcal O(|\mathcal S| N K^2)$ time.
+Intuitively, this means that introducing new subposes to $\mathcal S$ or scaling
+up the number of pixels $N$ is ``cheap'', but increasing the number of biposelet
+types drives up computational cost rapidly.
+
+Having evaluated (\ref{eqn:reccost}) for each possible root location $\vec
+l_{s_R}$ and root type $t_{s_R}$, finding the pose configuration which minimises
+(\ref{eqn:full-cost}) is a simple matter of looking up
 %
 \begin{equation}
 \argmin_{\vec l_{s_R}, t_{s_R}} M(\vec l_{s_R}, \vec t_{s_R}; \mat D_{12})
@@ -427,35 +428,32 @@ to produce a set of low-cost pose configurations for each frame pair; having
 several such configurations is important during the sequence stitching stage of
 the pipeline, as explained in Section~\ref{sec:stitching}.
 
-After determining a location and biposelet type for each subpose, we can recover
-a location for each joint in the original pose model using the stored joint
+After determining a location and biposelet type for each subpose, a location can
+be recovered for each joint in the original pose model using the stored joint
 offsets associated with each assigned biposelet. In cases where two subposes
 share a joint, the final joint location is the average of the joint locations
-predicted by the biposelets associated with the two subposes.
+predicted by the biposelets associated with those two subposes.
 
 \section{Sequence stitching}\label{sec:stitching}
 
-% TODO: Might need some more motivation here. There's an interesting comparison
-% with Anoop's past work to be made, but I haven't written it yet :P
-
-After evaluating the first stage of our pipeline on every frame pair in a video
-sequence, we obtain a small candidate set of pose pairs for each frame pair. The
-second stage of the pipeline attempts to pick a single pose pair from each
-candidate set of pose pairs, then combines poses from overlapping pairs to obtain
-a single pose for each frame. Chosen pose pairs should meet two criteria:
+Evaluating the first stage of the pipeline on an entire video produces a small
+candidate set of pose pairs for each frame pair. The second stage of the
+pipeline attempts to pick a single pose pair from each candidate set of pose
+pairs, then combines poses from overlapping pairs to obtain a single pose for
+each frame. Chosen pose pairs should meet two criteria:
 %
 \begin{description}
 \item[Individual plausibility] Low cost poses, in the sense of the cost
 function (\ref{eqn:full-cost}) for the frame-pair model, should be preferred over
 high cost ones.
 \item[Temporal consistency] Where two selected pose pairs overlap on a frame,
-the selected poses for that frame should be similar.
+the poses associated with the shared frame should be similar.
 \end{description}
 
 The pair selection criteria are easy to express mathematically. For a sequence
 of $F$ frames, let $\mathcal P_f$ denote the set of pose pairs detected between
 frame $f$ and $f + 1$, where $f \in \{1, \ldots, F - 1\}$. Further, let $(\mat
-p_{f,1}, \mat p_{f_2})$ denote the specific pose pair which the sequence
+p_{f,1}, \mat p_{f,2})$ denote the specific pose pair which the sequence
 stitcher chooses from set $\mathcal P_f$, and $c_f$ be cost
 (\ref{eqn:full-cost}) associated with the subpose locations and types defining
 that pose pair. The objective of the stitcher is to find a sequence of pose
@@ -483,9 +481,10 @@ dynamic programming approach analogous to the Viterbi algorithm. If there are
 $|\mathcal P|$ pose pairs in each candidate set, then this maximisation will
 take $\mathcal O(|\mathcal P|^2)$ time. Thus, it is important to produce only a
 small selection of the best pose pairs during inference on the frame pair model.
-In practice, we found that $|\mathcal P|$ between 100 and 1000 generally gave an
-ample selection of poses without imposing too great a computational burden.
+In practice, setting $|\mathcal P|$ between 100 and 1000 generally gave an ample
+selection of poses without imposing too great a computational burden.
 
+% XXX: This is your bookmark. You still need to proof-read below here.
 \section{Learning}\label{sec:learning}
 
 Our model contains a number of learnable parameters, including CNN weights,
