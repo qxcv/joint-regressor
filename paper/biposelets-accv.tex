@@ -487,82 +487,81 @@ selection of poses without imposing too great a computational burden.
 % XXX: This is your bookmark. You still need to proof-read below here.
 \section{Learning}\label{sec:learning}
 
-Our model contains a number of learnable parameters, including CNN weights,
-biposelet centroids, and weights for the frame-pair cost in
-(\ref{eqn:full-cost}); here we describe how each is learnt.
+The full pipeline contains a number of learnable parameters, including CNN
+weights, biposelet centroids, and weights for the frame-pair cost in
+(\ref{eqn:full-cost}); this section describes how each set of parameters is
+learnt.
 
-\paragraph{CNN weights} The CNN was trained to predict the joint
+\paragraph{CNN weights} The CNN is trained to predict the joint
 biposelet-subpose distribution for fixed-size crops of the training data with a
-standard softmax objective. Positive (subpose-containing) crops were taken
-around ground truth subposes in the training set, with a small margin around the
-subpose to ensure that all joints were in view. Negative (background) crops were
-initially taken from regions of frame pairs in the training set not containing
-any people.
+standard softmax classification objective. Positive (subpose-containing) crops
+are taken around ground truth subposes in the training set, with a small margin
+around the subpose to ensure that all joints are in view. Negative (background)
+crops are initially taken from regions of frame pairs in the training set not
+containing any people.
 
-We found that using only pure background crops as negatives left the CNN unable
-to discriminate between subposes in the centre of the receptive field and
-subposes at the edges. This significantly harmed localisation accuracy for the
-joints themselves, as the CNN would predict certain biposelets with high
-confidence even when the true centre of the biposelet lay far from the centre of
-the receptive field. To rectify this issue, we also include more challenging
-negative crops which include off-centre subposes which do not correspond well
-(in terms of $L_2$ distance) to any of the learnt biposelets.
+Training experience showed that using only pure background crops as negatives
+left the CNN unable to discriminate between subposes in the centre of the
+receptive field and subposes at the edges. That can significantly harm
+localisation accuracy, as the CNN can predict certain biposelets with high
+confidence even when the true centre of the biposelet lies far from the centre
+of the receptive field. To rectify this issue, the CNN training code also
+produces more challenging negative crops which include off-centre subposes that
+do not correspond well (in terms of $L_2$ distance) to any of the learnt
+biposelets.
 
 Past work has shown that two-stream CNNs are prone to
-overfitting~\cite{wang2015towards}, and our experience training a two-stream
-network anecdotally confirmed that finding. Overfitting was addressed with
+overfitting~\cite{wang2015towards}; in this work, overfitting is addressed with
 aggressive use of dropout and dataset augmentation, including random rotations,
 flips, and small translations. Random scaling was not found to improve network
-performance, and the use of large random translations was precluded by the need
-to keep the entire subpose in view for the sake of accurate biposelet
+performance, and the use of large random translations is precluded by the need
+to keep an entire subpose in view for the sake of accurate biposelet
 prediction.
 
-To improve convergence speed, the network was initialised with the weights of a
-VGGNet trained for ILSVRC classification. The same weights were applied to both
-the flow and RGB streams of the network, with filters for the input RGBRGB layer
+To improve convergence speed, the network is initialised with the weights of a
+VGGNet trained for ILSVRC classification. The same weights are applied to both
+the flow and RGB streams of the network, with filters for the RGB input layer
 duplicated to accommodate the change from three image input channels to six.
 
-\paragraph{Biposelet centroids} While writing the positive training samples for
-the CNN, we also write out the locations of each joint of each subpose relative
-to the crop used to produce the sample. After the positives been written, a set
-of biposelets can be produced for each subpose by clustering those crop-relative
+\paragraph{Biposelet centroids} While writing a positive training sample for the
+CNN, the training code also writes out locations of each joint relative to the
+crop used to produce the sample. After all positives have been written, a set of
+biposelets can be produced for each subpose by clustering those crop-relative
 coordinates using $K$-means. The clustering process also yields a biposelet type
-for each positive training sample which we can train the network to predict.
-Clustering on the same samples used to train the CNN ensures that the learnt
-biposelets reflect the range of augmentations applied to that data, and makes it
-less likely that some biposelets will be underrepresented (or not represented at
-all) in the CNN training set.
+for each previously written training sample, which is then used as a target
+label for the CNN\@. Clustering on the same samples used to train the CNN ensures
+that the learnt biposelets reflect the range of augmentations applied to that
+data, and makes it less likely that some biposelets will be underrepresented (or
+not represented at all) in the CNN training set.
 
 \paragraph{Weights for frame-pair model} The frame-pair cost
-(\ref{eqn:full-cost}) can be written as the inner product between a feature
+(\ref{eqn:full-cost}) can be written as an inner product between a feature
 vector comprised of deformation and appearance terms and a weight vector
 composed of the bias $w_0$, the deformation parameters $\{w_{s_1 s_2} : s_1, s_2
 \in \mathcal S\}$ and the appearance parameters $\{w_s : s \in \mathcal S\}$.
 Hence, it is possible to learn the weights using a structural SVM formulation.
 
-Concretely, we initialise the model with an intuitively reasonable set of
-weights, then perform inference over the entire training set to extract a set of
-positive feature vectors. We then extract a set of negative feature vectors by
-performing inference over the human-free portion of the INRIA Person
-dataset~\cite{dalal2005histograms} using the same parameters. An SVM can then be
-trained to label the positive feature vectors with $+1$ and the negatives with
-$-1$.
+Concretely, the SVM is initialised with an intuitively reasonable set of
+weights, which are used to perform pose estimation over the entire training set.
+This produces a set of positive feature vectors; negative feature vectors are
+produced by applying the same procedure to images from the human-free portion of
+the INRIA Person dataset~\cite{dalal2005histograms}. The SVM can then be trained
+to label the positive feature vectors with $+1$ and the negatives with $-1$.
 
-Minimisation of the SVM objective was performed using the dual coordinate
-descent solver of Ramanan~\cite{ramanan2013dual}. We found that one iteration of
-the detect-and-optimisation process was sufficient to train the model. In
-contrast to Chen et al.~\cite{chen2014articulated}, who used a similar learning
-formulation, we did not find that location or type supervision improved the
-final weights learnt by the SVM.%
+Minimisation of the SVM objective was performed using an existing dual
+coordinate descent solver~\cite{ramanan2013dual}; one iteration of this
+detect-and-optimise process was found to be sufficient to train the model. In
+contrast to the experience of Chen et al.~\cite{chen2014articulated}, who used a
+similar learning formulation, location and type supervision were not found to
+improve the final weights learnt by the SVM.
 
 \paragraph{Stitching parameters} In principle, the $\lambda$ used to balance
 appearance and temporal consistency during pose sequence stitching can be also
 be learnt using a simple global optimisation method like randomised search. In
-practice, we found that stitching performance was largely invariant to choices
-of $\lambda$ within several orders of magnitude of the (presumed) global
-optimum. As a result, the values of $\lambda$ used in
-Section~\ref{sec:experiments} were simply chosen by eyeballing the datasets in
-question.
+practice, stitching performance was largely invariant to choices of $\lambda$
+within several orders of magnitude of the (presumed) global optimum. As a
+result, the values of $\lambda$ used in Section~\ref{sec:experiments} were
+simply chosen by eyeballing the datasets in question.
 
 \section{Experiments}\label{sec:experiments}
 
