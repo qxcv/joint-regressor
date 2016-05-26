@@ -16,7 +16,7 @@ else
     plotter = @plot_joints;
 end
 
-for seq_idx=1:length(dataset.seqs)
+parfor seq_idx=1:length(dataset.seqs)
     seq = seqs{seq_idx};
     
     fprintf('Working on seq %i/%i\n', seq_idx, length(seqs)); %#ok<PFBNS>
