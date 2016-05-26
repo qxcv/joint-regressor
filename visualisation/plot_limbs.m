@@ -1,6 +1,5 @@
 function plot_limbs(joints, pa)
 %PLOT_LIMBS Plot limbs defined by joint locations and parents array
-assert(pa(1) <= 1, 'Expected joint 1 to be parent!');
 
 % Pick the colours. We want bold colours, so I'm using the prism (rainbow)
 % colour scheme.
@@ -13,13 +12,13 @@ cmap_len = size(cmap, 1);
 
 % Choose which joints are children of some other joint (i.e. correspond to
 % sticks)
-sticks = ~isnan(pa) & pa < 1:length(pa);
+sticks = ~isnan(pa) & pa ~= 1:length(pa);
 num_sticks = sum(sticks);
 stick_idxs = cumsum(sticks);
 
 for this_joint=2:length(pa)
     parent = pa(this_joint);
-    if isnan(parent) || parent <= 0
+    if isnan(parent) || parent == this_joint
         continue
     end
     stick_idx = stick_idxs(this_joint);

@@ -16,7 +16,7 @@ else
     plotter = @plot_joints;
 end
 
-parfor seq_idx=1:length(dataset.seqs)
+for seq_idx=1:length(dataset.seqs)
     seq = seqs{seq_idx};
     
     fprintf('Working on seq %i/%i\n', seq_idx, length(seqs)); %#ok<PFBNS>
@@ -37,7 +37,7 @@ parfor seq_idx=1:length(dataset.seqs)
         text(-50, -50, label, 'Interpreter', 'none');
         result_path = fullfile(dest_dir, ...
             sprintf('seq-%03i-frame-%04i.jpg', seq_idx, frame_idx));
-        print(gcf, '-djpeg', result_path, '-r 300');
+        print(gcf, '-djpeg', result_path, '-r 500');
     end
 end
 end
