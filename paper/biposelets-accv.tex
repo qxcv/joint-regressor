@@ -740,6 +740,16 @@ right shoulder.}
 % - H36M train run exhibits shit tonne of left/right confusion. Might have to
 %   introduce a latent variable to the model to model direction in which subject
 %   is facing.
+% Main point: gets confused between left and right limbs because of varying
+% camera perspectives; evident when confusing left for right or identifying both
+% limbs as left or both as right. Not as big a problem with other data sets
+% (which explains our terrible performance!).
+
+Localisation performance on Human3.6M was uniformly poor relative to the
+baseline. Visual inspection of the results reveals that %TODO
+
+As was the case with other datasets, localisation accuracy was greatest on
+Human3.6M for forward-facing poses with little occlusion or articulation. %TODO
 
 % From PIW:
 % - Occlusion (both self-occlusion and scene-occlusion) is a big challenge, by
@@ -803,34 +813,35 @@ right shoulder.}
 
 \begin{figure*}[t]
 \begin{center}
-\begin{tabular}{@{}c@{}c@{}c@{}c@{}c@{}c@{}}
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-50-frame-26.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-70-frame-30.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-62-frame-2.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-63-frame-9.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-39-frame-14.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-73-frame-30.png}\\
-(a) & (b) & (c) & (d) & (e) & (f)\\
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-50-frame-26.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-70-frame-30.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-62-frame-2.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-63-frame-9.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-39-frame-14.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-73-frame-30.png}\\
-(h) & (i) & (j) & (k) & (l) & (m)\\
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-50-frame-26.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-70-frame-30.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-62-frame-2.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-63-frame-9.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-39-frame-14.png}\,&
-\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-73-frame-30.png}\\
-(n) & (o) & (p) & (q) & (r) & (s)\\
+\begin{tabular}{@{}c@{}c c@{}c@{}c@{}}
+\multicolumn{2}{c}{Localisation successes} &
+\multicolumn{3}{c}{Localisation failures}\\[0.4em]
+\multicolumn{5}{c}{Poses in the Wild}\\
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s18f30-good-gump-mower.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s20f2-good-suit.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s9f18-bad-no-wrist.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s10f27-bad-pose-transfer.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s13f15-bad-terminal-movement.jpg}\\
+(a) & (b) & (c) & (d) & (e)\\[0.6em]
+\multicolumn{5}{c}{MPII Cooking Activities}\\
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s10f54-good-white-shirt.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s8f38-good-open-draw.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s2f10-bad-shoulders.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s5f52-bad-shoulders.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s14f21-bad-forearm.jpg}\\
+(f) & (g) & (h) & (i) & (j)\\[0.6em]
+\multicolumn{5}{c}{Human3.6M}\\
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s28f2-good-teapot.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s31f12-good-chair.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s7f8-bad-extreme-articulation.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s24f12-bad-flip-1.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s24f14-bad-flip-2.jpg}\\
+(k) & (l) & (m) & (n) & (o)
 \end{tabular}
 \end{center}
 \vspace{-5mm}
-\caption{Characteristic failures on each of the three datasets. The first row
-(a--f) is taken from PIW, the second row (h--m) from Cooking Activities,
-and the third row (n--s) from Human3.6M.}
+\caption{Characteristic successes (first two columns) and failures (last three
+columns) on each of the three datasets.}
 \label{fig:qualitative}
 \end{figure*}
 
