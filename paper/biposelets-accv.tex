@@ -23,7 +23,7 @@
 \accvfinalfalse{}
 \def\accvfinalcopy{\global\accvfinaltrue}
 % Here's how you enable final copy styles (be careful of the acknowledgements!)
-% \accvfinalcopy{}
+%\accvfinalcopy{}
 
 \ifaccvfinal\else
 \usepackage{ruler}
@@ -41,8 +41,11 @@
 %===========================================================
 \title{Human Pose Estimation in Videos with Biposelets}
 \ifaccvfinal{}
-    \author{Sam Toyer\\\texttt{u5568237@anu.edu.au}}
-    \institute{Australian National University}
+    \author{Sam Toyer}
+    \institute{
+        Australian National University, Canberra, Australia\\
+        \texttt{u5568237@anu.edu.au}
+    }
 \else
     \titlerunning{ACCV-16 submission ID \ACCV16SubNumber}
     \authorrunning{ACCV-16 submission ID \ACCV16SubNumber}
@@ -122,15 +125,17 @@ higher-level tasks, including 3D pose
 estimation~\cite{andriluka2010monocular,zhou2016spatio} and action
 recognition~\cite{cheron2015p,yao2011does}.
 
-% TODO: Why video pose estimation in particular is interesting:
-%  - Few results so far (--> is this true? There seem to be lots of results, but
-%    they're just dwarfed by the number of static pose estimation papers!)
-%  - Intuitively seems like temporal information should lead to big improvement
-%  - Hard to actually get solid improvement in practice
 Intuitively, pose estimation in videos ought to be more effective than pose
 estimation in static images. Even if a pose is blurred or occluded in one frame
 of a video, it is often possible for humans to approximate it well by making use
-of the context provided by surrounding frames. In practice %TODO
+of the context provided by surrounding frames. In practice, leveraging this
+temporal redundancy is challenging. Simply feeding ``temporal features'' like
+optical flow or multiple frames to a static pose estimator results in only
+modest accuracy improvements~\cite{jain2014modeep}. On the other hand, extending
+a model to explicitly consider joint motion can yield intractable inference
+problems which require complex approximations~\cite{cherian2014mixing}.
+Finding ways to exploit temporal information in an efficient an effective manner
+is thus an active field of research.
 
 Our contribution is to propose and test a new approach to human pose estimation
 in videos based on the concept of ``biposelets''. As explained in
@@ -155,12 +160,10 @@ from each set of candidate pose pairs; the resultant sequence of pose pairs can
 then be turned into a sequence of single poses by averaging the two poses
 predicted for each frame.
 
-% TODO: How we approach the problem; briefly summarise the biposelet detection
-% and sequence stitching stages here.
 In Section~\ref{sec:experiments}, we evaluate this strategy on three
 established pose estimation benchmarks %TODO
 
-\section{Related work}
+\section{Related work}\label{sec:related-work}
 
 Pose estimation methods for static images typically build on an appearance model
 which can be applied in a sliding window fashion to locate joints. Linear
@@ -634,10 +637,10 @@ Chen \& Yuille~\cite{chen2014articulated} &
 48.30\% & 73.55\% & 85.19\% & 32.31\% & 75.91\% & 94.21\%\\
 Cherian et al.~\cite{cherian2014mixing} &
 30.26\% & 50.32\% & 61.44\% & 27.66\% & 57.14\% & 78.04\%\\
-Pfister et al. SpatialNet~\cite{pfister2015flowing} &
-36.90\% & 54.36\% & 65.37\% & 51.89\% & 72.50\% & 83.11\%\\
 Combined~\cite{cherian2014mixing} and ~\cite{chen2014articulated} &
 50.94\% & 76.29\% & 87.76\% & 31.63\% & 76.91\% & 95.02\%\\
+Pfister et al. SpatialNet~\cite{pfister2015flowing} &
+36.90\% & 54.36\% & 65.37\% & 51.89\% & 72.50\% & 83.11\%\\
 Ours &
 31.97\% & 52.25\% & 69.03\% & 59.46\% & 81.88\% & 90.17\%\\
 \end{tabu}}\\
@@ -675,19 +678,19 @@ publicly released models trained for the FLIC dataset.
 \begin{table}
 {\small\tabulinesep=1.5mm
 \begin{tabu} to \textwidth {X[2l] || X[c]X[c]X[c] | X[c]X[c]X[c]}
-& \multicolumn{3}{c|}{Lower arms} & \multicolumn{3}{c}{Upper arms}\\
+& \multicolumn{3}{c|}{Upper arms} & \multicolumn{3}{c}{Lower arms}\\
 PCP threshold & 0.3 & 0.5 & 0.8 & 0.3 & 0.5 & 0.8\\
 \tabucline-
 Chen \& Yuille~\cite{chen2014articulated} &
-80.03\% & 96.00\% & 97.90\% & 79.44\% & 95.07\% & 98.39\%\\
+79.44\% & 95.07\% & 98.39\% & 80.03\% & 96.00\% & 97.90\%\\
 Cherian et al.~\cite{cherian2014mixing} &
-55.71\% & 75.93\% & 83.45\% & 67.97\% & 80.91\% & 88.62\%\\
-Pfister et al. SpatialNet~\cite{pfister2015flowing} &
-0.29\% & 14.37\% & 70.97\% & 1.52\% & 28.93\% & 57.18\%\\
+67.97\% & 80.91\% & 88.62\% & 55.71\% & 75.93\% & 83.45\%\\
 Combined~\cite{cherian2014mixing} and ~\cite{chen2014articulated} &
-81.54\% & 96.97\% & 99.07\% & 79.79\% & 95.07\% & 98.58\%\\
+79.79\% & 95.07\% & 98.58\% & 81.54\% & 96.97\% & 99.07\%\\
+Pfister et al. SpatialNet~\cite{pfister2015flowing} &
+1.52\% & 28.93\% & 57.18\% & 0.29\% & 14.37\% & 70.97\%\\
 Ours &
-28.45\% & 63.25\% & 87.24\% & 70.53\% & 92.03\% & 96.97\%\\
+76.59\% & 87.44\% & 94.72\% & 69.21\% & 85.43\% & 94.28\%\\
 \end{tabu}}\\
 \caption{Strict PCP at various thresholds on the MPII Cooking Activities
 pose estimation dataset.}
@@ -726,6 +729,26 @@ right shoulder.}
 \end{figure*}
 
 \subsection{Discussion}
+
+% Points I want to make:
+% - Some extreme articulation is poorly localised. This is most evident on H3.6M
+%   when the subject throws their arms up in the air.
+% - H36M train run exhibits shit tonne of left/right confusion. Might have to
+%   introduce a latent variable to the model to model direction in which subject
+%   is facing.
+% - Occlusion (both self-occlusion and scene-occlusion) is a big challenge, by
+%   the looks of things on FLIC. Biposelets just go haywire when there's nowhere
+%   to put certain joints.
+% - Extremely rapid movement can confuse the algorithm (see seat reshuffling in
+%   Terminal scene)
+% - Waiter scene shows that pose transfer is a big issue.
+% - Seq26 exhibits occlusion and joint confusion AND clutter confusion!
+% - Seq27 is just totally the wrong scale. No idea why.
+% - Seq29 shows some guy's left arm going fucking nuts because the wrist can't
+%   be found. That's a big deal.
+% - Extreme elbow movement seems to cause joints to revert to "mean position".
+%   Waiter scene and coconut guy (seq33) both demonstrate that.
+% - Gumpp scene (seq64) shows that rapid wrist movement is anathema.
 
 \section{Conclusion}
 
