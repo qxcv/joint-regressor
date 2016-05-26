@@ -22,9 +22,9 @@ COMMON_PROPS = {
     'alpha', 'path_effects', 'color', 'solid_joinstyle'
 }
 PRIORITIES = {
-    'Shoulder': 0,
-    'Elbow': 1,
-    'Wrist': 2
+    'Shoulders': 0,
+    'Elbows': 1,
+    'Wrists': 2
 }
 
 parser = ArgumentParser(

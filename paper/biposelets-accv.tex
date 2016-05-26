@@ -162,6 +162,15 @@ predicted for each frame.
 In Section~\ref{sec:experiments}, we evaluate this strategy on three
 established pose estimation benchmarks %TODO
 
+\begin{figure*}[t]
+\begin{center}
+\includegraphics[draft,width=\textwidth,height=70mm]{figures/pipeline.eps}
+\end{center}
+\vspace{-5mm}
+\caption{An illustration of the two stages of our pose estimation pipeline.}
+\label{fig:pipeline}
+\end{figure*}
+
 \section{Related work}\label{sec:related-work}
 
 Pose estimation methods for static images typically build on an appearance model
@@ -366,8 +375,6 @@ At test time, we efficiently apply the network as a sliding window detector by
 converting the final dense layers to produce a fully convolutional
 network~\cite{sermanet2013overfeat}. Section~\ref{sec:learning} discusses
 training-time considerations.
-
-% Reference for flow: Brox et al.~\cite{brox2004high}
 
 \subsection{Inference on frame pair model}
 
@@ -592,6 +599,37 @@ Code for all experiments is available at \url{https://github.com/qxcv/joint-regr
 
 \subsection{Datasets}
 
+\begin{figure*}[t]
+\begin{center}
+\input{figures/plots/piw-pck.pgf}
+\end{center}
+\vspace{-5mm}
+\caption{Unnormalised PCK on Poses in the Wild.}
+\label{fig:piw-pcks}
+\end{figure*}
+
+\begin{table}
+{\footnotesize\tabulinesep=1.5mm
+\begin{tabu} to \textwidth {X[2l] || X[c]X[c]X[c] | X[c]X[c]X[c]}
+& \multicolumn{3}{c}{Upper arms} & \multicolumn{3}{c|}{Lower arms}\\
+PCP threshold & 0.3 & 0.5 & 0.8 & 0.3 & 0.5 & 0.8\\
+\tabucline-
+Chen \& Yuille~\cite{chen2014articulated} &
+32.31\% & 75.91\% & 94.21\% & 48.30\% & 73.55\% & 85.19\%\\
+Cherian et al.~\cite{cherian2014mixing} &
+27.66\% & 57.14\% & 78.04\% & 30.26\% & 50.32\% & 61.44\%\\
+Combined~\cite{cherian2014mixing} and~\cite{chen2014articulated} &
+31.63\% & 76.91\% & 95.02\% & 50.94\% & 76.29\% & 87.76\%\\
+Pfister et al. SpatialNet~\cite{pfister2015flowing} &
+51.89\% & 72.50\% & 83.11\% & 36.90\% & 54.36\% & 65.37\%\\
+Ours &
+59.46\% & 81.88\% & 90.17\% & 31.97\% & 52.25\% & 69.03\%\\
+\end{tabu}}\\
+\caption{PCP at various thresholds on Poses in the Wild. 0.5 is the standard
+threshold, but other thresholds have been included for comparison.}
+\label{tbl:piw-pcps}
+\end{table}
+
 \paragraph{FLIC and PIW} Poses in the Wild (PIW)~\cite{cherian2014mixing} is a
 video pose estimation dataset of with frames drawn from Hollywood movies. Scene
 clutter, camera motion, subject occlusion and rapid subject motion all make the
@@ -618,56 +656,7 @@ PCK at image scale over all of Poses in the Wild is shown in
 Figure~\ref{fig:piw-pcks}, while PCP at various thresholds is shown in
 Table~\ref{tbl:piw-pcps}.
 
-\begin{figure*}[t]
-\begin{center}
-\input{figures/plots/piw-pck.pgf}
-\end{center}
-\vspace{-5mm}
-\caption{Unnormalised PCK on Poses in the Wild.}
-\label{fig:piw-pcks}
-\end{figure*}
-
-\begin{table}
-{\footnotesize\tabulinesep=1.5mm
-\begin{tabu} to \textwidth {X[2l] || X[c]X[c]X[c] | X[c]X[c]X[c]}
-& \multicolumn{3}{c|}{Lower arms} & \multicolumn{3}{c}{Upper arms}\\
-PCP threshold & 0.3 & 0.5 & 0.8 & 0.3 & 0.5 & 0.8\\
-\tabucline-
-Chen \& Yuille~\cite{chen2014articulated} &
-48.30\% & 73.55\% & 85.19\% & 32.31\% & 75.91\% & 94.21\%\\
-Cherian et al.~\cite{cherian2014mixing} &
-30.26\% & 50.32\% & 61.44\% & 27.66\% & 57.14\% & 78.04\%\\
-Combined~\cite{cherian2014mixing} and~\cite{chen2014articulated} &
-50.94\% & 76.29\% & 87.76\% & 31.63\% & 76.91\% & 95.02\%\\
-Pfister et al. SpatialNet~\cite{pfister2015flowing} &
-36.90\% & 54.36\% & 65.37\% & 51.89\% & 72.50\% & 83.11\%\\
-Ours &
-31.97\% & 52.25\% & 69.03\% & 59.46\% & 81.88\% & 90.17\%\\
-\end{tabu}}\\
-\caption{Strict PCP at various thresholds on Poses in the Wild. 0.5 is the
-standard threshold, but other thresholds have been included for comparison.}
-\label{tbl:piw-pcps}
-\end{table}
-
-\paragraph{MPII Cooking Activities} MPII Cooking
-Activities~\cite{rohrbach2012database} includes two pose estimation datasets
-which we use for comparison with existing work. The Cooking Activities data
-represents a near-ideal case for video pose estimation: all videos are recorded
-from the same static camera in the same kitchen, with minimal occlusion and
-only one subject per video sequence.
-
-We train our model on the continuous pose estimation dataset released with MPII
-Cooking Activities, while using the training set for the Cooking Activities
-``pose challenge'' to evaluate both our model and the baselines. It should be
-noted that we are evaluating on the \textit{training} set of the pose challenge
-as the test set is not continuous; despite the confusing nomenclature, the
-training set of the pose challenge is not the same as the continuous pose
-estimation dataset.
-
-As with the comparison on PIW, all baselines used here were produced using
-publicly released models trained for the FLIC dataset.
-
-\begin{figure*}[t]
+\begin{figure*}[b]
 \begin{center}
 \input{figures/plots/mpii-pck.pgf}
 \end{center}
@@ -693,10 +682,40 @@ Pfister et al. SpatialNet~\cite{pfister2015flowing} &
 Ours &
 76.59\% & 87.44\% & 94.72\% & 69.21\% & 85.43\% & 94.28\%\\
 \end{tabu}}\\
-\caption{Strict PCP at various thresholds on the MPII Cooking Activities
-pose estimation dataset.}
+\caption{Strict PCP at various thresholds on MPII Cooking Activities.}
 \label{tbl:mpii-pcps}
 \end{table}
+
+\paragraph{MPII Cooking Activities} MPII Cooking
+Activities~\cite{rohrbach2012database} includes two pose estimation datasets
+which we use for comparison with existing work. The Cooking Activities data
+represents a near-ideal case for video pose estimation: all videos are recorded
+from the same static camera in the same kitchen, with minimal occlusion and
+only one subject per video sequence.
+
+We train our model on the continuous pose estimation dataset released with MPII
+Cooking Activities, while using the training set for the Cooking Activities
+``pose challenge'' to evaluate both our model and the baselines. It should be
+noted that we are evaluating on the \textit{training} set of the pose challenge
+as the test set is not continuous; despite the confusing nomenclature, the
+training set of the pose challenge is not the same as the continuous pose
+estimation dataset.
+
+As with the comparison on PIW, all baselines used here were produced using
+publicly released models trained for the FLIC dataset. PCK curves are given in
+Figure~\ref{fig:mpii-pcks} and PCP various thresholds is given in
+Table~\ref{tbl:mpii-pcps}.
+
+\begin{figure*}[t]
+\begin{center}
+\input{figures/plots/h36m-pck.pgf}
+\end{center}
+\vspace{-5mm}
+\caption{Comparison of PCK for subject five on the Human3.6M dataset. Thresholds
+are expressed as fractions of the distance between the subject's left hip and
+right shoulder.}
+\label{fig:h36m-pck}
+\end{figure*}
 
 \paragraph{Human3.6M} Human3.6M~\cite{ionescu2014human,ionescu2011latent} is a
 pose estimation and action recognition dataset which includes full depth and 3D
@@ -719,17 +738,6 @@ for a randomly selected set of half the 120 available scenes, each of which was
 further trimmed to 5\% of its original length. PCK for both our model and the
 recurrent network approach are given in Figure~\ref{fig:h36m-pck}.
 
-\begin{figure*}[t]
-\begin{center}
-\input{figures/plots/h36m-pck.pgf}
-\end{center}
-\vspace{-5mm}
-\caption{Comparison of PCK for subject five on the Human3.6M dataset. Thresholds
-are expressed as fractions of the distance between the subject's left hip and
-right shoulder.}
-\label{fig:h36m-pck}
-\end{figure*}
-
 \subsection{Discussion}
 
 % Points I want to make:
@@ -744,6 +752,40 @@ right shoulder.}
 % camera perspectives; evident when confusing left for right or identifying both
 % limbs as left or both as right. Not as big a problem with other data sets
 % (which explains our terrible performance!).
+
+\begin{figure*}[t]
+\begin{center}
+\begin{tabular}{@{}c@{}c c@{}c@{}c@{}}
+\multicolumn{2}{c}{Localisation successes} &
+\multicolumn{3}{c}{Localisation failures}\\[0.4em]
+\multicolumn{5}{c}{Poses in the Wild}\\
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s18f30-good-gump-mower.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s20f2-good-suit.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s9f18-bad-no-wrist.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s10f27-bad-pose-transfer.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s13f15-bad-terminal-movement.jpg}\\
+(a) & (b) & (c) & (d) & (e)\\[0.6em]
+\multicolumn{5}{c}{MPII Cooking Activities}\\
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s10f54-good-white-shirt.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s8f38-good-open-draw.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s2f10-bad-shoulders.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s5f52-bad-shoulders.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s14f21-bad-forearm.jpg}\\
+(f) & (g) & (h) & (i) & (j)\\[0.6em]
+\multicolumn{5}{c}{Human3.6M}\\
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s28f2-good-teapot.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s31f12-good-chair.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s7f8-bad-extreme-articulation.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s24f12-bad-flip-1.jpg}\,&
+\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s24f14-bad-flip-2.jpg}\\
+(k) & (l) & (m) & (n) & (o)
+\end{tabular}
+\end{center}
+\vspace{-5mm}
+\caption{Characteristic successes (first two columns) and failures (last three
+columns).}
+\label{fig:qualitative}
+\end{figure*}
 
 Localisation performance on Human3.6M was uniformly poor relative to the
 baseline. Visual inspection of the results reveals that %TODO
@@ -811,40 +853,6 @@ Human3.6M for forward-facing poses with little occlusion or articulation. %TODO
 % should say why the results are so, what you learned from the biposelets idea,
 % and how you plan to fix the issues."
 
-\begin{figure*}[t]
-\begin{center}
-\begin{tabular}{@{}c@{}c c@{}c@{}c@{}}
-\multicolumn{2}{c}{Localisation successes} &
-\multicolumn{3}{c}{Localisation failures}\\[0.4em]
-\multicolumn{5}{c}{Poses in the Wild}\\
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s18f30-good-gump-mower.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s20f2-good-suit.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s9f18-bad-no-wrist.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s10f27-bad-pose-transfer.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s13f15-bad-terminal-movement.jpg}\\
-(a) & (b) & (c) & (d) & (e)\\[0.6em]
-\multicolumn{5}{c}{MPII Cooking Activities}\\
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s10f54-good-white-shirt.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s8f38-good-open-draw.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s2f10-bad-shoulders.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s5f52-bad-shoulders.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s14f21-bad-forearm.jpg}\\
-(f) & (g) & (h) & (i) & (j)\\[0.6em]
-\multicolumn{5}{c}{Human3.6M}\\
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s28f2-good-teapot.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s31f12-good-chair.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s7f8-bad-extreme-articulation.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s24f12-bad-flip-1.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s24f14-bad-flip-2.jpg}\\
-(k) & (l) & (m) & (n) & (o)
-\end{tabular}
-\end{center}
-\vspace{-5mm}
-\caption{Characteristic successes (first two columns) and failures (last three
-columns) on each of the three datasets.}
-\label{fig:qualitative}
-\end{figure*}
-
 \section{Conclusion}
 
 % TODO
@@ -857,10 +865,8 @@ produce baseline
 comparisons~\cite{pfister2015flowing,chen2014articulated,cherian2014mixing}.
 \fi
 
-%References are listed in alphabetic order by the surname of the first author, or the identifying word (e.g., in case of a website). Have
-%all anonymized references at the beginning of the list.
-
 %===========================================================
+\newpage
 \bibliographystyle{splncs}
 \bibliography{citations}
 \end{document}
