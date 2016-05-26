@@ -560,8 +560,8 @@ appearance and temporal consistency during pose sequence stitching can be also
 be learnt using a simple global optimisation method like randomised search. In
 practice, stitching performance was largely invariant to choices of $\lambda$
 within several orders of magnitude of the (presumed) global optimum. As a
-result, the values of $\lambda$ used in Section~\ref{sec:experiments} were
-simply chosen by eyeballing the datasets in question.
+result, the values of $\lambda$ used in Section~\ref{sec:experiments} were kept
+at a constant, intuitively reasonable value across all datasets.
 
 \section{Experiments}\label{sec:experiments}
 
@@ -571,9 +571,9 @@ simply chosen by eyeballing the datasets in question.
 %   the datasets, then mean recombination time per frame. Over all the test
 %   sequences.
 
-To evaluate the effectiveness of our model, we apply it to three continuous pose
-estimation datasets: Poses in the Wild, MPII Cooking Activities and Human3.6M.
-The following parameters were used for all datasets:
+To evaluate the effectiveness of the model, it was applied to three continuous
+pose estimation datasets: Poses in the Wild, MPII Cooking Activities and
+Human3.6M. The following parameters were used for all datasets:
 
 \begin{enumerate}
 % Consider putting in initial values for appearance and deformation terms (in
@@ -587,22 +587,22 @@ pair.
 \item $\lambda = 10^5$ was used during stitching.
 \end{enumerate}
 
-To measure localisation error, we employ variants on Percentage Correct
-Keypoints (PCK) and Percentage Correct Parts (PCP), as explained by Yang \&
+Localisation error is measured using variants on Percentage Correct Keypoints
+(PCK) and Percentage Correct Parts (PCP), as explained by Yang \&
 Ramanan~\cite{yang2013articulated}. Except where hip and shoulder locations are
-available for normalisation, we use unnormalised PCK: that is, we consider a
-joint to be correctly localised for the purpose of PCK calculation if its
+available for normalisation, unnormalised PCK is used: that is, a joint is
+considered to be correctly localised for the purpose of PCK calculation if its
 predicted position in the image falls within a certain number of pixels of the
-ground truth location. For PCP, we consider a limb of length $l$ to be correctly
-localised at a threshold $t$ if both predicted endpoints fall within a distance
-$tl$ of their true locations; in the case of $t = 0.5$, this is simply ordinary
-strict PCP.
+ground truth location. For PCP, a limb of length $l$ is considered to be
+correctly localised at a threshold $t$ if both predicted endpoints fall within a
+distance $tl$ of their true locations; in the case of $t = 0.5$, this is simply
+ordinary strict PCP.
 
 Code for all experiments is available
-online.\footnote{\url{https://github.com/qxcv/joint-regressor}} Note that all
-experiments were performed on a machine with 128GB of memory, 12 physical CPU
-cores, and GPUs with 12GB of video memory each; a similarly specced machine will
-be required to train and evaluate the convolutional networks used here.
+online.\footnote{\url{https://github.com/qxcv/joint-regressor}} Note that the
+experiments were performed on a machine with 128GB of main memory and 12GB of
+video memory per GPU; a similarly specced machine will be required to train and
+evaluate the convolutional networks used here.
 
 \subsection{Datasets}
 
@@ -643,24 +643,25 @@ clutter, camera motion, subject occlusion and rapid subject motion all make the
 dataset a challenging benchmark.
 
 Unfortunately, at under a thousand frames, Poses in the Wild is not large enough
-to both test and evaluate on. Thus, we follow the example of previous authors in
-training our model on the Frames Labelled in Cinema (FLIC)
-dataset~\cite{sapp2013modec} and then evaluating on PIW\@. As we require
-adjacent labelled frames to train our frame-pair model, we used a subset of
-FLIC-full for training which consisted of around 8000 reliably annotated pairs.
-The remaining pairs had a mixture of incorrect annotations and excessive
-occlusion which made them unsuitable for training our appearance model.
+to both test and evaluate on. Thus, the model was trained on the Frames Labelled
+in Cinema (FLIC) dataset~\cite{sapp2013modec} and then evaluated on PIW\@. As
+adjacent, labelled frames are required to train the frame-pair model, training
+was performed on a subset of FLIC-full consisting of around 8000 reliably
+annotated pairs. The remaining pairs had a mixture of incorrect annotations and
+excessive occlusion which made them unsuitable for training the appearance
+model.
 
 All baselines used for comparison were produced using publicly released
-evaluation code and models trained on FLIC in a similar manner to ours. Note
-that the ``combined'' baseline works by applying Chen \&
+evaluation code and models trained on FLIC in a similar manner to that described
+above. Note that the ``combined'' baseline works by applying Chen \&
 Yuille's~\cite{chen2014articulated} detector to each frame of a video sequence,
 then combining the produced candidate pose sets for each frame into a pose
 sequence using the recombination method of Cherian et
 al.~\cite{cherian2014mixing}. It should also be noted that the Pfister et al.\
 baseline is for a non-temporally-aware model, which they dub ``SpatialNet'',
-rather than the flow-augmented model for which they obtained the best results;
-at the time of writing, code for the latter model was not publicly available.
+rather than the flow-augmented model for which Pfister et al.\ obtained the best
+results; at the time of writing, code for the latter model was not publicly
+available.
 
 PCK at image scale over all of Poses in the Wild is shown in
 Figure~\ref{fig:piw-pcks}, while PCP at various thresholds is shown in
@@ -697,26 +698,26 @@ Ours &
 \end{table}
 
 \paragraph{MPII Cooking Activities} MPII Cooking
-Activities~\cite{rohrbach2012database} includes two pose estimation datasets
-which we use for comparison with existing work. The Cooking Activities data
-represents a near-ideal case for video pose estimation: all videos are recorded
-from the same static camera in the same kitchen, with minimal occlusion and
-only one subject per video sequence.
+Activities~\cite{rohrbach2012database} is a kitchen-themed action recognition
+dataset which includes two pose estimation benchmarks. The Cooking Activities
+data represents a near-ideal case for video pose estimation: all videos are
+recorded from the same static camera in the same kitchen, with minimal occlusion
+and only one subject per video sequence.
 
-We train our model on the continuous pose estimation dataset released with MPII
-Cooking Activities, while using the training set for the Cooking Activities
-``pose challenge'' to evaluate both our model and the baselines. It should be
-noted that we are evaluating on the \textit{training} set of the pose challenge
-as the test set is not continuous; despite the confusing nomenclature, the
-training set of the pose challenge is not the same as the continuous pose
-estimation dataset.
+Training is performed on the ``continuous pose estimation'' dataset released
+with MPII Cooking Activities, with evaluation performed on the ``pose
+challenge'' dataset. It should be noted that that the \textit{training} set of
+the pose challenge is being used for evaluation because the test set does not
+have continuous frames; despite the confusing nomenclature, the training set of
+the ``pose challenge'' (which is used for evaluation) is not the same as the
+``continuous pose estimation'' dataset (which is used for training).
 
 As with the comparison on PIW, all baselines used here were produced using
-publicly released models trained for the FLIC dataset. However, it should be
-noted that we had significant difficulty getting Pfister et al.'s publicly
-released SpatialNet model~\cite{pfister2015flowing} to produce sensible results
-on MPII Cooking Activities. This may have been due to a sub-optimal
-cropping-and-scaling strategy or some other mistake on our part, and so the
+publicly released models trained for the FLIC dataset. Significant difficulty
+was encountered in getting Pfister et al.'s publicly released SpatialNet
+model~\cite{pfister2015flowing} to produce sensible results on MPII Cooking
+Activities. This may have been due to a sub-optimal cropping-and-scaling
+strategy or some other mistake in adaptation to the new dataset, and so the
 results should not be treated as being representative of the maximal performance
 of their approach.
 
@@ -736,24 +737,26 @@ right shoulder.}
 
 \paragraph{Human3.6M} Human3.6M~\cite{ionescu2014human,ionescu2011latent} is a
 pose estimation and action recognition dataset which includes full depth and 3D
-pose data recorded with a motion capture system, although we evaluate only on
-the RGB video and 2D pose portions of the dataset. As a motion capture dataset,
-Human3.6M is recorded in a controlled environment with a uniform background and
-no camera motion. However, in other respects it is significantly more
-challenging than PIW or MPII Cooking Activities: not only do its actors exhibit
-a wider range of motion, but all motion is recorded from four cameras spaced
-evenly around the scene, meaning that a significant portion of poses are
+pose data recorded with a motion capture system, although this evaluation uses
+only the RGB video and 2D pose portions of the dataset. As a motion capture
+dataset, Human3.6M is recorded in a controlled environment with a uniform
+background and no camera motion. However, in other respects it is significantly
+more challenging than PIW or MPII Cooking Activities: not only do its actors
+exhibit a wider range of motion, but all motion is recorded from four cameras
+spaced evenly around the scene, meaning that a significant portion of poses are
 non-frontal.
 
-Our primary motivation in evaluating on Human3.6M is to compare to the recent
-results reported by Fragkiadaki et al.~\cite{fragkiadaki2015recurrent} for a
-sophisticated recurrent neural network architecture. We adopt a comparable
-training protocol to Fragkiadaki et al.\ by using subject five for evaluation and
-all other subjects for training. Due to time constraints, we were unable to
-evaluate our model on all frames associated with subject five, and had to settle
-for a randomly selected set of half the 120 available scenes, each of which was
-further trimmed to 5\% of its original length. PCK for both our model and the
-recurrent network approach are given in Figure~\ref{fig:h36m-pck}.
+The primary motivation behind evaluating on Human3.6M is to compare to the
+recent results reported by Fragkiadaki et al.~\cite{fragkiadaki2015recurrent}
+for a sophisticated recurrent neural network architecture. The training and
+evaluation protocol used for the biposelet model is similar to that employed by
+Fragkiadaki et al.\, with subject five used for evaluation and all other
+subjects used for training. Due to time constraints, it was not possible to
+evaluate the biposelet model on all frames associated with subject five.
+Instead, the statistics given here are for a randomly selected set of half the
+120 available scenes, each of which has been further trimmed to 5\% of its
+original length. PCKs for both the biposelet model and the recurrent network
+approach are given in Figure~\ref{fig:h36m-pck}.
 
 \subsection{Discussion}\label{sec:discussion}
 
@@ -799,14 +802,14 @@ columns).}
 \label{fig:qualitative}
 \end{figure*}
 
-The results for Cooking Activities and PIW show that our model improves
-significantly on past work in the localisation of shoulders, and is competitive
-on elbow localisation; this is reflected in both PCKs and in the difference
-between upper arm and forearm PCPs. It's likely that the use of subposes is
-responsible for our high performance on shoulders. As mentioned in
+The results for Cooking Activities and PIW show that the biposelet model
+improves significantly on past work in the localisation of shoulders, and is
+competitive on elbow localisation; this is reflected in both PCKs and in the
+difference between upper arm and forearm PCPs. It's likely that the use of
+subposes is responsible for our high performance on shoulders. As mentioned in
 Section~\ref{sec:intro}, localising an entire subpose can be easier than
-localising a single joint---as all baseline methods do---because the CNN is
-able to make use of more surrounding context. This is particularly useful for
+localising a single joint---as all baseline methods do---because the CNN is able
+to make use of more surrounding context. This is particularly useful for
 shoulders, since the upper part of the torso is almost always in view whenever
 both shoulders are, the torso's size and consistent appearance make it easy to
 identify~\cite{mori2004recovering}. As is explained later in this section, arms
@@ -913,7 +916,7 @@ biposelets a promising area for future research.
 I would like to thank various authors whose code I have used to produce baseline
 comparisons~\cite{pfister2015flowing,chen2014articulated,cherian2014mixing}. I
 would also like to thank Anoop Cherian for informing many of the ideas presented
-and giving extensive feedback on drafts of this paper.
+here and giving extensive feedback on drafts of this paper.
 \fi
 
 %===========================================================
