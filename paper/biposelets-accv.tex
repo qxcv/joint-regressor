@@ -109,8 +109,8 @@ adjacent frames are composed of. Predicting poses in two frames at a time
 reduces pose estimation over an entire video sequence to the problem of choosing
 a pose for each frame from a set of high-scoring poses, which can be achieved by
 minimising a trivial pairwise cost with dynamic programming. Experiments show
-that our approach performs competitively with existing approaches on established
-pose estimation benchmarks.
+that our approach outperforms previous work on shoulder localisation, but that
+localisation of wrists remains a challenge.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
@@ -161,13 +161,18 @@ then be turned into a sequence of single poses by averaging the two poses
 predicted for each frame.
 
 In Section~\ref{sec:experiments}, we evaluate this strategy on three
-established pose estimation benchmarks %TODO
+established pose estimation benchmarks. Our evaluation shows a significant
+improvement in shoulder localisation accuracy compared to existing work, and
+competitive performance on elbows, but lower performance on wrists. We posit
+that this may be due to the granularity of the subposes we use and the way in
+which we employ flow, and suggest several ways in which performance may be
+improved as part of future work.
 
 \begin{figure*}[t]
 \begin{center}
-\includegraphics[draft,width=\textwidth,height=70mm]{figures/pipeline.eps}
+\includegraphics[draft,width=\textwidth,height=50mm]{figures/pipeline.eps}
 \end{center}
-\vspace{-5mm}
+\vspace{-7mm}
 \caption{An illustration of the two stages of our pose estimation pipeline.}
 \label{fig:pipeline}
 \end{figure*}
@@ -257,32 +262,32 @@ Figure~\ref{fig:biposelets}.
 \begin{figure*}[t]
 \begin{center}
 \begin{tabular}{@{}c@{}c@{}c@{}c@{}c@{}c@{}c@{}c@{}}
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-1-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-2-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-3-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-4-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-5-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-6-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-230/sample-7-f0.jpg}\\
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-230/sample-1-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-230/sample-2-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-230/sample-3-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-230/sample-4-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-230/sample-5-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-230/sample-6-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-230/sample-7-f0.jpg}\\
 %
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-1-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-2-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-3-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-4-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-5-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-6-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-289/sample-7-f0.jpg}\\
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-289/sample-1-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-289/sample-2-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-289/sample-3-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-289/sample-4-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-289/sample-5-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-289/sample-6-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-289/sample-7-f0.jpg}\\
 %
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-1-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-2-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-3-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-4-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-5-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-6-f0.jpg}\,&
-\includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-7-f0.jpg}\\
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-297/sample-1-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-297/sample-2-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-297/sample-3-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-297/sample-4-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-297/sample-5-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-297/sample-6-f0.jpg}\,&
+\includegraphics[height=0.10\linewidth]{figures/biposelets/poselet-297/sample-7-f0.jpg}\\
 \end{tabular}
 \end{center}
-\vspace{-5mm}
+\vspace{-7mm}
 \caption{Biposelets learnt for left elbows in the MPII Cooking Activities
 dataset. Different rows show different biposelets. For brevity,
 only the first frame associated with each biposelet is shown.}
@@ -608,16 +613,16 @@ be required to train and evaluate the convolutional networks used here.
 \begin{center}
 \input{figures/plots/piw-pck.pgf}
 \end{center}
-\vspace{-5mm}
+\vspace{-8mm}
 \caption{Unnormalised PCK on Poses in the Wild. The curves for Chen \& Yuille
 and the combined method occlude one another in the shoulder plot.}
 \label{fig:piw-pcks}
 \end{figure*}
 
-\begin{table}
-{\footnotesize\tabulinesep=1.5mm
+\begin{table}[t]
+{\footnotesize\tabulinesep=1mm
 \begin{tabu} to \textwidth {X[2l] || X[c]X[c]X[c] | X[c]X[c]X[c]}
-& \multicolumn{3}{c}{Upper arms} & \multicolumn{3}{c|}{Lower arms}\\
+& \multicolumn{3}{c|}{Upper arms} & \multicolumn{3}{c}{Lower arms}\\
 PCP threshold & 0.3 & 0.5 & 0.8 & 0.3 & 0.5 & 0.8\\
 \tabucline-
 Chen \& Yuille~\cite{chen2014articulated} &
@@ -631,8 +636,7 @@ Pfister et al. SpatialNet~\cite{pfister2015flowing} &
 Ours &
 59.46\% & 81.88\% & 90.17\% & 31.97\% & 52.25\% & 69.03\%\\
 \end{tabu}}\\
-\caption{PCP at various thresholds on Poses in the Wild. 0.5 is the standard
-threshold, but other thresholds have been included for comparison.}
+\caption{PCP at various thresholds on Poses in the Wild.}
 \label{tbl:piw-pcps}
 \end{table}
 
@@ -666,13 +670,13 @@ Table~\ref{tbl:piw-pcps}.
 \begin{center}
 \input{figures/plots/mpii-pck.pgf}
 \end{center}
-\vspace{-5mm}
+\vspace{-8mm}
 \caption{Unnormalised PCK on MPII Cooking Activities.}
 \label{fig:mpii-pcks}
 \end{figure*}
 
 \begin{table}
-{\footnotesize\tabulinesep=1.5mm
+{\footnotesize\tabulinesep=1mm
 \begin{tabu} to \textwidth {X[2l] || X[c]X[c]X[c] | X[c]X[c]X[c]}
 & \multicolumn{3}{c|}{Upper arms} & \multicolumn{3}{c}{Lower arms}\\
 PCP threshold & 0.3 & 0.5 & 0.8 & 0.3 & 0.5 & 0.8\\
@@ -688,7 +692,7 @@ Pfister et al. SpatialNet~\cite{pfister2015flowing} &
 Ours &
 76.59\% & 87.44\% & 94.72\% & 69.21\% & 85.43\% & 94.28\%\\
 \end{tabu}}\\
-\caption{Strict PCP at various thresholds on MPII Cooking Activities.}
+\caption{PCP at various thresholds on MPII Cooking Activities.}
 \label{tbl:mpii-pcps}
 \end{table}
 
@@ -723,7 +727,7 @@ and PCP various thresholds is given in Table~\ref{tbl:mpii-pcps}.
 \begin{center}
 \input{figures/plots/h36m-pck.pgf}
 \end{center}
-\vspace{-5mm}
+\vspace{-8mm}
 \caption{Comparison of PCK for subject five on the Human3.6M dataset. Thresholds
 are expressed as fractions of the distance between the subject's left hip and
 right shoulder.}
@@ -751,7 +755,7 @@ for a randomly selected set of half the 120 available scenes, each of which was
 further trimmed to 5\% of its original length. PCK for both our model and the
 recurrent network approach are given in Figure~\ref{fig:h36m-pck}.
 
-\subsection{Discussion}
+\subsection{Discussion}\label{sec:discussion}
 
 % General points I want to make (removing as I make them):
 % - Downsampling due to convolutional neural network may be to blame for a lot
@@ -767,29 +771,29 @@ recurrent network approach are given in Figure~\ref{fig:h36m-pck}.
 \multicolumn{2}{c}{Localisation successes} &
 \multicolumn{3}{c}{Localisation failures}\\[0.4em]
 \multicolumn{5}{c}{Poses in the Wild}\\
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s18f30-good-gump-mower.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s20f2-good-suit.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s9f18-bad-no-wrist.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s10f27-bad-pose-transfer.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/piw-s13f15-bad-terminal-movement.jpg}\\
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/piw-s18f30-good-gump-mower.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/piw-s20f2-good-suit.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/piw-s9f18-bad-no-wrist.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/piw-s10f27-bad-pose-transfer.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/piw-s13f15-bad-terminal-movement.jpg}\\
 (a) & (b) & (c) & (d) & (e)\\[0.6em]
 \multicolumn{5}{c}{MPII Cooking Activities}\\
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s10f54-good-white-shirt.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s8f38-good-open-draw.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s2f10-bad-shoulders.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s5f52-bad-shoulders.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/mpii-s14f21-bad-forearm.jpg}\\
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/mpii-s10f54-good-white-shirt.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/mpii-s8f38-good-open-draw.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/mpii-s2f10-bad-shoulders.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/mpii-s5f52-bad-shoulders.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/mpii-s14f21-bad-forearm.jpg}\\
 (f) & (g) & (h) & (i) & (j)\\[0.6em]
 \multicolumn{5}{c}{Human3.6M}\\
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s28f2-good-teapot.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s31f12-good-chair.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s7f8-bad-extreme-articulation.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s24f12-bad-flip-1.jpg}\,&
-\includegraphics[width=0.19\linewidth]{figures/shots-cropped/h36m-s24f14-bad-flip-2.jpg}\\
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/h36m-s28f2-good-teapot.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/h36m-s31f12-good-chair.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/h36m-s7f8-bad-extreme-articulation.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/h36m-s24f12-bad-flip-1.jpg}\,&
+\includegraphics[width=0.17\linewidth]{figures/shots-cropped/h36m-s24f14-bad-flip-2.jpg}\\
 (k) & (l) & (m) & (n) & (o)
 \end{tabular}
 \end{center}
-\vspace{-5mm}
+\vspace{-6mm}
 \caption{Characteristic successes (first two columns) and failures (last three
 columns).}
 \label{fig:qualitative}
@@ -806,7 +810,7 @@ able to make use of more surrounding context. This is particularly useful for
 shoulders, since the upper part of the torso is almost always in view whenever
 both shoulders are, the torso's size and consistent appearance make it easy to
 identify~\cite{mori2004recovering}. As is explained later in this section, arms
-likely do not benefit from the use of subposes to the same degree as sholders
+likely do not benefit from the use of subposes to the same degree as shoulders
 because of their higher level of articulation.
 
 Despite our model's excellent overall performance in localising shoulders,
@@ -887,26 +891,32 @@ per-frame graphical model with a global latent variable indicating whether a
 person is forward-facing or backwards-facing, as Sapp \& Taskar
 do~\cite{sapp2013modec} to eliminate left--right confusion.
 
-% TODO: Consider talk about downsampling and how it needs to be fixed. Only do
-% this if I have space!
-% Some of the underperformance of our model across all datasets could be
-% explained by the way in which we produce heatmaps for each subpose and
-% biposelet type.
-
 \section{Conclusion}
 
-% TODO
+Biposelets have proved to be effective in boosting pose estimation performance
+on shoulders and, to a lesser extent, elbows. A biposelet-based approach is able
+to make effective use of the distinctive visual context of those joints by
+localising entire subposes instead of identifying a single joint at a time.
+Predicting poses in pairs also leads to an elegant formulation for stitching
+pose predictions together in a video setting, and forces our model to make use
+of the visual context present in two video frames at a time. The price of
+these practical and theoretical improvements has been a drop in localisation
+accuracy for faster-moving joints; this likely stems from the limited ability of
+biposelets to represent both the motion and the position of those joints.
+Nevertheless, the already-competitive performance of our approach and the
+opportunities for improvement enumerated in Section~\ref{sec:discussion} make
+biposelets a promising area for future research.
 
 \ifaccvfinal
 \section*{Acknowledgments}
 
-We would like to thank various authors whose code we have extended or used to
-produce baseline
-comparisons~\cite{pfister2015flowing,chen2014articulated,cherian2014mixing}.
+I would like to thank various authors whose code I have used to produce baseline
+comparisons~\cite{pfister2015flowing,chen2014articulated,cherian2014mixing}. I
+would also like to thank Anoop Cherian for informing many of the ideas presented
+and giving extensive feedback on drafts of this paper.
 \fi
 
 %===========================================================
-\newpage
 \bibliographystyle{splncs}
 \bibliography{citations}
 \end{document}
