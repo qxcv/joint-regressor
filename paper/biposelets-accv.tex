@@ -4,7 +4,6 @@
 \usepackage{tabu}
 \usepackage{amsmath,amssymb} % define this before the line numbering.
 \usepackage{color}
-\usepackage{censor}
 % See
 % https://stackoverflow.com/questions/1061112/eliminate-space-before-beginitemize
 % Lots of authors seem to hate the spacing before lists in LaTeX. nolistsep
@@ -23,7 +22,7 @@
 \accvfinalfalse{}
 \def\accvfinalcopy{\global\accvfinaltrue}
 % Here's how you enable final copy styles (be careful of the acknowledgements!)
-%\accvfinalcopy{}
+\accvfinalcopy{}
 
 \ifaccvfinal\else
 \usepackage{ruler}
@@ -42,7 +41,7 @@
 \title{Human Pose Estimation in Videos with Biposelets}
 \ifaccvfinal{}
     \author{Sam Toyer}
-    \institute{
+    \institute{%
         Australian National University, Canberra, Australia\\
         \texttt{u5568237@anu.edu.au}
     }
@@ -273,6 +272,7 @@ Figure~\ref{fig:biposelets}.
 \includegraphics[height=0.1375\linewidth]{figures/biposelets/poselet-297/sample-7-f0.jpg}\\
 \end{tabular}
 \end{center}
+\vspace{-5mm}
 \caption{Biposelets learnt for left elbows in the MPII Cooking Activities
 dataset. Different rows show different biposelets. For brevity,
 only the first frame associated with each biposelet is shown.}
@@ -588,8 +588,7 @@ localised at a threshold $t$ if both predicted endpoints fall within a distance
 $tl$ of their true locations; in the case of $t = 0.5$, this is simply ordinary
 strict PCP.
 
-% XXX: Remove censor box for camera-ready version
-Code for all experiments is available at \censor{\url{https://github.com/qxcv/joint-regressor}}.
+Code for all experiments is available at \url{https://github.com/qxcv/joint-regressor}.
 
 \subsection{Datasets}
 
@@ -623,12 +622,13 @@ Table~\ref{tbl:piw-pcps}.
 \begin{center}
 \input{figures/plots/piw-pck.pgf}
 \end{center}
+\vspace{-5mm}
 \caption{Unnormalised PCK on Poses in the Wild.}
 \label{fig:piw-pcks}
 \end{figure*}
 
 \begin{table}
-{\small\tabulinesep=1.5mm
+{\footnotesize\tabulinesep=1.5mm
 \begin{tabu} to \textwidth {X[2l] || X[c]X[c]X[c] | X[c]X[c]X[c]}
 & \multicolumn{3}{c|}{Lower arms} & \multicolumn{3}{c}{Upper arms}\\
 PCP threshold & 0.3 & 0.5 & 0.8 & 0.3 & 0.5 & 0.8\\
@@ -637,7 +637,7 @@ Chen \& Yuille~\cite{chen2014articulated} &
 48.30\% & 73.55\% & 85.19\% & 32.31\% & 75.91\% & 94.21\%\\
 Cherian et al.~\cite{cherian2014mixing} &
 30.26\% & 50.32\% & 61.44\% & 27.66\% & 57.14\% & 78.04\%\\
-Combined~\cite{cherian2014mixing} and ~\cite{chen2014articulated} &
+Combined~\cite{cherian2014mixing} and~\cite{chen2014articulated} &
 50.94\% & 76.29\% & 87.76\% & 31.63\% & 76.91\% & 95.02\%\\
 Pfister et al. SpatialNet~\cite{pfister2015flowing} &
 36.90\% & 54.36\% & 65.37\% & 51.89\% & 72.50\% & 83.11\%\\
@@ -653,8 +653,8 @@ standard threshold, but other thresholds have been included for comparison.}
 Activities~\cite{rohrbach2012database} includes two pose estimation datasets
 which we use for comparison with existing work. The Cooking Activities data
 represents a near-ideal case for video pose estimation: all videos are recorded
-from the same static camera in the same kitchen, with minimal occlusion and only
-one subject per video sequence.
+from the same static camera in the same kitchen, with minimal occlusion and
+only one subject per video sequence.
 
 We train our model on the continuous pose estimation dataset released with MPII
 Cooking Activities, while using the training set for the Cooking Activities
@@ -671,12 +671,13 @@ publicly released models trained for the FLIC dataset.
 \begin{center}
 \input{figures/plots/mpii-pck.pgf}
 \end{center}
+\vspace{-5mm}
 \caption{Unnormalised PCK on MPII Cooking Activities.}
 \label{fig:mpii-pcks}
 \end{figure*}
 
 \begin{table}
-{\small\tabulinesep=1.5mm
+{\footnotesize\tabulinesep=1.5mm
 \begin{tabu} to \textwidth {X[2l] || X[c]X[c]X[c] | X[c]X[c]X[c]}
 & \multicolumn{3}{c|}{Upper arms} & \multicolumn{3}{c}{Lower arms}\\
 PCP threshold & 0.3 & 0.5 & 0.8 & 0.3 & 0.5 & 0.8\\
@@ -685,7 +686,7 @@ Chen \& Yuille~\cite{chen2014articulated} &
 79.44\% & 95.07\% & 98.39\% & 80.03\% & 96.00\% & 97.90\%\\
 Cherian et al.~\cite{cherian2014mixing} &
 67.97\% & 80.91\% & 88.62\% & 55.71\% & 75.93\% & 83.45\%\\
-Combined~\cite{cherian2014mixing} and ~\cite{chen2014articulated} &
+Combined~\cite{cherian2014mixing} and~\cite{chen2014articulated} &
 79.79\% & 95.07\% & 98.58\% & 81.54\% & 96.97\% & 99.07\%\\
 Pfister et al. SpatialNet~\cite{pfister2015flowing} &
 1.52\% & 28.93\% & 57.18\% & 0.29\% & 14.37\% & 70.97\%\\
@@ -711,7 +712,7 @@ non-frontal.
 Our primary motivation in evaluating on Human3.6M is to compare to the recent
 results reported by Fragkiadaki et al.~\cite{fragkiadaki2015recurrent} for a
 sophisticated recurrent neural network architecture. We adopt a comparable
-training protocol to Fragkiadaki et al. by using subject five for evaluation and
+training protocol to Fragkiadaki et al.\ by using subject five for evaluation and
 all other subjects for training. Due to time constraints, we were unable to
 evaluate our model on all frames associated with subject five, and had to settle
 for a randomly selected set of half the 120 available scenes, each of which was
@@ -722,6 +723,7 @@ recurrent network approach are given in Figure~\ref{fig:h36m-pck}.
 \begin{center}
 \input{figures/plots/h36m-pck.pgf}
 \end{center}
+\vspace{-5mm}
 \caption{Comparison of PCK for subject five on the Human3.6M dataset. Thresholds
 are expressed as fractions of the distance between the subject's left hip and
 right shoulder.}
@@ -731,11 +733,15 @@ right shoulder.}
 \subsection{Discussion}
 
 % Points I want to make:
+
+% From H36M:
 % - Some extreme articulation is poorly localised. This is most evident on H3.6M
 %   when the subject throws their arms up in the air.
 % - H36M train run exhibits shit tonne of left/right confusion. Might have to
 %   introduce a latent variable to the model to model direction in which subject
 %   is facing.
+
+% From PIW:
 % - Occlusion (both self-occlusion and scene-occlusion) is a big challenge, by
 %   the looks of things on FLIC. Biposelets just go haywire when there's nowhere
 %   to put certain joints.
@@ -749,6 +755,84 @@ right shoulder.}
 % - Extreme elbow movement seems to cause joints to revert to "mean position".
 %   Waiter scene and coconut guy (seq33) both demonstrate that.
 % - Gumpp scene (seq64) shows that rapid wrist movement is anathema.
+
+% From MPII CA:
+% - Has trouble tracking the shoulders of some subjects. Not entirely sure why
+%   that is. Check out guy in the orange T-shirt (e.g. image 82) for a good
+%   example---his joints slide off into the pan as he moves forward!
+%   Moving the head down could be a contributing factor. It seems like the
+%   subjects to whom this issue happens are usually moving forwards and bending
+%   over. Caveats: (a) most of the subjects do both of those things (b)
+%   bending/moving forwards doesn't uniformly cause the joints to slide off.
+% - Still subjects and subjects with little limb articulation are tracked well
+%   (e.g. see image 696).
+% - The girl in the black T-shirt (image 1k+) seriously messes up the detector
+%   on one arm. I can't really tell why.
+% - General point: a lot of these issues could be due to lack of diversity in
+%   the training data. It seems like the combined baseline performs very well on
+%   MPII Cooking Activities despite being trained on FLIC, so using a better
+%   dataset could solve part of the problem.
+
+% General points I want to make:
+% - Downsampling due to convolutional neural network may be to blame for a lot
+%   of errors. In principle, it should hurt accuracy quite a bit. However, it's
+%   not easy to fix, since upsampling creates unmanageably large pixel volumes.
+% - Cost function for neural network also means that the network can't make use
+%   of contextual information beyond a small receptive field; this makes it hard
+%   to come up with good appearance terms where a subpose is ambiguous.
+% - Unlike Chen & Yuille's model, our model doesn't account for
+%   ``compatibility'' of neighbouring subposes (beyond co-occurrence of shared
+%   joints), and so some subpose assignments are a little ridiculous. On the
+%   other hand, we also don't run into the same computational issues which IDPR
+%   terms have (i.e. having 10K CNN outputs); those actually make the
+%   downsampling issue mentioned above *even worse*.
+% - Overfitting in the CNN is a *huge* problem. Our use of raw flow (instead of
+%   L2-normed flow) might have something to do with that; can cite MoDeep paper
+%   in support of that position.
+% - Wrists are a big issue, especially when they move fast. Overfitting to flow
+%   (which is quite distinctive for wrists) is one potential issue there.
+%   Another issue is that we have only a small number of biposelets to reflect
+%   both the rapid motion of end joints *and* their relative positions; as
+%   evidence that this is a problem, I can show some shots where articulation of
+%   hands and wrists is not adequately captured.
+
+% What Anoop said: "Given that the results are mostly inferior to [6]+[9], I
+% think the section 6.2 on Discussion will be particularly interesting, and you
+% should say why the results are so, what you learned from the biposelets idea,
+% and how you plan to fix the issues."
+
+\begin{figure*}[t]
+\begin{center}
+\begin{tabular}{@{}c@{}c@{}c@{}c@{}c@{}c@{}}
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-50-frame-26.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-70-frame-30.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-62-frame-2.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-63-frame-9.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-39-frame-14.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-73-frame-30.png}\\
+(a) & (b) & (c) & (d) & (e) & (f)\\
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-50-frame-26.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-70-frame-30.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-62-frame-2.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-63-frame-9.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-39-frame-14.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-73-frame-30.png}\\
+(h) & (i) & (j) & (k) & (l) & (m)\\
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-50-frame-26.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-70-frame-30.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-62-frame-2.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-63-frame-9.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-39-frame-14.png}\,&
+\includegraphics[draft,height=0.16\linewidth]{bad-shots/seq-73-frame-30.png}\\
+(n) & (o) & (p) & (q) & (r) & (s)\\
+\end{tabular}
+\end{center}
+\vspace{-5mm}
+\caption{Characteristic failures on each of the three datasets. The first row
+(a--f) is taken from PIW, the second row (h--m) from Cooking Activities,
+and the third row (n--s) from Human3.6M.}
+\label{fig:qualitative}
+\end{figure*}
 
 \section{Conclusion}
 
