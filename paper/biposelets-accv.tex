@@ -101,27 +101,27 @@
 \begin{abstract}
 The problem of human pose estimation in still images has been well-studied in
 recent years, but making effective use of the temporal information inherent in
-videos is still an open problem. We propose a new model which attempts to learn
-temporal relationships by using a CNN to predict poses for several frames at a
-time; our model caters to the detection capabilities of CNNs by casting pose
-estimation as a problem of predicting the \textit{biposelets} which poses in
-adjacent frames are composed of. Predicting poses in two frames at a time
-reduces pose estimation over an entire video sequence to the problem of choosing
-a pose for each frame from a set of high-scoring poses, which can be achieved by
-minimising a trivial pairwise cost with dynamic programming. Experiments show
-that our approach outperforms previous work on shoulder localisation, but that
-localisation of wrists remains a challenge.
+videos is still an open problem. This paper presents a new model which is forced
+to learn temporal relationships by predicting poses in several frames at a time.
+The new approach caters to the detection and classification capabilities of
+convolutional networks by casting pose estimation as a problem of detecting the
+\textit{biposelets} which constitute a pair of poses in adjacent video frames.
+Relative to existing single-frame-at-a-time methods, this new approach also
+makes it simpler to combine pose predictions into a coherent sequence of poses
+across an entire video. Experiments show that a biposelet approach outperforms
+previous work on shoulder localisation, but that localisation of wrists remains
+a challenge.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
 
 Human pose estimation is the task of localising the joints of a person in an
-image or throughout a video sequence. Effective pose estimation techniques must
-accommodate motion blur and self-occlusion, be invariant to subject clothing and
-scene clutter, and exhibit an understanding of anatomic constraints on poses;
-these requirements make pose estimation a challenging task in computer vision.
-In practice, 2D pose estimation is useful as a preprocessing step for
-higher-level tasks, including 3D pose
+image or throughout a video sequence. Effective pose estimation must accommodate
+motion blur and self-occlusion, be invariant to subject clothing and scene
+clutter, and exhibit an understanding of anatomic constraints on poses; these
+requirements make pose estimation a challenging problem even with
+state-of-the-art computer vision techniques. In practice, 2D pose estimation is
+useful as a preprocessing step for higher-level tasks, including 3D pose
 estimation~\cite{andriluka2010monocular,zhou2016spatio} and action
 recognition~\cite{cheron2015p,yao2011does}.
 
@@ -135,57 +135,57 @@ modest accuracy improvements~\cite{jain2014modeep}. On the other hand, extending
 a model to explicitly consider joint motion can yield intractable inference
 problems which require complex approximations~\cite{cherian2014mixing}.
 Finding ways to exploit temporal information in an efficient an effective manner
-is thus an active field of research.
+is thus an active area of research.
 
-Our contribution is to propose and test a new approach to human pose estimation
-in videos based on the concept of ``biposelets''. As explained in
-Section~\ref{sec:decomp}, a biposelet describes a configuration of some subset
-of a person's joints in two adjacent video frames; this allows biposelets to
-capture both joint location and joint motion. Casting pose estimation as a
-problem of localising and classifying biposelets in pairs of frames forces our
-model to learn to make use of the information present in both frames.
-As an added bonus, this pairwise detection approach yields a pair of poses for
-each pair of video frames; this gives rise to a relatively simple notion of
-temporal consistency of poses across a video sequence, which we describe in
+The main contribution of this paper is to propose and test a new approach to
+human pose estimation in videos based on the concept of ``biposelets''. As
+explained in Section~\ref{sec:decomp}, a biposelet describes a configuration of
+some subset of a person's joints in two adjacent video frames; this allows
+biposelets to express both the position and instantaneous motion of joints.
+Hence, casting pose estimation as biposelet detection problem forces the
+proposed model to learn to make use of the information present in two frames of
+video at a time. As an added bonus, this pairwise detection approach yields a
+two poses at a time; this gives rise to a relatively simple notion of temporal
+consistency of poses across a video sequence, which is elucidated in
 Section~\ref{sec:stitching}.
 
-The complete pose estimation pipeline is divided into two stages: in the first
-stage, each adjacent pair of frames is processed independently to produce a set
-of candidate pairs of poses for that frame pair. The first stage makes use of a
-Convolutional Neural Network (CNN) to find regions of each frame pair which
-visually resemble different subposes, followed by a graphical model which
-ensures that the relative positions of predicted subposes are anatomically
-reasonable. In the second ``stitching'' stage, a single pair of poses is chosen
-from each set of candidate pose pairs; the resultant sequence of pose pairs can
-then be turned into a sequence of single poses by averaging the two poses
-predicted for each frame.
+The complete pose estimation pipeline is divided into two stages, both depicted
+in Figure~\ref{fig:pipeline}: in the first stage, each pair of frames is
+processed independently of the others to produce sets of candidate pose pairs.
+The first stage makes use of a Convolutional Neural Network (CNN) to find
+regions of each frame pair which visually resemble different biposelets,
+followed by a graphical model which ensures that the relative positions of
+predicted biposelets are anatomically reasonable. In the second ``stitching''
+stage, a single pair of poses is chosen from each set of candidate pose pairs;
+the resultant sequence of pose pairs can then be turned into a sequence of
+single poses by averaging the two poses predicted for each frame.
 
-In Section~\ref{sec:experiments}, we evaluate this strategy on three
-established pose estimation benchmarks. Our evaluation shows a significant
+In Section~\ref{sec:experiments}, this strategy is evaluated on three
+established pose estimation benchmarks. The evaluation shows a significant
 improvement in shoulder localisation accuracy compared to existing work, and
-competitive performance on elbows, but lower performance on wrists. We posit
-that this may be due to the granularity of the subposes we use and the way in
-which we employ flow, and suggest several ways in which performance may be
-improved as part of future work.
+competitive performance on elbows, but lower performance on wrists.
+Section~\ref{sec:discussion} makes several suggestions on how to improve the
+performance of a biposelet-based model on more challenging joints.
 
 \begin{figure*}[t]
 \begin{center}
 \includegraphics[draft,width=\textwidth,height=50mm]{figures/pipeline.eps}
 \end{center}
 \vspace{-7mm}
-\caption{An illustration of the two stages of our pose estimation pipeline.}
+\caption{An illustration of the two stages of the pipeline.}
 \label{fig:pipeline}
 \end{figure*}
 
 \section{Related work}\label{sec:related-work}
 
-Pose estimation methods for static images typically build on an appearance model
-which can be applied in a sliding window fashion to locate joints. Linear
-classifiers applied to histogram-of-gradients features are commonly used for
-this purpose~\cite{yang2011articulated,cherian2014mixing}, but have been
-eclipsed by increasingly sophisticated convolutional network
+Pose estimation methods for static images typically build on some sort of
+appearance model which can be used to determine whether a specific joint is
+present in a small image patch. Linear classifiers applied to
+histogram-of-gradients features are commonly used for this
+purpose~\cite{yang2011articulated,cherian2014mixing}, but have been eclipsed by
+increasingly sophisticated convolutional network
 architectures~\cite{jain2014modeep,tompson2014joint,chen2014articulated,pfister2015flowing,wei2016convolutional},
-and our appearance model reflects this trend.
+and the CNN-based appearance model used in this work reflects this trend.
 
 Appearance models can be complemented by global constraints on the relative
 positions of joints. For instance, Yang and Ramanan~\cite{yang2011articulated}
@@ -193,45 +193,44 @@ define a graphical model which encourages joint locations to fall in regions of
 the image with high appearance scores while penalising atypical limb lengths and
 orientations. Several approaches also use the appearance of body parts to infer
 ``types'' which characterise those parts' positions relative to their
-neighbours~\cite{yang2011articulated,chen2014articulated}. Our approach is
-similar, although we break with past work by attempting to simultaneously
-localise entire subsets of a person's joints instead of a single joint at a
-time.
+neighbours~\cite{yang2011articulated,chen2014articulated}. The approach
+presented here is similar, although it breaks with past work by attempting to
+simultaneously localise entire subsets of a person's joints instead of a single
+joint at a time.
 
 In videos, pose estimation is frequently accomplished using a
-tracking-by-detection approach in which a set of poses is estimated
-independently for each frame of the video and then combined into a single
-temporally coherent
+tracking-by-detection approach: first, a set of poses is estimated independently
+for each frame of the video. Next, the estimates for each frame are combined
+into a single temporally coherent
 sequence~\cite{andriluka2010monocular,ferrari2008progressive,cherian2014mixing,ramanan2005strike}.
-Our work follows a similar pattern, except we perform pose estimation at the
-level of frame pairs instead of individual frames. Predicting pairs of poses
-makes it simple to combine our set of detections for each frame pair into a
-sequence of poses for each frame, as described in Section~\ref{sec:stitching}.
-In contrast, past work using the frame-at-a-time method has had to resort to
-more complex flow- and appearance-based heuristics to ensure temporal
-consistency between predicted poses~\cite{cherian2014mixing}.
+This work follows a similar pattern, but applies a detector to pairs of frames
+instead of a single frame at a time. As mentioned previously, this makes it
+simple to stitch predictions into a complete sequence. In contrast, past work
+using the frame-at-a-time method has had to resort to more complex flow- and
+appearance-based heuristics to ensure temporal consistency between predicted
+poses~\cite{cherian2014mixing}.
 
-There have been several attempts to exploit motion information at the network
-level: MoDeep~\cite{jain2014modeep} simply augmented a heatmap regressor for
-joint positions with ``motion features'' derived from the frame for which a pose
-was being predicted and the one prior to it. For localisation of fast-moving
-joints, the authors reported a boost in performance over an equivalent model
-without motion features, but little boost in performance for slower-moving
-joints like the elbows. This suggests that an understanding of the temporal
-relationships between joint positions is either unhelpful to pose estimation or
-was not being learnt effectively.
+There have been several attempts to exploit motion information at the CNN level
+rather than just through stitching heuristics: MoDeep~\cite{jain2014modeep}
+simply augmented a single-frame heatmap regressor for joint positions with
+``motion features'' derived from neighbouring frames. For localisation of
+fast-moving joints, the authors reported a boost in performance over an
+equivalent model without motion features, but little boost in performance for
+slower-moving joints like the elbows. Their result suggests that temporal
+relationships between joint position were not being learnt effectively.
 
 Other approaches to learning temporal relationships at the network level include
-the ``flowing convnets''~\cite{pfister2015flowing} and the recurrent networks of
-Fragkiadaki et al.~\cite{fragkiadaki2015recurrent}. The former approach achieved
-state-of-the-art accuracy by using optical flow to backwarp joint position
-heatmaps to adjacent frames, then pooling the heatmaps to produce a final pose
-estimate; nevertheless, its ``learning'' of temporal relationships was limited
-to choosing a set of pooling weights for combining backwarped heatmaps. The
-latter approach attempts to make use of information from adjacent frames using
-a recurrent architecture which included LSTM nodes, and we benchmark it against
-our approach in Section~\ref{sec:experiments}.
+``flowing convnets''~\cite{pfister2015flowing}, and the recurrent network
+approach of Fragkiadaki et al.~\cite{fragkiadaki2015recurrent}. Flowing convnets
+use optical flow to warp joint position heatmaps between frames, then pool the
+heatmaps at each frame to improve accuracy; despite yielding state-of-the-art
+accuracy, that approach only ``learns'' temporal relationships by choosing a
+small set of pooling weights for combining backwarped heatmaps. In contrast,
+Fragkiadaki et al.\ attempt to learn temporal relationships directly using a
+recurrent neural network architecture. Both approaches are benchmarked in
+Section~\ref{sec:experiments}.
 
+% XXX: You've proof-read everything above here. Consider this your bookmark :)
 \section{Detecting pose pairs}
 
 \subsection{Subposes and biposelets}\label{sec:decomp}
@@ -660,7 +659,10 @@ that the ``combined'' baseline works by applying Chen \&
 Yuille's~\cite{chen2014articulated} detector to each frame of a video sequence,
 then combining the produced candidate pose sets for each frame into a pose
 sequence using the recombination method of Cherian et
-al.~\cite{cherian2014mixing}.
+al.~\cite{cherian2014mixing}. It should also be noted that the Pfister et al.\
+baseline is for a non-temporally-aware model, which they dub ``SpatialNet'',
+rather than the flow-augmented model for which they obtained the best results;
+at the time of writing, code for the latter model was not publicly available.
 
 PCK at image scale over all of Poses in the Wild is shown in
 Figure~\ref{fig:piw-pcks}, while PCP at various thresholds is shown in
