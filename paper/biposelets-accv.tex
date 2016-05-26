@@ -4,6 +4,7 @@
 \usepackage{tabu}
 \usepackage{amsmath,amssymb} % define this before the line numbering.
 \usepackage{color}
+\usepackage{hyperref}
 % See
 % https://stackoverflow.com/questions/1061112/eliminate-space-before-beginitemize
 % Lots of authors seem to hate the spacing before lists in LaTeX. nolistsep
@@ -595,7 +596,11 @@ localised at a threshold $t$ if both predicted endpoints fall within a distance
 $tl$ of their true locations; in the case of $t = 0.5$, this is simply ordinary
 strict PCP.
 
-Code for all experiments is available at \url{https://github.com/qxcv/joint-regressor}.
+Code for all experiments is available
+online.\footnote{\url{https://github.com/qxcv/joint-regressor}} Note that all
+experiments were performed on a machine with 128GB of memory, 12 physical CPU
+cores, and GPUs with 12GB of video memory each; a similarly specced machine will
+be required to train and evaluate the convolutional networks used here.
 
 \subsection{Datasets}
 
@@ -702,9 +707,16 @@ training set of the pose challenge is not the same as the continuous pose
 estimation dataset.
 
 As with the comparison on PIW, all baselines used here were produced using
-publicly released models trained for the FLIC dataset. PCK curves are given in
-Figure~\ref{fig:mpii-pcks} and PCP various thresholds is given in
-Table~\ref{tbl:mpii-pcps}.
+publicly released models trained for the FLIC dataset. However, it should be
+noted that we had significant difficulty getting Pfister et al.'s publicly
+released SpatialNet model~\cite{pfister2015flowing} to produce sensible results
+on MPII Cooking Activities. This may have been due to a sub-optimal
+cropping-and-scaling strategy or some other mistake on our part, and so the
+results should not be treated as being representative of the maximal performance
+of their approach.
+
+PCK curves for MPII Cooking Activities are given in Figure~\ref{fig:mpii-pcks},
+and PCP various thresholds is given in Table~\ref{tbl:mpii-pcps}.
 
 \begin{figure*}[t]
 \begin{center}
@@ -741,7 +753,7 @@ recurrent network approach are given in Figure~\ref{fig:h36m-pck}.
 \subsection{Discussion}
 
 % Points I want to make:
-
+%
 % From H36M:
 % - Some extreme articulation is poorly localised. This is most evident on H3.6M
 %   when the subject throws their arms up in the air.
@@ -752,6 +764,66 @@ recurrent network approach are given in Figure~\ref{fig:h36m-pck}.
 % camera perspectives; evident when confusing left for right or identifying both
 % limbs as left or both as right. Not as big a problem with other data sets
 % (which explains our terrible performance!).
+%
+% From PIW:
+% - Occlusion (both self-occlusion and scene-occlusion) is a big challenge, by
+%   the looks of things on FLIC. Biposelets just go haywire when there's nowhere
+%   to put certain joints.
+% - Extremely rapid movement can confuse the algorithm (see seat reshuffling in
+%   Terminal scene)
+% - Waiter scene shows that pose transfer is a big issue.
+% - Seq26 exhibits occlusion and joint confusion AND clutter confusion!
+% - Seq27 is just totally the wrong scale. No idea why.
+% - Seq29 shows some guy's left arm going fucking nuts because the wrist can't
+%   be found. That's a big deal.
+% - Extreme elbow movement seems to cause joints to revert to "mean position".
+%   Waiter scene and coconut guy (seq33) both demonstrate that.
+% - Gumpp scene (seq64) shows that rapid wrist movement is anathema.
+%
+% From MPII CA:
+% - Has trouble tracking the shoulders of some subjects. Not entirely sure why
+%   that is. Check out guy in the orange T-shirt (e.g. image 82) for a good
+%   example---his joints slide off into the pan as he moves forward!
+%   Moving the head down could be a contributing factor. It seems like the
+%   subjects to whom this issue happens are usually moving forwards and bending
+%   over. Caveats: (a) most of the subjects do both of those things (b)
+%   bending/moving forwards doesn't uniformly cause the joints to slide off.
+% - Still subjects and subjects with little limb articulation are tracked well
+%   (e.g. see image 696).
+% - The girl in the black T-shirt (image 1k+) seriously messes up the detector
+%   on one arm. I can't really tell why.
+% - General point: a lot of these issues could be due to lack of diversity in
+%   the training data. It seems like the combined baseline performs very well on
+%   MPII Cooking Activities despite being trained on FLIC, so using a better
+%   dataset could solve part of the problem.
+%
+% General points I want to make:
+% - Downsampling due to convolutional neural network may be to blame for a lot
+%   of errors. In principle, it should hurt accuracy quite a bit. However, it's
+%   not easy to fix, since upsampling creates unmanageably large pixel volumes.
+% - Cost function for neural network also means that the network can't make use
+%   of contextual information beyond a small receptive field; this makes it hard
+%   to come up with good appearance terms where a subpose is ambiguous.
+% - Unlike Chen & Yuille's model, our model doesn't account for
+%   ``compatibility'' of neighbouring subposes (beyond co-occurrence of shared
+%   joints), and so some subpose assignments are a little ridiculous. On the
+%   other hand, we also don't run into the same computational issues which IDPR
+%   terms have (i.e. having 10K CNN outputs); those actually make the
+%   downsampling issue mentioned above *even worse*.
+% - Overfitting in the CNN is a *huge* problem. Our use of raw flow (instead of
+%   L2-normed flow) might have something to do with that; can cite MoDeep paper
+%   in support of that position.
+% - Wrists are a big issue, especially when they move fast. Overfitting to flow
+%   (which is quite distinctive for wrists) is one potential issue there.
+%   Another issue is that we have only a small number of biposelets to reflect
+%   both the rapid motion of end joints *and* their relative positions; as
+%   evidence that this is a problem, I can show some shots where articulation of
+%   hands and wrists is not adequately captured.
+
+% What Anoop said: "Given that the results are mostly inferior to [6]+[9], I
+% think the section 6.2 on Discussion will be particularly interesting, and you
+% should say why the results are so, what you learned from the biposelets idea,
+% and how you plan to fix the issues."
 
 \begin{figure*}[t]
 \begin{center}
@@ -787,71 +859,51 @@ columns).}
 \label{fig:qualitative}
 \end{figure*}
 
+% TODO: Talk about how we're better on shoulders, and how CY (in particular) are
+% worse.
+The results for Cooking Activities and PIW show that our model improves
+significantly on past work in the localisation of shoulders, and is competitive
+on elbow localisation; this is reflected in the 
+
+A major weakness of our model across all datasets was in handling high levels of
+joint articulation. Nowhere was this more evident than in the wrists---examples
+(e), (j) and (m) in Figure~\ref{fig:qualitative} each depict forearms which are
+unusual for their respective datasets, and are representative of the many wrist
+localisation failures observed during evaluation. Such failures may be due to
+the limited number of configurations which can be expressed using biposelets;
+the baseline models do not suffer from this problem to the same degree because
+they localise individual joints directly, rather than localising entire subposes
+and then attempting to extract specific joint locations using a discrete set of
+subpose configurations.
+
+Biposelets must be able to express both joint location and motion, so it may be
+that biposelets which express a high degree of motion are less able to express
+fine differences in location. That could partially explain why forearms are
+localised so poorly relative to upper arms: wrists and elbows undergo a higher
+degree of motion than shoulders, so it would be expected that their associated
+biposelets would be more specialised to motion than location. Experimenting with
+higher numbers of biposelets and more subposes along the forearms is a promising
+avenue for future work on this deficiency of the model.
+
+Another possibility is that optical flow is not being used as effectively as it
+could be. %TODO: Why recombination gives the biggest improvement on wrists.
+
 Localisation performance on Human3.6M was uniformly poor relative to the
-baseline. Visual inspection of the results reveals that %TODO
+baseline. Visual inspection revealed that a majority of errors were due to
+confusion between the left and right arms. For example, poses (n) and (o) in
+Figure~\ref{fig:qualitative} show a situation in which the estimator reversed
+its labelling of the left and right arms within the space of two frames, even
+though the subject remained facing in the same direction. Moreover, left--/right
+confusion also manifested itself in instances like (m), where both the left and
+right arm were predicted to lie in the same place.
 
-As was the case with other datasets, localisation accuracy was greatest on
-Human3.6M for forward-facing poses with little occlusion or articulation. %TODO
-
-% From PIW:
-% - Occlusion (both self-occlusion and scene-occlusion) is a big challenge, by
-%   the looks of things on FLIC. Biposelets just go haywire when there's nowhere
-%   to put certain joints.
-% - Extremely rapid movement can confuse the algorithm (see seat reshuffling in
-%   Terminal scene)
-% - Waiter scene shows that pose transfer is a big issue.
-% - Seq26 exhibits occlusion and joint confusion AND clutter confusion!
-% - Seq27 is just totally the wrong scale. No idea why.
-% - Seq29 shows some guy's left arm going fucking nuts because the wrist can't
-%   be found. That's a big deal.
-% - Extreme elbow movement seems to cause joints to revert to "mean position".
-%   Waiter scene and coconut guy (seq33) both demonstrate that.
-% - Gumpp scene (seq64) shows that rapid wrist movement is anathema.
-
-% From MPII CA:
-% - Has trouble tracking the shoulders of some subjects. Not entirely sure why
-%   that is. Check out guy in the orange T-shirt (e.g. image 82) for a good
-%   example---his joints slide off into the pan as he moves forward!
-%   Moving the head down could be a contributing factor. It seems like the
-%   subjects to whom this issue happens are usually moving forwards and bending
-%   over. Caveats: (a) most of the subjects do both of those things (b)
-%   bending/moving forwards doesn't uniformly cause the joints to slide off.
-% - Still subjects and subjects with little limb articulation are tracked well
-%   (e.g. see image 696).
-% - The girl in the black T-shirt (image 1k+) seriously messes up the detector
-%   on one arm. I can't really tell why.
-% - General point: a lot of these issues could be due to lack of diversity in
-%   the training data. It seems like the combined baseline performs very well on
-%   MPII Cooking Activities despite being trained on FLIC, so using a better
-%   dataset could solve part of the problem.
-
-% General points I want to make:
-% - Downsampling due to convolutional neural network may be to blame for a lot
-%   of errors. In principle, it should hurt accuracy quite a bit. However, it's
-%   not easy to fix, since upsampling creates unmanageably large pixel volumes.
-% - Cost function for neural network also means that the network can't make use
-%   of contextual information beyond a small receptive field; this makes it hard
-%   to come up with good appearance terms where a subpose is ambiguous.
-% - Unlike Chen & Yuille's model, our model doesn't account for
-%   ``compatibility'' of neighbouring subposes (beyond co-occurrence of shared
-%   joints), and so some subpose assignments are a little ridiculous. On the
-%   other hand, we also don't run into the same computational issues which IDPR
-%   terms have (i.e. having 10K CNN outputs); those actually make the
-%   downsampling issue mentioned above *even worse*.
-% - Overfitting in the CNN is a *huge* problem. Our use of raw flow (instead of
-%   L2-normed flow) might have something to do with that; can cite MoDeep paper
-%   in support of that position.
-% - Wrists are a big issue, especially when they move fast. Overfitting to flow
-%   (which is quite distinctive for wrists) is one potential issue there.
-%   Another issue is that we have only a small number of biposelets to reflect
-%   both the rapid motion of end joints *and* their relative positions; as
-%   evidence that this is a problem, I can show some shots where articulation of
-%   hands and wrists is not adequately captured.
-
-% What Anoop said: "Given that the results are mostly inferior to [6]+[9], I
-% think the section 6.2 on Discussion will be particularly interesting, and you
-% should say why the results are so, what you learned from the biposelets idea,
-% and how you plan to fix the issues."
+Left--right confusion is a common problem in pose estimation; indeed,
+Fragkiadaki et al.~\cite{fragkiadaki2015recurrent} note that their recurrent
+model outperforms a per-frame baseline precisely because it is so effective at
+resolving left--right confusion. As future work, it may be useful to augment our
+per-frame graphical model with a global latent variable indicating whether a
+person is forward-facing or backwards-facing, as Sapp \& Taskar
+do~\cite{sapp2013modec} to eliminate left--right confusion.
 
 \section{Conclusion}
 
