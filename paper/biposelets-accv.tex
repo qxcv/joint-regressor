@@ -79,7 +79,6 @@
 %
 % - One flow chart for the entire pose estimation process (re-use images from
 %   PowerPoint, but in Inkscape or something that plays nicely with LaTeX)
-% - Big panel of biposelets
 % - Illustration of stitching model for single frames (much like the one in my
 %   PowerPoint)
 % - Possibly a small summary figure at the beginning showing some representative
@@ -89,14 +88,6 @@
 %   of my approach. If I do choose to do that, I can probably stick to boxes to
 %   represent the CNN layers, with some images of RGB input and flow on one side
 %   and biposelets on the other
-% - Panels of good at bad predictions for MPII Cooking Activities, Poses in the
-%   Wild and H3.6M
-% - Plots of PCK and strict PCP:
-%   - Raw PCK for Poses in the Wild
-%   - PCP-strict at various thresholds for PIW (include table for PCP@0.5)
-%   - PCP-strict at various thresholds for MPII Cooking Activities (also needs
-%     table for PCP@0.5)
-%   - PCKh for H3.6M in same format as recurrent convnet paper
 
 \begin{abstract}
 The problem of human pose estimation in still images has been well-studied in
@@ -230,7 +221,7 @@ Fragkiadaki et al.\ attempt to learn temporal relationships directly using a
 recurrent neural network architecture. Both approaches are benchmarked in
 Section~\ref{sec:experiments}.
 
-\section{Detecting pose pairs}
+\section{Detecting pose pairs}\label{sec:pair-dets}
 
 \subsection{Subposes and biposelets}\label{sec:decomp}
 
@@ -484,7 +475,6 @@ small selection of the best pose pairs during inference on the frame pair model.
 In practice, setting $|\mathcal P|$ between 100 and 1000 generally gave an ample
 selection of poses without imposing too great a computational burden.
 
-% XXX: This is your bookmark. You still need to proof-read below here.
 \section{Learning}\label{sec:learning}
 
 The full pipeline contains a number of learnable parameters, including CNN
@@ -805,77 +795,81 @@ columns).}
 The results for Cooking Activities and PIW show that the biposelet model
 improves significantly on past work in the localisation of shoulders, and is
 competitive on elbow localisation; this is reflected in both PCKs and in the
-difference between upper arm and forearm PCPs. It's likely that the use of
-subposes is responsible for our high performance on shoulders. As mentioned in
-Section~\ref{sec:intro}, localising an entire subpose can be easier than
-localising a single joint---as all baseline methods do---because the CNN is able
-to make use of more surrounding context. This is particularly useful for
-shoulders, since the upper part of the torso is almost always in view whenever
-both shoulders are, the torso's size and consistent appearance make it easy to
-identify~\cite{mori2004recovering}. As is explained later in this section, arms
-likely do not benefit from the use of subposes to the same degree as shoulders
-because of their higher level of articulation.
+difference between upper arm and forearm PCPs. The use of subposes is likely
+responsible for the high performance on shoulders: As mentioned in
+Section~\ref{sec:intro}, identifying an entire subpose can be easier than
+identifying a single joint---which is what all the baseline methods do---because
+the CNN is able to make use of more surrounding context. This is particularly
+useful for shoulders, since the upper part of the torso is almost always in view
+whenever both shoulders are, and the torso's size and consistent appearance make
+it easy to identify~\cite{mori2004recovering}. As is explained later in this
+section, arms may not benefit as much from the use of subposes because of their
+higher level of articulation.
 
-Despite our model's excellent overall performance in localising shoulders,
+Despite the model's excellent overall performance in localising shoulders,
 qualitative analysis revealed that shoulders were very poorly localised in a
 small subset of the Cooking Activities frames. Frames (h) and (i) in
 Figure~\ref{fig:qualitative} illustrate this problem. The fact that the same
-issue does not crop up in the more challenging PIW dataset suggests that our
+issue does not crop up in the more challenging PIW dataset suggests that the
 training protocol for Cooking Activities may be flawed. A possible culprit is
 the lack of diversity in the subset of Cooking Activities used for
-training---Cooking Activities uses only a handful of actors, so our CNN may be
+training---Cooking Activities uses only a handful of actors, so the CNN may be
 overfitting to aspects of their appearance when learning to classify shoulders.
-This problem may be ameliorated by training on FLIC, as was done for the PIW
-evaluation, rather than on a subset of Cooking Activities.
+This problem may be ameliorated by training on FLIC---as was done for the PIW
+evaluation---rather than on a subset of Cooking Activities.
 
-A major weakness of our model across all datasets was in handling high levels of
+A major weakness of the model across all datasets was in handling high levels of
 joint articulation. Nowhere was this more evident than in the wrists---examples
 (e), (j) and (m) in Figure~\ref{fig:qualitative} each depict forearms which are
 unusual for their respective datasets, and are representative of the many wrist
 localisation failures observed during evaluation. Such failures may be due to
-the limited number of configurations which can be expressed using biposelets;
-the baseline models do not suffer from this problem to the same degree because
-they localise individual joints directly, rather than localising entire subposes
-and then attempting to extract specific joint locations using a discrete set of
-subpose configurations.
+the limited number of joint configurations which can be expressed using a small
+set of biposelets; the baseline models do not suffer from this problem to the
+same degree because they localise individual joints directly, rather than
+localising entire subposes and then attempting to extract specific joint
+locations using a discrete set of subpose configurations.
 
 Biposelets must be able to express both joint location and motion, so it may be
-that biposelets which express a high degree of motion are less able to express
-fine differences in location. That could partially explain why forearms are
-localised so poorly relative to upper arms: wrists and elbows undergo a higher
-degree of motion than shoulders, so it would be expected that their associated
-biposelets would be more specialised to motion than location. Experimenting with
-higher numbers of biposelets and more subposes along the forearms is a promising
-avenue for future work on this deficiency of the model.
+that biposelet sets which are capable of expressing a wide range of motion are
+less capable of expressing fine differences in location. That would partially
+explain why forearms are localised so poorly relative to upper arms: wrists and
+elbows undergo a higher degree of motion than shoulders, so it is expected that
+their associated biposelets should be able to express more extreme motion than
+the biposelets learnt for shoulders. Experimenting with higher numbers of
+biposelets and dividing the forearms into more subposes could address this
+deficiency of the model.
 
 Another possibility is that optical flow is not being used as effectively as it
 could be. Wrists can move much faster than elbows or shoulders, so the magnitude
-of optical flow in an image patch should be a strong cue for the appearance of
+of optical flow in an image patch should be a strong cue for the presence of
 wrists. This is clearly illustrated by the ``combined'' baseline in
 Figure~\ref{fig:piw-pcks} and Figure~\ref{fig:mpii-pcks}: combining Chen \&
 Yuille's approach with Cherian et al.'s (largely flow-based) recombination
 heuristics yields the greatest performance improvement for wrists, and no
-performance improvement for shoulders. Although our model uses raw optical flow
-at the input layer of the CNN, Jain et al.~\cite{jain2014modeep} suggest that
-use of raw flow can lead CNNs to overfit, and that supplying only the magnitude
-of flow may be more effective.
+performance improvement for shoulders, which indicates that flow is more useful
+for the former than the latter. Although the biposelet model uses raw optical
+flow at the CNN input layer, Jain et al.~\cite{jain2014modeep} suggest that use
+of raw flow can lead CNNs to overfit, and that supplying only the magnitude of
+flow may be more effective.
 
 Much like high level of joint articulation, occlusion was a significant
-challenge to our model. Frames (c) and (d) in Figure~\ref{fig:qualitative} show
+challenge. Frames (c) and (d) in Figure~\ref{fig:qualitative} show
 occlusion-related failures: in (c), the presence of a flame occluding the
 subject's left wrist has led their entire forearm to be improperly localised,
 whilst in (d), two subjects occlude one another, and the detector attempts to
 fit the same pose to both of them.
 
-Poor performance on occlusions could be due to a flaw of our model: apart from
-the pairwise deformation features in the graphical model used for frame pair
-inference, our model does not have any way of reasoning about the position and
+Poor performance on occlusions reflects a deficiency of the model: apart from
+the pairwise deformation features in the cost function used for frame pair
+inference, the model does not have any way of reasoning about the position and
 type of an occluded subpose based on the appearance of its visible neighbours.
 Improving performance on subposes which are entirely occluded will likely
 require the use introduction of something like Chen \& Yuille's image-dependent
 pairwise relations~\cite{chen2014articulated}, which enable reasoning about the
-position of a joint (or subpose, in our case) based on actual image evidence at
-neighbouring joints (subposes).
+position of a joint (or subpose, in this case) based on image evidence at
+neighbouring joints (or subposes). In contrast, deformation features depend only
+on the relative positions of subposes, and not on the appearances of the
+subposes themselves.
 
 Localisation performance on Human3.6M was uniformly poor relative to the
 baseline. Visual inspection revealed that a majority of errors were due to
@@ -883,16 +877,16 @@ confusion between the left and right arms. For example, poses (n) and (o) in
 Figure~\ref{fig:qualitative} show a situation in which the estimator reversed
 its labelling of the left and right arms within the space of two frames, even
 though the subject remained facing in the same direction. Moreover, left--right
-confusion also manifested itself in instances like (m), where both the left and
-right arm were predicted to lie in the same place.
+confusion manifested itself in instances like (m), where both the left and right
+arm were predicted to lie in the same place.
 
 Left--right confusion is a common problem in pose estimation; indeed,
 Fragkiadaki et al.~\cite{fragkiadaki2015recurrent} note that their recurrent
 model outperforms a per-frame baseline precisely because it is so effective at
-resolving left--right confusion. As future work, it may be useful to augment our
-per-frame graphical model with a global latent variable indicating whether a
-person is forward-facing or backwards-facing, as Sapp \& Taskar
-do~\cite{sapp2013modec} to eliminate left--right confusion.
+resolving left--right confusion. As future work, it may be useful to augment the
+graphical model in Section~\ref{sec:pair-dets} with a latent variable indicating
+whether a person is forwards-facing or backwards-facing, much as Sapp \& Taskar
+do to eliminate the left--right confusion~\cite{sapp2013modec}.
 
 \section{Conclusion}
 
@@ -901,14 +895,14 @@ on shoulders and, to a lesser extent, elbows. A biposelet-based approach is able
 to make effective use of the distinctive visual context of those joints by
 localising entire subposes instead of identifying a single joint at a time.
 Predicting poses in pairs also leads to an elegant formulation for stitching
-pose predictions together in a video setting, and forces our model to make use
+pose predictions together in a video setting, and forces the model to make use
 of the visual context present in two video frames at a time. The price of
 these practical and theoretical improvements has been a drop in localisation
 accuracy for faster-moving joints; this likely stems from the limited ability of
 biposelets to represent both the motion and the position of those joints.
-Nevertheless, the already-competitive performance of our approach and the
-opportunities for improvement enumerated in Section~\ref{sec:discussion} make
-biposelets a promising area for future research.
+Nevertheless, the already-competitive performance of a biposelet approach and
+the opportunities for improvement enumerated in Section~\ref{sec:discussion}
+make biposelets a promising area for future research.
 
 \ifaccvfinal
 \section*{Acknowledgments}
