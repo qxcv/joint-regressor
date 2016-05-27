@@ -50,7 +50,11 @@ parser.add_argument(
 )
 parser.add_argument(
     '--no-thresh-px', action='store_false', dest='thresh_is_px', default=True,
-    help='disable (px) annotation for threshold'
+    help='Disable (px) annotation for threshold'
+)
+parser.add_argument(
+    '--legend-below', action='store_true', dest='legend_below', default=False,
+    help='Put the legend below the plot rather than above it'
 )
 parser.add_argument(
     '--dims', nargs=2, type=float, metavar=('WIDTH', 'HEIGHT'),
@@ -158,9 +162,14 @@ if __name__ == '__main__':
             borderaxespad=0.
         )
     else:
+        if args.legend_below:
+            bbox = (0.05, 0, 0.9, 0.1)
+        else:
+            bbox = (0.05, 0.88, 0.9, 0.1)
         legend = plt.figlegend(
-            common_handles, labels, bbox_to_anchor=(0.05, 0.9, 0.9, 0.1),
-            loc=3, ncol=3, mode="expand", borderaxespad=0
+            common_handles, labels, bbox_to_anchor=bbox,
+            loc=3, ncol=3, mode="expand", borderaxespad=0,
+            frameon=False
         )
 
     if args.save is None:
