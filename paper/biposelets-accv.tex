@@ -135,9 +135,9 @@ some subset of a person's joints in two adjacent video frames together; this
 allows biposelets to express both the position and instantaneous motion of
 joints. Hence, casting pose estimation as biposelet detection problem forces the
 proposed model to learn to make use of the information present in two frames of
-video at the same time. As an added bonus, this pairwise detection approach
-gives rise to a relatively simple notion of temporal consistency of poses across
-a video sequence, which is elucidated in Section~\ref{sec:stitching}.
+video at the same time. As a bonus, this pairwise detection approach gives rise
+to a relatively simple notion of temporal consistency of poses across a video
+sequence, which is elucidated in Section~\ref{sec:stitching}.
 
 The complete pose estimation pipeline is divided into two stages, both depicted
 in Figure~\ref{fig:pipeline} (a--c): in the first stage (a--b), each pair of
@@ -237,7 +237,7 @@ left elbow and left shoulder, one containing both the left and right shoulders,
 etc.
 
 Rather than representing the locations of each joint in each subpose directly,
-the first stage stage discretises the space of configurations for joints within
+the first stage discretises the space of configurations for joints within
 each subpose into $K$ \textit{biposelets}. Biposelets are so named in analogy to
 the \textit{poselets} of Bourdev and Malik~\cite{bourdev2009poselets}. Unlike
 their namesakes, however, biposelets define positions of joints in two frames
@@ -655,16 +655,15 @@ excessive occlusion which made them unsuitable for training the appearance
 model.
 
 All baselines used for comparison were produced using publicly released
-evaluation code and models trained on FLIC in a similar manner to that described
-above. Note that the ``combined'' baseline works by applying Chen \&
-Yuille's~\cite{chen2014articulated} detector to each frame of a video sequence,
-then combining the produced candidate pose sets for each frame into a pose
-sequence using the recombination method of Cherian et
+evaluation code and models trained on FLIC. Note that the ``combined'' baseline
+works by applying Chen \& Yuille's~\cite{chen2014articulated} detector to each
+frame of a video sequence, then combining the produced candidate pose sets for
+each frame into a pose sequence using the recombination method of Cherian et
 al.~\cite{cherian2014mixing}. It should also be noted that the Pfister et al.\
 baseline is for a non-temporally-aware model, which they dub ``SpatialNet'',
 rather than the flow-augmented model for which Pfister et al.\ obtained the best
-results; code for the latter model was not publicly available at the time
-that this paper was written.
+results; code for the latter model was not publicly available at the time that
+this paper was written.
 
 PCK at image scale over all of Poses in the Wild is shown in
 Figure~\ref{fig:piw-pcks}, while PCP at various thresholds is shown in
@@ -707,7 +706,7 @@ and only one subject per video sequence.
 
 Training is performed on the ``continuous pose estimation'' dataset released
 with MPII Cooking Activities, while the ``pose challenge'' dataset is used for
-evaluation. It should be noted that that the \textit{training} set of the pose
+evaluation. It should be noted that the \textit{training} set of the pose
 challenge is being used for evaluation because the test set does not have
 continuous frames; despite the confusing nomenclature, the training set of the
 ``pose challenge'' (which is used for evaluation) is not the same as the
@@ -910,7 +909,7 @@ the opportunities for improvement enumerated in Section~\ref{sec:discussion}
 make biposelets a promising area for future research.
 
 \ifaccvfinal
-\section*{Acknowledgments}
+\section*{Acknowledgements}
 
 I would like to thank various authors whose code I have used to produce baseline
 comparisons~\cite{pfister2015flowing,chen2014articulated,cherian2014mixing}. I
