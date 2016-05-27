@@ -131,14 +131,13 @@ new ways to exploit temporal information is thus an active area of research.
 The main contribution of this paper is to propose and test a new approach to
 human pose estimation in videos based on the concept of ``biposelets''. As
 explained in Section~\ref{sec:decomp}, a biposelet describes a configuration of
-some subset of a person's joints in two adjacent video frames; this allows
-biposelets to express both the position and instantaneous motion of joints.
-Hence, casting pose estimation as biposelet detection problem forces the
+some subset of a person's joints in two adjacent video frames together; this
+allows biposelets to express both the position and instantaneous motion of
+joints. Hence, casting pose estimation as biposelet detection problem forces the
 proposed model to learn to make use of the information present in two frames of
-video at a time. As an added bonus, this pairwise detection approach yields a
-two poses at a time; this gives rise to a relatively simple notion of temporal
-consistency of poses across a video sequence, which is elucidated in
-Section~\ref{sec:stitching}.
+video at the same time. As an added bonus, this pairwise detection approach
+gives rise to a relatively simple notion of temporal consistency of poses across
+a video sequence, which is elucidated in Section~\ref{sec:stitching}.
 
 The complete pose estimation pipeline is divided into two stages, both depicted
 in Figure~\ref{fig:pipeline} (a--c): in the first stage (a--b), each pair of
@@ -154,10 +153,7 @@ frame.
 
 In Section~\ref{sec:experiments}, this strategy is evaluated on three
 established pose estimation benchmarks. The evaluation shows a significant
-improvement in shoulder localisation accuracy compared to existing work, and
-competitive performance on elbows, but lower performance on wrists.
-Section~\ref{sec:discussion} makes several suggestions on how to improve the
-performance of a biposelet-based model on more challenging joints.
+improvement in shoulder localisation accuracy compared to existing work.
 
 \begin{figure*}[t]
 \begin{center}
@@ -189,7 +185,7 @@ the image with high appearance scores while penalising atypical limb lengths and
 orientations. Several approaches also use the appearance of body parts to infer
 ``types'' which characterise those parts' positions relative to their
 neighbours~\cite{yang2011articulated,chen2014articulated}. The approach
-presented here is similar, although it breaks with past work by attempting to
+presented here is similar, although it differs from past work in attempting to
 simultaneously localise entire subsets of a person's joints instead of a single
 joint at a time.
 
@@ -434,19 +430,19 @@ predicted by the biposelets associated with those two subposes.
 
 \section{Sequence stitching}\label{sec:stitching}
 
-Evaluating the first stage of the pipeline on an entire video produces a small
-candidate set of pose pairs for each frame pair. The second stage of the
-pipeline attempts to pick a single pose pair from each candidate set of pose
-pairs, then combines poses from overlapping pairs to obtain a single pose for
-each frame. Chosen pose pairs should meet two criteria:
+Evaluating the first stage of the pipeline on an entire video and thresholding
+detections by score produces a small candidate set of pose pairs for each frame
+pair. The second stage of the pipeline attempts to pick a single pose pair from
+each candidate set of pose pairs, then combines poses from overlapping pairs to
+obtain a single pose for each frame. Chosen pose pairs should meet two criteria:
 %
-\begin{description}
-\item[Individual plausibility] Low cost poses, in the sense of the cost
+\begin{enumerate}
+\item Individual plausibility: low-cost poses, in the sense of the cost
 function (\ref{eqn:full-cost}) for the frame-pair model, should be preferred over
 high cost ones.
-\item[Temporal consistency] Where two selected pose pairs overlap on a frame,
-the poses associated with the shared frame should be similar.
-\end{description}
+\item Temporal consistency: when two selected pose pairs overlap on a frame,
+the poses in that shared frame should be similar.
+\end{enumerate}
 
 The pair selection criteria are easy to express mathematically. For a sequence
 of $F$ frames, let $\mathcal P_f$ denote the set of pose pairs detected between
@@ -469,7 +465,7 @@ low-cost pose pairs over high-cost ones. $\lambda$ is a constant which balances
 the two considerations.
 
 Once an appropriate sequence of pose pairs has been chosen, a final pose may be
-produced for each frame frame $1 < f < F$ by averaging $\mat p_{f-1,2}$ and
+produced for each frame $f$, for $1 < f < F$, by averaging $\mat p_{f-1,2}$ and
 $\mat p_{f,1}$. In the first and last frames, there will only be one selected
 pose to begin with, as there is only one pose pair associated with each of those
 frames. This process is illustrated in part (c) of Figure~\ref{fig:pipeline}.
@@ -478,9 +474,9 @@ The stitching cost (\ref{eqn:stitch-cost}) can be efficiently minimised using a
 dynamic programming approach analogous to the Viterbi algorithm. If there are
 $|\mathcal P|$ pose pairs in each candidate set, then this minimisation will
 take $\mathcal O(F|\mathcal P|^2)$ time. Thus, it is important to produce only a
-small selection of the best pose pairs during inference on the frame pair model.
-In practice, setting $|\mathcal P|$ between 100 and 1000 generally gave an ample
-selection of poses without imposing too great a computational burden.
+small set of the best pose pairs during inference on the frame pair model. In
+practice, setting $|\mathcal P|$ between 100 and 1000 generally gave an ample
+selection of poses without imposing a significant computational burden.
 
 \section{Learning}\label{sec:learning}
 
@@ -489,10 +485,10 @@ weights, biposelet centroids, and weights for the frame-pair cost in
 (\ref{eqn:full-cost}); this section describes how each set of parameters is
 learnt.
 
-\paragraph{CNN weights} The CNN is trained to predict the joint
-biposelet-subpose distribution for fixed-size crops of the training data with a
-standard softmax classification objective. Positive (subpose-containing) crops
-are taken around ground truth subposes in the training set, with a small margin
+\paragraph{CNN weights:} The CNN is trained to predict the joint
+biposelet-subpose distribution for fixed-size crops of the training data using a
+cross-entropy classification objective. Positive (subpose-containing) crops are
+taken around ground truth subposes in the training set, with a small margin
 around the subpose to ensure that all joints are in view. Negative (background)
 crops are initially taken from regions of frame pairs in the training set not
 containing any people.
@@ -515,24 +511,26 @@ performance, and the use of large random translations is precluded by the need
 to keep an entire subpose in view for the sake of accurate biposelet
 prediction.
 
-To improve convergence speed, the network is initialised with the weights of a
-VGGNet trained for ILSVRC classification. The same weights are applied to both
-the flow and RGB streams of the network, with filters for the RGB input layer
-duplicated to accommodate the change from three image input channels to six.
+To improve convergence, the network is initialised with the weights of a VGGNet
+trained for ILSVRC classification.\footnotemark{} The same weights are applied
+to both the flow and RGB streams of the network, with filters for the RGB input
+layer duplicated to accommodate the change from three image input channels to
+six.
 
-\paragraph{Biposelet centroids} Whenever writing out a positive training sample
-for the CNN, the training code also writes out locations of each joint relative
-to the crop used to produce the sample. After all positives have been written, a
-set of biposelets can be produced for each subpose by clustering those
+\footnotetext{\url{https://gist.github.com/baraldilorenzo/07d7802847aaad0a35d3}}
+
+\paragraph{Biposelet centroids:} Whenever creating a positive training sample
+for the CNN, the training code also produces locations for each joint relative
+to the crop used to make the sample. After all positive samples have been
+created, a set of biposelets can be produced for each subpose by clustering the
 crop-relative coordinates using $K$-means. The clustering process also yields a
-biposelet type for each previously written training sample, which can then be
-used as a target label for the CNN\@. Clustering on the same samples used to
-train the CNN ensures that the learnt biposelets reflect the range of
-augmentations applied to the data, and makes it less likely that some
-biposelets will be underrepresented (or not represented at all) in the CNN
-training set.
+biposelet type for each training sample, which can then be used as a target
+label for the CNN\@. Clustering on the same samples used to train the CNN
+ensures that the learnt biposelets reflect the range of augmentations applied to
+the data, and makes it less likely that some biposelets will be underrepresented
+(or not represented at all) in the CNN training set.
 
-\paragraph{Weights for frame-pair model} The frame-pair cost
+\paragraph{Weights for frame-pair model:} The frame-pair cost
 (\ref{eqn:full-cost}) can be written as an inner product between a feature
 vector comprised of deformation and appearance terms and a weight vector
 composed of the bias $w_0$, the deformation parameters $\{w_{s_1 s_2} : (s_1,
@@ -549,11 +547,11 @@ to label the positive feature vectors with $+1$ and the negatives with $-1$.
 
 Minimisation of the SVM objective is performed using an existing dual coordinate
 descent solver~\cite{ramanan2013dual}; one iteration of this detect-and-optimise
-process was found to be sufficient to train the model. In contrast to the
-Chen et al.~\cite{chen2014articulated}, this work does not use location or type
-supervision, as neither were found to improve the learnt weights.
+process was found to be sufficient to train the model. In contrast to the work
+of Chen et al.~\cite{chen2014articulated}, this work does not use location or
+type supervision, as neither were found to improve the learnt weights.
 
-\paragraph{Stitching parameters} In principle, the $\lambda$ used to balance
+\paragraph{Stitching parameters:} In principle, the $\lambda$ used to balance
 appearance and temporal consistency during pose sequence stitching can be also
 be learnt using a simple global optimisation method like randomised search. In
 practice, stitching performance was largely invariant to choices of $\lambda$
@@ -572,7 +570,7 @@ at a constant, intuitively reasonable value across all datasets.
 %   might help to show that we're REALLY learning motion.
 
 To evaluate the effectiveness of the model, it was applied to three continuous
-pose estimation datasets: Poses in the Wild, MPII Cooking Activities and
+pose estimation datasets: Poses in the Wild, MPII Cooking Activities, and
 Human3.6M. The following parameters were used for all datasets:
 
 \begin{enumerate}
@@ -597,9 +595,9 @@ $l$ is considered to be correctly localised at a threshold $t$ if both predicted
 endpoints fall within a distance $tl$ of their true locations; in the case of $t
 = 0.5$, this is simply ordinary strict PCP.
 
-Code for all experiments is available online.\footnotemark Note that the
+Code for all experiments is available online.\footnotemark{} Note that the
 experiments were performed on a machine with 128GB of main memory and 12GB of
-video memory per GPU; a similarly specced machine will be required to train and
+video memory per GPU; a similarly capable machine will be required to train and
 evaluate the convolutional networks used here.
 
 \footnotetext{%
@@ -642,7 +640,7 @@ Biposelets &
 \label{tbl:piw-pcps}
 \end{table}
 
-\paragraph{FLIC and PIW} Poses in the Wild (PIW)~\cite{cherian2014mixing} is a
+\paragraph{FLIC and PIW:} Poses in the Wild (PIW)~\cite{cherian2014mixing} is a
 video pose estimation dataset with frames drawn from Hollywood movies. Scene
 clutter, camera motion, subject occlusion and rapid subject motion all make the
 dataset a challenging benchmark.
@@ -665,8 +663,8 @@ sequence using the recombination method of Cherian et
 al.~\cite{cherian2014mixing}. It should also be noted that the Pfister et al.\
 baseline is for a non-temporally-aware model, which they dub ``SpatialNet'',
 rather than the flow-augmented model for which Pfister et al.\ obtained the best
-results; at the time of writing, code for the latter model was not publicly
-available.
+results; code for the latter model was not publicly available at the time
+that this paper was written.
 
 PCK at image scale over all of Poses in the Wild is shown in
 Figure~\ref{fig:piw-pcks}, while PCP at various thresholds is shown in
@@ -693,8 +691,6 @@ Cherian et al.~\cite{cherian2014mixing} &
 67.97\% & 80.91\% & 88.62\% & 55.71\% & 75.93\% & 83.45\%\\
 Combined~\cite{cherian2014mixing} and~\cite{chen2014articulated} &
 79.79\% & 95.07\% & 98.58\% & 81.54\% & 96.97\% & 99.07\%\\
-Pfister et al. SpatialNet~\cite{pfister2015flowing} &
-1.52\% & 28.93\% & 57.18\% & 0.29\% & 14.37\% & 70.97\%\\
 Biposelets &
 76.59\% & 87.44\% & 94.72\% & 69.21\% & 85.43\% & 94.28\%\\
 \end{tabu}}\\
@@ -702,7 +698,7 @@ Biposelets &
 \label{tbl:mpii-pcps}
 \end{table}
 
-\paragraph{MPII Cooking Activities} MPII Cooking
+\paragraph{MPII Cooking Activities:} MPII Cooking
 Activities~\cite{rohrbach2012database} is a kitchen-themed action recognition
 dataset which includes two pose estimation benchmarks. The Cooking Activities
 data represents a near-ideal case for video pose estimation: all videos are
@@ -719,12 +715,9 @@ continuous frames; despite the confusing nomenclature, the training set of the
 
 As with the comparison on PIW, all baselines used here were produced using
 publicly released models trained for the FLIC dataset. Significant difficulty
-was encountered in getting Pfister et al.'s publicly released SpatialNet
-model~\cite{pfister2015flowing} to produce sensible results on MPII Cooking
-Activities. This may have been due to a sub-optimal cropping-and-scaling
-strategy or some other mistake in adaptation to the new dataset, and so the
-results should not be considered representative of the optimal performance of
-their approach.
+was encountered in getting Pfister et al.'s publicly released SpatialNet model
+to produce competitive results on MPII Cooking Activities, so the SpatialNet
+baseline was omitted from the Cooking Activities results.
 
 PCK curves for MPII Cooking Activities are given in Figure~\ref{fig:mpii-pcks},
 and PCP at various thresholds is given in Table~\ref{tbl:mpii-pcps}.
@@ -739,7 +732,7 @@ of the distance between the subject's left hip and right shoulder.}
 \label{fig:h36m-pck}
 \end{figure*}
 
-\paragraph{Human3.6M} Human3.6M~\cite{ionescu2014human,ionescu2011latent} is a
+\paragraph{Human3.6M:} Human3.6M~\cite{ionescu2014human,ionescu2011latent} is a
 pose estimation and action recognition dataset which includes full depth and 3D
 pose data recorded with a motion capture system, although this evaluation uses
 only the RGB video and 2D pose portions of the dataset. As a motion capture
