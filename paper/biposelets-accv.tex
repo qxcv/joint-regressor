@@ -40,7 +40,7 @@
 \fi
 
 %===========================================================
-\title{Human Pose Estimation in Videos with Biposelets}
+\title{Human Pose Estimation in Videos using Biposelets}
 \ifaccvfinal{}
     \author{Sam Toyer}
     \institute{%
@@ -120,14 +120,13 @@ recognition~\cite{cheron2015p,yao2011does}.
 Intuitively, pose estimation in videos ought to be more effective than pose
 estimation in static images. Even if a pose is blurred or occluded in one frame
 of a video, it is often possible for humans to approximate it well by making use
-of the context provided by surrounding frames. In practice, leveraging this
+of the context provided by surrounding frames. Algorithmically leveraging this
 temporal redundancy is challenging. Simply feeding ``temporal features'' like
 optical flow or multiple frames to a static pose estimator results in only
 modest accuracy improvements~\cite{jain2014modeep}. On the other hand, extending
 a model to explicitly consider joint motion can yield intractable inference
-problems which require complex approximations~\cite{cherian2014mixing}.
-Finding ways to exploit temporal information in an efficient an effective manner
-is thus an active area of research.
+problems which require complex approximations~\cite{cherian2014mixing}. Finding
+new ways to exploit temporal information is thus an active area of research.
 
 The main contribution of this paper is to propose and test a new approach to
 human pose estimation in videos based on the concept of ``biposelets''. As
@@ -142,15 +141,16 @@ consistency of poses across a video sequence, which is elucidated in
 Section~\ref{sec:stitching}.
 
 The complete pose estimation pipeline is divided into two stages, both depicted
-in Figure~\ref{fig:pipeline}: in the first stage, each pair of frames is
-processed independently of the others to produce sets of candidate pose pairs.
-The first stage makes use of a Convolutional Neural Network (CNN) to find
-regions of each frame pair which visually resemble different biposelets,
-followed by a graphical model which ensures that the relative positions of
-predicted biposelets are anatomically reasonable. In the second ``stitching''
-stage, a single pair of poses is chosen from each set of candidate pose pairs;
-the resultant sequence of pose pairs can then be turned into a sequence of
-single poses by averaging the two poses predicted for each frame.
+in Figure~\ref{fig:pipeline} (a--c): in the first stage (a--b), each pair of
+frames is processed independently of the others to produce sets of candidate
+pose pairs. The first stage makes use of a Convolutional Neural Network (CNN) to
+find regions of each frame pair which visually resemble different biposelets
+(a), followed by a graphical model which ensures that the relative positions of
+predicted biposelets are anatomically reasonable (b). In the second
+``stitching'' stage (c), a single pair of poses is chosen from each set of
+candidate pose pairs; the resultant sequence of pose pairs can then be turned
+into a sequence of single poses by averaging the two poses predicted for each
+frame.
 
 In Section~\ref{sec:experiments}, this strategy is evaluated on three
 established pose estimation benchmarks. The evaluation shows a significant
@@ -164,10 +164,10 @@ performance of a biposelet-based model on more challenging joints.
 \includegraphics{figures/pipeline/full-pipeline.eps}
 \end{center}
 \vspace{-7mm}
-\caption{An illustration of the pipeline. (a) depicts the CNN
-(Section~\ref{sec:frame-pair-model}), (b) depicts the graphical model used for subpose
-localisation (Section~\ref{sec:frame-pair-inference}), and (c) depicts the
-stitching process (Section~\ref{sec:stitching}).}
+\caption{An illustration of the pipeline. (a) depicts the biposelet-classifying
+CNN (Section~\ref{sec:frame-pair-model}), (b) depicts the graphical model used
+for subpose localisation (Section~\ref{sec:frame-pair-inference}), and (c)
+depicts the stitching process (Section~\ref{sec:stitching}).}
 \label{fig:pipeline}
 \end{figure*}
 
@@ -179,8 +179,8 @@ present in a small image patch. Linear classifiers applied to
 histogram-of-gradients features are commonly used for this
 purpose~\cite{yang2011articulated,cherian2014mixing}, but have been eclipsed by
 increasingly sophisticated convolutional network
-architectures~\cite{jain2014modeep,tompson2014joint,chen2014articulated,pfister2015flowing,wei2016convolutional},
-and the CNN-based appearance model used in this work reflects this trend.
+architectures~\cite{jain2014modeep,tompson2014joint,chen2014articulated,pfister2015flowing,wei2016convolutional}.
+The choice of a CNN-based model in this work reflects this trend.
 
 Appearance models can be complemented by global constraints on the relative
 positions of joints. For instance, Yang and Ramanan~\cite{yang2011articulated}
@@ -219,11 +219,11 @@ Other approaches to learning temporal relationships at the network level include
 approach of Fragkiadaki et al.~\cite{fragkiadaki2015recurrent}. Flowing convnets
 use optical flow to warp joint position heatmaps between frames, then pool the
 heatmaps at each frame to improve accuracy; despite yielding state-of-the-art
-accuracy, that approach only ``learns'' temporal relationships by choosing a
-small set of pooling weights for combining backwarped heatmaps. In contrast,
-Fragkiadaki et al.\ attempt to learn temporal relationships directly using a
-recurrent neural network architecture. Both approaches are benchmarked in
-Section~\ref{sec:experiments}.
+accuracy, flowing convnets only ``understand'' temporal relationships insofar as
+they are able to learn a small set of pooling weights for combining backwarped
+heatmaps. In contrast, Fragkiadaki et al.\ attempt to learn temporal
+relationships directly using a recurrent neural network architecture. Both
+approaches are benchmarked in Section~\ref{sec:experiments}.
 
 \section{Detecting pose pairs}\label{sec:pair-dets}
 
@@ -236,18 +236,18 @@ correspond to a subset of joints in the original pose. Subposes are chosen so
 that each subpose shares exactly one joint with neighbouring subposes, and so
 that each joint in the original pose is present in at least one subpose. For
 instance, a pose containing shoulder, elbow and wrist joints could be decomposed
-into one subpose containing wrist and elbow joints on the left side of the body,
-one subpose containing elbow and shoulder joints on the left hand side, one
-subpose containing both the left and right shoulders, etc.
+into one subpose containing the left wrist and left elbow, one containing the
+left elbow and left shoulder, one containing both the left and right shoulders,
+etc.
 
 Rather than representing the locations of each joint in each subpose directly,
-this stage discretises the space of configurations for joints within each
-subpose into $K$ \textit{biposelets}. Biposelets are so named in analogy to the
-\textit{poselets} of Bourdev and Malik~\cite{bourdev2009poselets}. Unlike their
-namesakes, however, biposelets define positions of joints in two frames rather
-than just one. This allows biposelets to represent both the relative positions
-of joints and their movement over time. A representative set of biposelets
-learnt for the MPII Cooking Activities pose estimation
+the first stage stage discretises the space of configurations for joints within
+each subpose into $K$ \textit{biposelets}. Biposelets are so named in analogy to
+the \textit{poselets} of Bourdev and Malik~\cite{bourdev2009poselets}. Unlike
+their namesakes, however, biposelets define positions of joints in two frames
+rather than just one. This allows biposelets to represent both the relative
+positions of joints and their movement over time. A representative set of
+biposelets learnt for the MPII Cooking Activities pose estimation
 dataset~\cite{rohrbach2012database} is shown in Figure~\ref{fig:biposelets}.
 
 \begin{figure*}[t]
@@ -280,8 +280,8 @@ dataset~\cite{rohrbach2012database} is shown in Figure~\ref{fig:biposelets}.
 \end{center}
 \vspace{-7mm}
 \caption{Biposelets learnt for left elbows in the MPII Cooking Activities
-dataset. Different rows show different biposelets. For brevity,
-only the first frame associated with each biposelet is shown.}
+dataset. Cells within a row show different instances of the same biposelet. For
+brevity, only the first frame associated with each biposelet is shown.}
 \label{fig:biposelets}
 \end{figure*}
 
@@ -296,14 +296,17 @@ $\mathcal G = (\mathcal S, \mathcal E)$ consisting of a set of subposes
 $\mathcal S$ and a set of edges $\mathcal E \subset \mathcal S \times \mathcal
 S$. Subposes are chosen according to the constraints listed in
 Section~\ref{sec:decomp}, and a pair of subposes $(s_1, s_2)$ will have an edge
-between them iff they have a joint in common. The formal objective of the first
-stage of the pipeline is to take a pair of frames $(\mat I_1, \mat I_2)$ and
-output, for each subpose $s$, a subpose location $\vec l_s \in \mathbb R^2$
-within the frame pair and a biposelet type $t_s \in \{1, \ldots, K\}$.
-Specifically, the first stage must find some $\mat L = \begin{bmatrix}\vec l_1 &
-\vec l_2 & \cdots & \vec l_{|\mathcal S|}\end{bmatrix}^T$ and $\vec t =
-\begin{bmatrix}t_1 & t_2 & \cdots & t_{|\mathcal S|}\end{bmatrix}$ which
-minimises the cost
+between them iff they have a joint in common. Part (b) of
+Figure~\ref{fig:pipeline} illustrates this model: subposes are represented by
+fully opaque image patches, and the edges between them by coloured lines.
+
+The formal objective of the first stage of the pipeline is to take a pair of
+frames $(\mat I_1, \mat I_2)$ and output, for each subpose $s$, a subpose
+location $\vec l_s \in \mathbb R^2$ within the frame pair and a biposelet type
+$t_s \in \{1, \ldots, K\}$. Specifically, the first stage must find some $\mat L
+= \begin{bmatrix}\vec l_1 & \vec l_2 & \cdots & \vec l_{|\mathcal
+S|}\end{bmatrix}$ and $\vec t = \begin{bmatrix}t_1 & t_2 & \cdots & t_{|\mathcal
+S|}\end{bmatrix}$ which minimises the cost
 %
 \begin{equation}\label{eqn:full-cost}
 C(\mat L, \vec t \mid \mat D_{12})
@@ -316,10 +319,10 @@ where $w_0$ is a bias, each $\phi_s(\cdot)$ is an appearance term, each
 $\psi_{s_1,s_2}$ is a pairwise cost, and $\mat D_{12}$ is the concatenation
 of the frames $\mat I_1$ and $\mat I_2$.
 
-Recall that each pair of neighbouring subposes has a single joint in common;
-the aim of the pairwise terms is to ensure that locations of neighbouring
-subposes are chosen so that predicted locations for their shared joints are
-consistent. Concretely, each pairwise cost can be written out in full as
+Recall that each pair of neighbouring subposes has a single joint in common; the
+aim of the pairwise terms is to ensure that neighbouring subposes are localised
+so that they predict similar locations for their shared joint. Concretely, each
+pairwise cost can be written out in full as
 %
 \begin{equation}\label{eqn:pair-cost}
 \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2)
@@ -364,8 +367,8 @@ original single-stream architecture has been split in two, with one stream
 processing a stacked pair of RGB video frames and the other processing the flow;
 the two streams are merged by concatenating them after the third pooling layer.
 The output is a probability distribution over all subposes $s$ and biposelets
-$t$ for each subpose, with the aforementioned special values of $(s, t) = (0,
-0)$ denoting the background class.
+$t$ for each subpose. This is illustrated in part (a) of
+Figure~\ref{fig:pipeline}.
 
 At test time, the network can be used as an efficient sliding window detector by
 converting the final dense layers to convolutions, which yields a fully
@@ -394,7 +397,7 @@ $\mathcal G$.
 $M$ can be calculated for each location and type of the root subpose by
 proceeding from the leaves of $\mathcal G$ upwards: for each leaf subpose $s_l$,
 $M(\vec l_{s_l}, t_{s_l}; \mat D_{12})$ is simply $\phi_{s_l}(\vec l_{s_l},
-t_{s_l}; \mat D_{12})$. For a non-leaf subpose $s$, $M(\vec l_s, \vec t_s; \mat
+t_{s_l}; \mat D_{12})$. For a non-leaf subpose $s$, $M(\vec l_s, t_s; \mat
 D_{12})$ can be computed by first evaluating $M(\vec l_{s_c}, t_{s_c}; \mat
 D_{12})$ for each child $s_c$ of $s$, then applying Felzenszwalb and
 Huttenlocher's distance transform technique~\cite{felzenszwalb2012distance} to
@@ -414,7 +417,7 @@ l_{s_R}$ and root type $t_{s_R}$, finding the pose configuration which minimises
 (\ref{eqn:full-cost}) is a simple matter of looking up
 %
 \begin{equation}
-\argmin_{\vec l_{s_R}, t_{s_R}} M(\vec l_{s_R}, \vec t_{s_R}; \mat D_{12})
+\argmin_{\vec l_{s_R}, t_{s_R}} M(\vec l_{s_R}, t_{s_R}; \mat D_{12})
 \end{equation}
 %
 and then backtracking to recover the locations and types of all other subposes.
@@ -469,12 +472,12 @@ Once an appropriate sequence of pose pairs has been chosen, a final pose may be
 produced for each frame frame $1 < f < F$ by averaging $\mat p_{f-1,2}$ and
 $\mat p_{f,1}$. In the first and last frames, there will only be one selected
 pose to begin with, as there is only one pose pair associated with each of those
-frames.
+frames. This process is illustrated in part (c) of Figure~\ref{fig:pipeline}.
 
 The stitching cost (\ref{eqn:stitch-cost}) can be efficiently minimised using a
 dynamic programming approach analogous to the Viterbi algorithm. If there are
-$|\mathcal P|$ pose pairs in each candidate set, then this maximisation will
-take $\mathcal O(|\mathcal P|^2)$ time. Thus, it is important to produce only a
+$|\mathcal P|$ pose pairs in each candidate set, then this minimisation will
+take $\mathcal O(F|\mathcal P|^2)$ time. Thus, it is important to produce only a
 small selection of the best pose pairs during inference on the frame pair model.
 In practice, setting $|\mathcal P|$ between 100 and 1000 generally gave an ample
 selection of poses without imposing too great a computational burden.
@@ -494,11 +497,11 @@ around the subpose to ensure that all joints are in view. Negative (background)
 crops are initially taken from regions of frame pairs in the training set not
 containing any people.
 
-Training experience showed that using only pure background crops as negatives
-left the CNN unable to discriminate between subposes in the centre of the
-receptive field and subposes at the edges. That can significantly harm
-localisation accuracy, as the CNN can predict certain biposelets with high
-confidence even when the true centre of the biposelet lies far from the centre
+Preliminary experiments showed that using only pure background crops as
+negatives left the CNN unable to discriminate between subposes in the centre of
+the receptive field and subposes at the edges. That significantly harmed
+localisation accuracy, as the CNN would predict certain biposelets with high
+confidence even when the true centre of the biposelet lay far from the centre
 of the receptive field. To rectify this issue, the CNN training code also
 produces more challenging negative crops which include off-centre subposes that
 do not correspond well (in terms of $L_2$ distance) to any of the learnt
@@ -517,23 +520,25 @@ VGGNet trained for ILSVRC classification. The same weights are applied to both
 the flow and RGB streams of the network, with filters for the RGB input layer
 duplicated to accommodate the change from three image input channels to six.
 
-\paragraph{Biposelet centroids} While writing a positive training sample for the
-CNN, the training code also writes out locations of each joint relative to the
-crop used to produce the sample. After all positives have been written, a set of
-biposelets can be produced for each subpose by clustering those crop-relative
-coordinates using $K$-means. The clustering process also yields a biposelet type
-for each previously written training sample, which is then used as a target
-label for the CNN\@. Clustering on the same samples used to train the CNN ensures
-that the learnt biposelets reflect the range of augmentations applied to that
-data, and makes it less likely that some biposelets will be underrepresented (or
-not represented at all) in the CNN training set.
+\paragraph{Biposelet centroids} Whenever writing out a positive training sample
+for the CNN, the training code also writes out locations of each joint relative
+to the crop used to produce the sample. After all positives have been written, a
+set of biposelets can be produced for each subpose by clustering those
+crop-relative coordinates using $K$-means. The clustering process also yields a
+biposelet type for each previously written training sample, which can then be
+used as a target label for the CNN\@. Clustering on the same samples used to
+train the CNN ensures that the learnt biposelets reflect the range of
+augmentations applied to the data, and makes it less likely that some
+biposelets will be underrepresented (or not represented at all) in the CNN
+training set.
 
 \paragraph{Weights for frame-pair model} The frame-pair cost
 (\ref{eqn:full-cost}) can be written as an inner product between a feature
 vector comprised of deformation and appearance terms and a weight vector
-composed of the bias $w_0$, the deformation parameters $\{w_{s_1 s_2} : s_1, s_2
-\in \mathcal S\}$ and the appearance parameters $\{w_s : s \in \mathcal S\}$.
-Hence, it is possible to learn the weights using a structural SVM formulation.
+composed of the bias $w_0$, the deformation parameters $\{w_{s_1 s_2} : (s_1,
+s_2) \in \mathcal E\}$ and the appearance parameters $\{w_s : s \in \mathcal
+S\}$. Hence, it is possible to learn the weights using a structural SVM
+formulation.
 
 Concretely, the SVM is initialised with an intuitively reasonable set of
 weights, which are used to perform pose estimation over the entire training set.
@@ -542,12 +547,11 @@ produced by applying the same procedure to images from the human-free portion of
 the INRIA Person dataset~\cite{dalal2005histograms}. The SVM can then be trained
 to label the positive feature vectors with $+1$ and the negatives with $-1$.
 
-Minimisation of the SVM objective was performed using an existing dual
-coordinate descent solver~\cite{ramanan2013dual}; one iteration of this
-detect-and-optimise process was found to be sufficient to train the model. In
-contrast to the experience of Chen et al.~\cite{chen2014articulated}, who used a
-similar learning formulation, location and type supervision were not found to
-improve the final weights learnt by the SVM.
+Minimisation of the SVM objective is performed using an existing dual coordinate
+descent solver~\cite{ramanan2013dual}; one iteration of this detect-and-optimise
+process was found to be sufficient to train the model. In contrast to the
+Chen et al.~\cite{chen2014articulated}, this work does not use location or type
+supervision, as neither were found to improve the learnt weights.
 
 \paragraph{Stitching parameters} In principle, the $\lambda$ used to balance
 appearance and temporal consistency during pose sequence stitching can be also
@@ -564,6 +568,8 @@ at a constant, intuitively reasonable value across all datasets.
 %   Poses in the Wild, or perhaps time-per-frame-pair for each pair in each of
 %   the datasets, then mean recombination time per frame. Over all the test
 %   sequences.
+% - How well the model does when given two identical frames at a time. This
+%   might help to show that we're REALLY learning motion.
 
 To evaluate the effectiveness of the model, it was applied to three continuous
 pose estimation datasets: Poses in the Wild, MPII Cooking Activities and
@@ -582,21 +588,26 @@ pair.
 \end{enumerate}
 
 Localisation error is measured using variants on Percentage Correct Keypoints
-(PCK) and Percentage Correct Parts (PCP), as explained by Yang \&
-Ramanan~\cite{yang2013articulated}. Except where hip and shoulder locations are
-available for normalisation, unnormalised PCK is used: that is, a joint is
-considered to be correctly localised for the purpose of PCK calculation if its
-predicted position in the image falls within a certain number of pixels of the
-ground truth location. For PCP, a limb of length $l$ is considered to be
-correctly localised at a threshold $t$ if both predicted endpoints fall within a
-distance $tl$ of their true locations; in the case of $t = 0.5$, this is simply
-ordinary strict PCP.
+(PCK) and Percentage Correct Parts (PCP)~\cite{yang2013articulated}. Except
+where hip and shoulder locations are available for normalisation, unnormalised
+PCK is used: that is, a joint is considered to be correctly localised for the
+purpose of PCK calculation if its predicted position in the image falls within a
+certain number of pixels of the ground truth location. For PCP, a limb of length
+$l$ is considered to be correctly localised at a threshold $t$ if both predicted
+endpoints fall within a distance $tl$ of their true locations; in the case of $t
+= 0.5$, this is simply ordinary strict PCP.
 
-Code for all experiments is available
-online.\footnote{\url{https://github.com/qxcv/joint-regressor}} Note that the
+Code for all experiments is available online.\footnotemark Note that the
 experiments were performed on a machine with 128GB of main memory and 12GB of
 video memory per GPU; a similarly specced machine will be required to train and
 evaluate the convolutional networks used here.
+
+\footnotetext{%
+\ifaccvfinal
+\url{https://github.com/qxcv/joint-regressor}
+\else
+\textit{Removed for review}
+\fi}
 
 \subsection{Datasets}
 
@@ -632,7 +643,7 @@ Biposelets &
 \end{table}
 
 \paragraph{FLIC and PIW} Poses in the Wild (PIW)~\cite{cherian2014mixing} is a
-video pose estimation dataset of with frames drawn from Hollywood movies. Scene
+video pose estimation dataset with frames drawn from Hollywood movies. Scene
 clutter, camera motion, subject occlusion and rapid subject motion all make the
 dataset a challenging benchmark.
 
@@ -699,11 +710,11 @@ recorded from the same static camera in the same kitchen, with minimal occlusion
 and only one subject per video sequence.
 
 Training is performed on the ``continuous pose estimation'' dataset released
-with MPII Cooking Activities, with evaluation performed on the ``pose
-challenge'' dataset. It should be noted that that the \textit{training} set of
-the pose challenge is being used for evaluation because the test set does not
-have continuous frames; despite the confusing nomenclature, the training set of
-the ``pose challenge'' (which is used for evaluation) is not the same as the
+with MPII Cooking Activities, while the ``pose challenge'' dataset is used for
+evaluation. It should be noted that that the \textit{training} set of the pose
+challenge is being used for evaluation because the test set does not have
+continuous frames; despite the confusing nomenclature, the training set of the
+``pose challenge'' (which is used for evaluation) is not the same as the
 ``continuous pose estimation'' dataset (which is used for training).
 
 As with the comparison on PIW, all baselines used here were produced using
@@ -712,11 +723,11 @@ was encountered in getting Pfister et al.'s publicly released SpatialNet
 model~\cite{pfister2015flowing} to produce sensible results on MPII Cooking
 Activities. This may have been due to a sub-optimal cropping-and-scaling
 strategy or some other mistake in adaptation to the new dataset, and so the
-results should not be treated as being representative of the maximal performance
-of their approach.
+results should not be considered representative of the optimal performance of
+their approach.
 
 PCK curves for MPII Cooking Activities are given in Figure~\ref{fig:mpii-pcks},
-and PCP various thresholds is given in Table~\ref{tbl:mpii-pcps}.
+and PCP at various thresholds is given in Table~\ref{tbl:mpii-pcps}.
 
 \begin{figure*}[t]
 \begin{center}
@@ -733,7 +744,7 @@ pose estimation and action recognition dataset which includes full depth and 3D
 pose data recorded with a motion capture system, although this evaluation uses
 only the RGB video and 2D pose portions of the dataset. As a motion capture
 dataset, Human3.6M is recorded in a controlled environment with a uniform
-background and no camera motion. However, in other respects it is significantly
+background and no camera motion. However, in other respects, it is significantly
 more challenging than PIW or MPII Cooking Activities: not only do its actors
 exhibit a wider range of motion, but all motion is recorded from four cameras
 spaced evenly around the scene, meaning that a significant portion of poses are
@@ -823,12 +834,11 @@ evaluation---rather than on a subset of Cooking Activities.
 
 A major weakness of the model across all datasets was in handling high levels of
 joint articulation. Nowhere was this more evident than in the wrists---examples
-(e), (j) and (m) in Figure~\ref{fig:qualitative} each depict forearms which are
-unusual for their respective datasets, and are representative of the many wrist
-localisation failures observed during evaluation. Such failures may be due to
-the limited number of joint configurations which can be expressed using a small
-set of biposelets; the baseline models do not suffer from this problem to the
-same degree because they localise individual joints directly, rather than
+(e), (j) and (m) in Figure~\ref{fig:qualitative} are representative of the many
+wrist localisation failures observed during evaluation. Such failures may be due
+to the limited number of joint configurations which can be expressed using a
+small set of biposelets; the baseline models do not suffer from this problem to
+the same degree because they localise individual joints directly, rather than
 localising entire subposes and then attempting to extract specific joint
 locations using a discrete set of subpose configurations.
 
@@ -849,11 +859,10 @@ wrists. This is clearly illustrated by the ``combined'' baseline in
 Figure~\ref{fig:piw-pcks} and Figure~\ref{fig:mpii-pcks}: combining Chen \&
 Yuille's approach with Cherian et al.'s (largely flow-based) recombination
 heuristics yields the greatest performance improvement for wrists, and no
-performance improvement for shoulders, which indicates that flow is more useful
-for the former than the latter. Although the biposelet model uses raw optical
-flow at the CNN input layer, Jain et al.~\cite{jain2014modeep} suggest that use
-of raw flow can lead CNNs to overfit, and that supplying only the magnitude of
-flow may be more effective.
+performance improvement for shoulders. Although the biposelet model uses raw
+optical flow at the CNN input layer, Jain et al.~\cite{jain2014modeep} suggest
+that use of raw flow can lead CNNs to overfit, and that supplying only the
+magnitude of flow may be more effective.
 
 Much like high level of joint articulation, occlusion was a significant
 challenge. Frames (c) and (d) in Figure~\ref{fig:qualitative} show
