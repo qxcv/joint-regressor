@@ -5,6 +5,7 @@
 \usepackage{amsmath,amssymb} % define this before the line numbering.
 \usepackage{color}
 \usepackage{hyperref}
+\usepackage{layouts}
 % See
 % https://stackoverflow.com/questions/1061112/eliminate-space-before-beginitemize
 % Lots of authors seem to hate the spacing before lists in LaTeX. nolistsep
@@ -160,10 +161,13 @@ performance of a biposelet-based model on more challenging joints.
 
 \begin{figure*}[t]
 \begin{center}
-\includegraphics[draft,width=\textwidth,height=50mm]{figures/pipeline.eps}
+\includegraphics{figures/pipeline/full-pipeline.eps}
 \end{center}
 \vspace{-7mm}
-\caption{An illustration of the two stages of the pipeline.}
+\caption{An illustration of the pipeline. (a) depicts the CNN
+(Section~\ref{sec:frame-pair-model}), (b) depicts the graphical model used for subpose
+localisation (Section~\ref{sec:frame-pair-inference}), and (c) depicts the
+stitching process (Section~\ref{sec:stitching}).}
 \label{fig:pipeline}
 \end{figure*}
 
@@ -285,7 +289,7 @@ only the first frame associated with each biposelet is shown.}
 % 1) Considering a single joint at a time
 % 2) Considering the entire pose
 
-\subsection{Frame pair model}
+\subsection{Frame pair model}\label{sec:frame-pair-model}
 
 Formally, the frame pair model conceptualises a pose as a tree-structured graph
 $\mathcal G = (\mathcal S, \mathcal E)$ consisting of a set of subposes
@@ -368,7 +372,7 @@ converting the final dense layers to convolutions, which yields a fully
 convolutional network~\cite{sermanet2013overfeat}. Section~\ref{sec:learning}
 discusses training-time considerations.
 
-\subsection{Inference on frame pair model}
+\subsection{Inference on frame pair model}\label{sec:frame-pair-inference}
 
 The full cost (\ref{eqn:full-cost}) can be minimised efficiently by exploiting
 the subpose graph's tree structure. For each subpose $s$, define the minimal
