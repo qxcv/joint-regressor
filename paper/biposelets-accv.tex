@@ -317,33 +317,29 @@ of the frames $\mat I_1$ and $\mat I_2$.
 
 Recall that each pair of neighbouring subposes has a single joint in common; the
 aim of the pairwise terms is to ensure that neighbouring subposes are localised
-so that they predict similar locations for their shared joint. Concretely, each
-pairwise cost can be written out in full as
+so that they predict similar locations for their shared joint. If $j$ is a joint
+in the subpose $s$, which is itself located at $\vec l_s$ and assigned biposelet
+type $t$, then let $\vec r_{s,j}(\vec l_s, t)$ denote the mean location of joint
+$j$ across both frames spanned by the subpose. If joint $j$ is shared between
+subposes $s_1$ and $s_2$, then the pairwise cost can be written out in full as
 %
 \begin{equation}\label{eqn:pair-cost}
 \psi_{s_1 s_2}(\vec l_{s_1}, \vec l_{s_2}, t_1, t_2)
-= \langle
+= \left\langle
     \vec w_{s_1 s_2},
-    \vec \Delta(\vec l_{s_1} - \vec l_{s_2}  - \vec m_{t_1 t_2})
-\rangle~,
+    \vec \Delta\left(
+        \vec r_{s_1,j}(\vec l_{s_1}, t_1)
+        - \vec r_{s_2,j}(\vec l_{s_2}, t_2)
+    \right)
+\right\rangle~,
 \end{equation}
 %
 where $\vec \Delta(\begin{bmatrix}\delta_x & \delta_y\end{bmatrix}) =
 \begin{bmatrix}\delta_x^2 & \delta_x & \delta_y^2 & \delta_y\end{bmatrix}$ is a
-deformation feature, $\vec w_{s_1 s_2}$ is a learnt weight vector, and
-$\vec m_{t_1 t_2}$ is an ``ideal'' displacement between $s_1$ and $s_2$. If the
-joint shared between $s_1$ and $s_2$ is at location $\vec r_{t,f}$ in frame $f$
-and biposelet $t$ (relative to the centre of the subpose), then $\vec m_{t_1
-t_2}$ is simply
-\begin{equation}
-\frac{%
-    \left(\vec r_{t_2,1} - \vec r_{t_1,1}\right)
-    + \left(\vec r_{t_2,2} - \vec r_{t_1,2}\right)
-}{2}~.
-\end{equation}
+deformation feature, and $\vec w_{s_1 s_2}$ is a learnt weight vector.
 
 Each appearance term $\phi_s(\vec l_s, t_s; \mat D_{12})$ reflects the degree to
-which a small region around the location $\vec l_s$ looks like a subpose $s$
+which a small region around the location $\vec l_s$ ``looks like'' a subpose $s$
 with biposelet type $t_s$. Concretely,
 \begin{equation}\label{eqn:unary-cost}
 \phi_s(\vec l_s, t_s; \mat D_{12}) = -w_s \log p(s, t_s \mid \mat D_{12}(
