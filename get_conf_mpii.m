@@ -85,12 +85,14 @@ conf.trans_spec = struct(...
         6,     ... Left elbow               #4
         [6 8], ... Left forearm             #5
         8,     ... Left wrist               #6
+        10,    ... Left hand                #7
         ... RIGHT:
-        3,     ... Right shoulder           #7
-        [3 5], ... Right upper arm          #8
-        5,     ... Right elbow              #9
-        [5 7], ... Right forearm            #10
-        7,     ... Right wrist              #11
+        3,     ... Right shoulder           #8
+        [3 5], ... Right upper arm          #9
+        5,     ... Right elbow              #10
+        [5 7], ... Right forearm            #11
+        7,     ... Right wrist              #12
+        9,     ... Right hand               #13
     }, ...
     'weights', {...
         [1/2 1/2], ... Mid-shoulders        #1
@@ -99,35 +101,37 @@ conf.trans_spec = struct(...
         1,         ... Left elbow           #4
         [2/3 1/3], ... Left forearm         #5
         1,         ... Left wrist           #6
-        1,         ... Right shoulder       #7
-        [1/3 2/3], ... Right upper arm      #8
-        1,         ... Right elbow          #9
-        [2/3 1/3], ... Right forearm        #10
-        1,         ... Right wrist          #11
+        1,         ... Left hand            #7
+        1,         ... Right shoulder       #8
+        [1/3 2/3], ... Right upper arm      #9
+        1,         ... Right elbow          #10
+        [2/3 1/3], ... Right forearm        #11
+        1,         ... Right wrist          #12
+        1,         ... Right hand           #13
     });
 conf.test_trans_spec = conf.trans_spec;
 
 % right_parts and left_parts are used to ensure that the meanings of "left"
 % and "right" are preserved when doing flip augmentations.
-conf.right_parts = 7:11;
-conf.left_parts = 2:6;
+conf.right_parts = 8:13;
+conf.left_parts = 2:7;
 % Number of joints in the model; we don't use all of these
-conf.num_joints = 11;
+conf.num_joints = 13;
 
-subpose_indices = {[2 1 7], ...
-    [2 3], [3 4 5], [5 6], ...
-    [7 8], [8 9 10], [10 11]};
+subpose_indices = {[2 1 8], ...
+    [2 3], [3 4 5],   [5 6],   [6 7], ...
+    [8 9], [9 10 11], [11 12], [12 13]};
 subpose_names = {'shols', ... 1 Mid
-    ...  2       3        4
-    'luarm', 'lelb', 'lfarm', ... Left
-    ...  5       6        7
-    'ruarm', 'relb', 'rfarm'}; % Right
+    ...   2       3        4        5
+    'luarm', 'lelb', 'lfarm', 'lhand', ... Left
+    ...   6       7        8        9
+    'ruarm', 'relb', 'rfarm', 'rhand'}; % Right
 conf.subposes = struct('name', subpose_names, 'subpose', subpose_indices);
 conf.valid_parts = unique([subpose_indices{:}]);
 % Tells us which subpose is the parent of which (0 for root)
 conf.subpose_pa = [0 ... Mid
-    1 2 3 ... Left
-    1 5 6]; % Right
+    1 2 3 4 ... Left
+    1 6 7 8]; % Right
 % shared_parts{c} is a two-element cell array in which the first element is
 % a vector naming parts from the biposelet associated with subpose c and
 % the second element is a vector naming equivalent parts from the bipose
@@ -144,7 +148,7 @@ conf.pair_mean_dist_thresh = 50;
 
 % List of limbs for PCP calculation
 conf.limbs = struct(...
-    'indices', {[7 9],   [9 11],  [2 4],   [4 6],   [2 7]}, ...
+    'indices', {[8 10],   [10 12], [2 4],   [4 6],   [2 8]}, ...
     'names',   {'ruarm', 'rfarm', 'luarm', 'lfarm', 'shoul'});
 conf.limb_combinations = containers.Map(...
     {'Upper arms', 'Lower arms', 'Shoulders'}, ...
@@ -153,7 +157,7 @@ conf.limb_combinations = containers.Map(...
 % Now list of joints for PCK calculation
 conf.pck_joints = containers.Map(...
     {'Shoulders', 'Elbows', 'Wrists'}, ...
-    {[2 7], [4 9], [6 11]}...
+    {[2 8], [4 10], [6 12]}...
 );
 
 % This should be roughly what it was originally.
