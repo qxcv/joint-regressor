@@ -27,6 +27,7 @@ parser.addOptional('Overlap', [], @isscalar);
 parser.addOptional('ID', [], @isscalar);
 parser.addOptional('Label', [], @isscalar);
 parser.addOptional('CacheDir', [], @isstr);
+parser.addOptional('UseLocationSupervision', false, @islogical);
 parser.parse(im1_info, im2_info, model, varargin{:});
 r = parser.Results;
 pair = r.PairInfo;
@@ -39,28 +40,33 @@ overlap = r.Overlap;
 id = r.ID;
 label = r.Label;
 cache_dir = r.CacheDir;
+use_location_supervision = r.UseLocationSupervision;
 % Now some sanity checks on arguments
 assert(xor(isempty(thresh), isempty(num_results)), ...
     'Can take detection return threshold xor number of results to return');
-train_args_supplied = ~cellfun(@isempty, {overlap, id, label});
+train_args_supplied = ~cellfun(@isempty, {id, label});
 % is_train_call implies we're being called from train()
+% TODO: Clean this up with an *explicit* train call flag. Gah, this entire
+% function is so screwed up...
 is_train_call = all(train_args_supplied);
-assert(is_train_call || ~any(train_args_supplied), ...
+assert(~any(train_args_supplied) || (is_train_call && ~isempty(overlap)), ...
     'If you''re calling from train(), make sure you include everything needed');
 assert(~is_train_call || label < 0 || (~isempty(bbox) && ~isempty(pair)), ...
     'If you have a positive, you need a bbox and pair info for supervision');
+assert(~use_location_supervision || ~isempty(bbox), ['Location supervision ' ...
+                    'requires bounding box']);
 
 INF = 1e10;
 
 if is_train_call && ~isempty(bbox)
-    latent = true;
-    if label > 0
-        assert(~isempty(thresh));
-        % XXX: Is this broken? Why would it overwrite thresh?
-        thresh = -INF;
-    end
+    assert(label > 0, ['Bounding boxes in a training call only makes sense ' ...
+           'for positives']);
+    bounded_pos_train_call = true;
+    assert(~isempty(thresh));
+    % XXX: Is this broken? Why would it overwrite thresh?
+    thresh = -INF;
 else
-    latent = false;
+    bounded_pos_train_call = false;
 end
 
 % Compute the feature pyramid and prepare filter
@@ -125,8 +131,8 @@ ex.debug = [];
 % heatmap coordinates.
 det_side = model.cnn.window(1) / model.cnn.step;
 
-if latent && label > 0
-    % record best when doing latent on positive example
+if bounded_pos_train_call
+    % record best when we have bounding box and a positive example
     best_ex = ex;
     best_box = [];
 end
@@ -137,7 +143,7 @@ for level = levels
     sizs = pyra(level).sizs;
     
     % Skip if there is no overlap of root filter with bbox
-    if latent
+    if bounded_pos_train_call
         skipflags = false([1 num_subposes]);
         % because all mixtures for one part is the same size, we only need to do this once
         for subpose_idx = 1:num_subposes
@@ -173,13 +179,15 @@ for level = levels
         components(subpose_idx).score = weighted_apps;
         components(subpose_idx).level = level;
         
-        if latent
-            assert(label > 0, 'This doesn''t make sense on negatives');
-            
+        % Futz around with scores using both location and type supervision
+        tmpscore = components(subpose_idx).score;
+
+        if use_location_supervision
+            % XXX: This won't work because the overlap argument signifies a
+            % train call :(
             ovmask = testoverlap(det_side, det_side, sizs(1), sizs(2), ...
-                pyra(level), bbox.xy(subpose_idx,:), overlap);
+                                 pyra(level), bbox.xy(subpose_idx,:), overlap);
             assert(ismatrix(ovmask));
-            tmpscore = components(subpose_idx).score;
             tmpscore_K = size(tmpscore, 3);
             assert(tmpscore_K == model.K);
             ovmask = repmat(ovmask, 1, 1, tmpscore_K);
@@ -187,8 +195,10 @@ for level = levels
             
             % If a location doesn't overlap enough with the ground
             % truth, then we set it to -INF
-            %tmpscore(~ovmask) = -INF;
-            
+            tmpscore(~ovmask) = -INF;
+        end
+        
+        if bounded_pos_train_call
             % If a poselet is a long way from the GT poselet, then we
             % also set it to -INF
             near_pslts = pair.near{subpose_idx};
@@ -203,12 +213,13 @@ for level = levels
             % me where things are broken, so I might keep it).
             %components(subpose_idx).appMap(:, :, far_pslts) = -INF;
             %tmpscore(:, :, far_pslts) = -INF;
-            assert(all(size(components(subpose_idx).score) == size(tmpscore)), ...
-                'tmpscore changed size');
-            assert(any(tmpscore(:) > -INF), ...
-                'All scores have been masked out (!!)');
-            components(subpose_idx).score = tmpscore;
         end
+
+        assert(all(size(components(subpose_idx).score) == size(tmpscore)), ...
+               'tmpscore changed size');
+        assert(any(tmpscore(:) > -INF), ...
+               'All scores have been masked out (!!)');
+        components(subpose_idx).score = tmpscore;
     end
     
     % Walk from leaves to root of tree, passing message to parent
@@ -235,8 +246,9 @@ for level = levels
     rscore = components(model.root).score;
     assert(ndims(rscore) == 3);
     
-    % keep the positive example with the highest score in latent mode
-    if latent && label > 0
+    % keep the positive example with the highest score in bounded, positive,
+    % training mode
+    if bounded_pos_train_call
         thresh = max(thresh, max(rscore(:)));
     end
 
@@ -273,10 +285,10 @@ for level = levels
         % written, so we need to set it to false whenever we look at a new
         % ex (and only set it to true if that ex is written).
         wrote_ex = false;
-        if write && (~latent || label < 0)
+        if write && (~bounded_pos_train_call || label < 0)
             wrote_ex = qp_write(ex);
             qp.ub = qp.ub + qp.Cneg*max(1+this_rscore, 0);
-        elseif latent && label > 0
+        elseif bounded_pos_train_call
             if isempty(best_box)
                 best_box = boxes(end);
                 best_ex = ex;
@@ -304,14 +316,14 @@ for level = levels
     end
     
     % Optimize qp with coordinate descent, and update model
-    if write && (~latent || label < 0) && ...
+    if write && (~bounded_pos_train_call || label < 0) && ...
             (qp.lb < 0 || 1 - qp.lb/qp.ub > .05 || qp.n == length(qp.sv))
         model = optimize(model);
         [components, apps] = modelcomponents(model);
     end
 end
 
-if latent && ~isempty(boxes) && label > 0
+if bounded_pos_train_call && ~isempty(boxes)
     boxes = best_box;
     if write
         qp_write(best_ex);
