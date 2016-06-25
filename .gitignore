@@ -8,3 +8,4 @@ val-patches.txt
 logs/
 *.mexa64
 keras_train_call.txt
+results/

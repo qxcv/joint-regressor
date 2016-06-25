@@ -16,12 +16,20 @@ assert(all(size(im_stack) == size(flow) | [0 0 1]));
 assert(isscalar(cnn_window));
 assert(isscalar(true_scale));
 
-x1 = box.xy(:,1);
-y1 = box.xy(:,2);
-x2 = box.xy(:,3);
-y2 = box.xy(:,4);
-siz = x2(1)-x1(1)+1;
+if ~isempty(box)
+    x1 = box.xy(:,1);
+    y1 = box.xy(:,2);
+    x2 = box.xy(:,3);
+    y2 = box.xy(:,4);
+else
+    % If bounding box is empty, we just use the entire image
+    x1 = 1;
+    x2 = size(im_stack, 2);
+    y1 = 1;
+    y2 = size(im_stack, 1);
+end
 
+siz = x2(1)-x1(1)+1;
 x1 = min(x1); y1 = min(y1); x2 = max(x2); y2 = max(y2);
 
 % crop image around bounding box
@@ -37,8 +45,10 @@ ytrim = y1 - 1;
 
 im_stack = im_stack(y1:y2, x1:x2, :);
 flow = flow(y1:y2, x1:x2, :);
-box.xy(:,[1 3]) = box.xy(:,[1 3]) - x1 + 1;
-box.xy(:,[2 4]) = box.xy(:,[2 4]) - y1 + 1;
+if ~isempty(box)
+    box.xy(:,[1 3]) = box.xy(:,[1 3]) - x1 + 1;
+    box.xy(:,[2 4]) = box.xy(:,[2 4]) - y1 + 1;
+end
 
 % further scale it to the "true scale". This might involve a bit of
 % upscaling which will be undone later, but I'm happy to take that hit.
@@ -53,5 +63,7 @@ im_stack = imresize(im_stack, scale);
 flow = smart_resize_flow(flow, size(im_stack));
 assert(all(size(im_stack) == size(flow) | [0 0 1]));
 
-box.xy = (box.xy - 1)*scale + 1;
+if ~isempty(box)
+    box.xy = (box.xy - 1)*scale + 1;
+end
 end
