@@ -11,7 +11,7 @@ conf.cnn.deploy_json = fullfile(conf.cache_dir, 'cnn_model.json');
 % Trained net weights
 conf.cnn.deploy_weights = fullfile(conf.cache_dir, 'cnn_model.h5');
 % Different for each dataset, I guess
-conf.cnn.gpu = 2;
+conf.cnn.gpu = 0;
 
 %% Augmentation stuff (this is 70x augmentation ATM; probably too much)
 
@@ -22,9 +22,9 @@ conf.cnn.gpu = 2;
 % which doesn't count random translations on images which aren't sub-scale.
 
 % Range of random rotations
-conf.aug.rot_range = [-50, 50];
+conf.aug.rot_range = [-35, 35];
 % Number of random rotations for each datum
-conf.aug.rand_rots = 4;
+conf.aug.rand_rots = 5;
 % Random translations at each scale where it's possible to translate whilst
 % keeping the pose in-frame; 0 to disable. Should probably pad all images
 % by step size and then randomly translate by [step, step] (both axes)
@@ -37,12 +37,12 @@ conf.aug.rand_trans = 2;
 conf.aug.flip_mode = 'random'; % Other values: "both", "none"
 % Include this many randomly cropped patches from the background for each
 % datum (so no parts at all in the image)
-conf.aug.easy_negs = 10;
+conf.aug.easy_negs = 15;
 % Also include this many challenging negatives for *each subpose* in each
 % datum. Challenging negatives are those where the real subpose appears
 % (partially) in the frame, but might will far enough off that it can't
 % reasonably be assigned a type.
-conf.aug.hard_negs = 2;
+conf.aug.hard_negs = 3;
 conf.aug.inria_negs = 0;
 
 % Validation augmentations are less aggressive
@@ -156,7 +156,5 @@ conf.pck_joints = containers.Map(...
     {[2 7], [4 9], [6 11]}...
 );
 
-% This should be roughly what it was originally.
-% Changing this up to 1.4 may have messed things up quite badly in early
-% May (see git log). Not sure yet.
-conf.template_scale = 1.15;
+% Turning it up so that I can make use of the CNN's huge receptive field
+conf.template_scale = 1.4;
