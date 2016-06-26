@@ -13,12 +13,16 @@ try
     [cy_preds, test_seqs] = ...
         parload(cy_pred_path, 'results', 'mpii_test_seqs');
     ssvm_model = ...
-        parload(fullfile(cachedir, 'graphical_model.mat'), 'model');
+        parload(fullfile(cache_dir, 'graphical_model.mat'), 'model');
     biposelets = ...
         parload(fullfile(cache_dir, 'centroids.mat'), 'centroids');
 catch e
-    error('JointRegressor:rescoring_cy_mpii:loadError', ...
-        ['Error loading data from cache: ' e.message]);
+    if ~isempty(regexp(e.identifier, '^MATLAB:load:', 'ONCE'))
+        error('JointRegressor:rescoring_cy_mpii:loadError', ...
+            ['Error loading data from cache: ' e.message]);
+    else
+        throw(e);
+    end
 end
 
 fprintf('Getting pair detections\n');
