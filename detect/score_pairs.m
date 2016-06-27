@@ -20,7 +20,10 @@ im_stack = cat(3, im1, im2);
 cnn_save_fn = sprintf('pyra-%s-to-%s.mat', dname(d1), dname(d2));
 cnn_save_path = fullfile(cache_dir, 'scored-pose-pyra', cnn_save_fn);
 cnn_args = {im_stack, flow, ssvm_model, cnn_save_path};
+cnnStart = tic;
 [pyra, unary_map] = imCNNdet(cnn_args{:});
+cnnStop = toc(cnnStart);
+fprintf('imCNNdet took %fs\n', cnnStop);
 
 scales = ssvm_model.pyra_scales;
 scores = nan([1 length(pairs)]);

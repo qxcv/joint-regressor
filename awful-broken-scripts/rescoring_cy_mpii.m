@@ -61,6 +61,8 @@ function pair_dets = to_pair_dets(cy_cells, test_seqs, ssvm_model, ...
     subposes, biposelets, cache_dir)
 pair_dets = cell([1 length(test_seqs.seqs)]);
 num_seqs = length(test_seqs.seqs);
+pair_cache_dir = fullfile(cache_dir, 'cy-rescore-saved-pairs');
+mkdir_p(pair_cache_dir);
 for seq_idx=1:num_seqs
     seq = test_seqs.seqs{seq_idx};
     num_pairs = length(seq) - 1;
@@ -69,6 +71,16 @@ for seq_idx=1:num_seqs
     for fst_idx=1:num_pairs
         fprintf('Pair %i/%i (seq %i/%i)\n', fst_idx, num_pairs, ...
             seq_idx, num_seqs);
+        cache_fn = sprintf('seq-%i-pair-%i.mat', fst_idx, seq_idx);
+        cache_path = fullfile(pair_cache_dir, cache_fn);
+        try
+            [rscores, recovered ] = parload(cache_path, 'rscores', 'recovered');
+            detections(fst_idx).rscores = rscores;
+            detections(fst_idx).recovered = recovered;
+            continue
+        catch
+            fprintf('Regenerating...\n');
+        end
         d1 = test_seqs.data(seq(fst_idx));
         d2 = test_seqs.data(seq(fst_idx+1));
         fst_cy_preds = cy_cells{seq_idx}{fst_idx};
@@ -80,8 +92,11 @@ for seq_idx=1:num_seqs
             biposelets, ssvm_model, cache_dir);
         [~, best_idxs] = sort(new_scores, 'descend');
         top_idxs = best_idxs(1:100);
-        detections(fst_idx).rscores = new_scores(top_idxs);
-        detections(fst_idx).recovered = pairs(top_idxs);
+        rscores = new_scores(top_idxs);
+        recovered = pairs(top_idxs);
+        detections(fst_idx).rscores = rscores;
+        detections(fst_idx).recovered = recovered;
+        save(cache_path, 'rscores', 'recovered');
     end
     pair_dets{seq_idx} = detections;
 end
