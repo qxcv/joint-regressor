@@ -7,15 +7,17 @@ function rescoring_cy_mpii(cy_pred_path)
 fprintf('Loading configuration, model and existing predictions\n');
 startup;
 conf = get_conf_mpii;
-conf.cache_dir = ...
-    [regexprep(conf.cache_dir, [filesep '+$'], '') '-cy-rescore' filesep];
+% I was going to change the cache directory for safety, but I've decided I
+% don't care.
+% conf.cache_dir = ...
+%     [regexprep(conf.cache_dir, [filesep '+$'], '') '-cy-rescore' filesep];
 try
     [cy_preds, test_seqs] = ...
         parload(cy_pred_path, 'results', 'mpii_test_seqs');
     ssvm_model = ...
-        parload(fullfile(cache_dir, 'graphical_model.mat'), 'model');
+        parload(fullfile(conf.cache_dir, 'graphical_model.mat'), 'model');
     biposelets = ...
-        parload(fullfile(cache_dir, 'centroids.mat'), 'centroids');
+        parload(fullfile(conf.cache_dir, 'centroids.mat'), 'centroids');
 catch e
     if ~isempty(regexp(e.identifier, '^MATLAB:load:', 'ONCE'))
         error('JointRegressor:rescoring_cy_mpii:loadError', ...
@@ -25,8 +27,13 @@ catch e
     end
 end
 
-fprintf('Getting pair detections\n');
+% test_seqs were cached by CY code,so some paths (and possibly other
+% things?) are different
+test_seqs = convert_test_seqs(test_seqs);
+
+fprintf('Converting cells\n');
 cy_cells = to_pred_cells(cy_preds, conf.trans_spec);
+fprintf('Getting pair detections\n');
 pair_dets = to_pair_dets(cy_cells, test_seqs, ssvm_model, conf.subposes, ...
     biposelets, conf.cache_dir);
 
@@ -53,12 +60,15 @@ end
 function pair_dets = to_pair_dets(cy_cells, test_seqs, ssvm_model, ...
     subposes, biposelets, cache_dir)
 pair_dets = cell([1 length(test_seqs.seqs)]);
-for seq_idx=1:length(test_seqs.seqs)
+num_seqs = length(test_seqs.seqs);
+for seq_idx=1:num_seqs
     seq = test_seqs.seqs{seq_idx};
     num_pairs = length(seq) - 1;
     empt = @() cell([1 num_pairs]);
     detections = struct('rscores', empt, 'recovered', empt);
     for fst_idx=1:num_pairs
+        fprintf('Pair %i/%i (seq %i/%i)\n', fst_idx, num_pairs, ...
+            seq_idx, num_seqs);
         d1 = test_seqs.data(seq(fst_idx));
         d2 = test_seqs.data(seq(fst_idx+1));
         fst_cy_preds = cy_cells{seq_idx}{fst_idx};
@@ -68,7 +78,7 @@ for seq_idx=1:length(test_seqs.seqs)
             subposes, ssvm_model.template_scale);
         new_scores = score_pairs(pairs, d1, d2, true_scale, subposes, ...
             biposelets, ssvm_model, cache_dir);
-        [~, best_idxs] = sort(new_scores, 'desc');
+        [~, best_idxs] = sort(new_scores, 'descend');
         top_idxs = best_idxs(1:100);
         detections(fst_idx).rscores = new_scores(top_idxs);
         detections(fst_idx).recovered = pairs(top_idxs);
@@ -81,7 +91,7 @@ function rv = to_pred_cells(orig_predictions, trans_spec)
 % Convert cell of cells of structs (!!) to cell of cell of cells with right
 % joint layout (transformed layout, not original layout)
 rv = cell([1 length(orig_predictions)]);
-for seq_num=1:length(orig_predictions)
+parfor seq_num=1:length(orig_predictions)
     seq_structs = orig_predictions{seq_num};
     seq_cells = cell([1 length(seq_structs)]);
     for struct_idx=1:length(seq_structs)
@@ -97,5 +107,15 @@ function str = translate_points(str, trans_spec)
 assert(isstruct(str));
 for i=1:length(str)
     str(i).point = skeltrans(str(i).point, trans_spec);
+    assert(~any(isnan(str(i).point(:))));
+end
+end
+
+function test_seqs = convert_test_seqs(test_seqs)
+for i=1:length(test_seqs.data)
+    old_path = test_seqs.data(i).image_path;
+    new_path = regexprep(old_path, '^./dataset/mpii/', './datasets/');
+    assert(~~exist(new_path, 'file'), 'Image %s is missing', new_path);
+    test_seqs.data(i).image_path = new_path;
 end
 end

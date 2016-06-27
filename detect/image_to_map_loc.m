@@ -6,7 +6,8 @@ function map_locs = image_to_map_loc(locations, pyra_level, cnnpar)
 % subpose.
 assert(ismatrix(locations) && size(locations, 2) == 2 && isstruct(pyra_level));
 % Use pyra.{sizs,scale,pad}
-pad_px = pyra_level.pad * cnnpar.step;
+step = cnnpar.step; % shadows some useless Matlab builtin
+pad_px = pyra_level.pad * step;
 map_locs = floor((locations + pad_px - 1) / step) + 1;
 assert(all(size(map_locs) == size(locations)));
 end

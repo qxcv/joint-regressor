@@ -1,7 +1,7 @@
 function rv_score = score_types_locs(types, locs, unaries, model)
 %SCORE_TYPES_LOCS Score types and locations for subposes
 assert(isvector(types) && ismatrix(locs) && size(locs, 2) == 2 ...
-    && ndims(unaries) == 3 && isstruct(model));
+    && iscell(unaries) && isstruct(model));
 
 sbin = model.sbin;
 [components, app_weight_cell] = modelcomponents(model);
@@ -15,7 +15,16 @@ gau_weights = gaus;
 for sp_idx=1:num_sp
     loc = locs(sp_idx, :);
     x = loc(1); y = loc(2); t = types(sp_idx);
-    apps(sp_idx) = unaries(y, x, t);
+    unary_map = unaries{sp_idx}(:, :, t);
+    unary_width = size(unary_map, 2);
+    unary_height = size(unary_map, 1);
+    if any([x y] < 1 | [x y] > [unary_width unary_height])
+        % If the point is out of bounds, we give it a really low score just
+        % to discourage it (may have to make this faster);
+        apps(sp_idx) = min(log(1e-10), min(unary_map(:)));
+    else
+        apps(sp_idx) = unary_map(y, x);
+    end
     app_weights(sp_idx) = app_weight_cell{sp_idx};
     
     if sp_idx > 1
