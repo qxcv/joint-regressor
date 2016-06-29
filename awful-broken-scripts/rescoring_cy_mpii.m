@@ -55,6 +55,23 @@ results_path = fullfile(conf.results_dir, 'cy-stitch-results.mat');
 found_pose_dets = pose_dets; %#ok<NASGU>
 found_pose_gts = pose_gts; %#ok<NASGU>
 save(results_path, 'results', 'test_seqs', 'found_pose_dets', 'found_pose_gts');
+fprintf('Saved to %s\n', results_path);
+
+fprintf('Calculating original statistics\n');
+cy_results_path = fullfile(conf.results_dir, 'cy-results-no-rescore.mat');
+cy_best_dets = cell([1 length(cy_cells)]);
+for seq_idx=1:length(cy_best_dets)
+    orig_seq = cy_cells{seq_idx};
+    cy_best_dets{seq_idx} = cell([1 length(orig_seq)]);
+    for frame_idx=1:length(orig_seq)
+        val = orig_seq{frame_idx}{1};
+        assert(ismatrix(val) && isnumeric(val) && size(val, 2) == 2);
+        cy_best_dets{seq_idx}{frame_idx} = val;
+    end
+end
+cy_results = cellfun(cells_to_flat, cy_best_dets, 'UniformOutput', false); %#ok<NASGU>
+save(cy_results_path, 'cy_results', 'test_seqs', 'cy_best_dets', 'found_pose_gts');
+fprintf('Saved to %s\n', cy_results_path);
 end
 
 function pair_dets = to_pair_dets(cy_cells, test_seqs, ssvm_model, ...
