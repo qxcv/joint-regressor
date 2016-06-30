@@ -6,8 +6,8 @@ function pose = boxes2pose(detection, biposelets, biposelet_scale, ...
 %
 % detected_boxes: 1d struct array with .boxes and .types fields (like
 %                 detect returns)
-% centroids: carefully reformatted centroids from buildmodel (should be
-%            saved in model produced by train_model)
+% biposelets: carefully reformatted centroids from buildmodel (should be
+%             saved in model produced by train_model)
 % biposelet_scale: scale at which centroids were clustered. Probably the
 %                  CNN window size.
 % subpose_idxs: cell array giving original joint indices of parts
@@ -22,7 +22,7 @@ for subpose_idx=1:length(subposes)
     % Grab bbox (has format [x1 y1 x2 y2])
     bbox = detection.boxes{subpose_idx};
     bbox_wh = bbox(3:4) - bbox(1:2);
-    assert(abs(bbox_wh(1) - bbox_wh(2)) < 1e-5);
+    assert(abs(bbox_wh(1) - bbox_wh(2)) < 1e-4);
     bbox_size = mean(bbox_wh);
     
     % Recover centroid and realign to detection center and scale
