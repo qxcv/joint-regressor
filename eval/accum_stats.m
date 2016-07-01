@@ -44,19 +44,6 @@ dest_path = fullfile(save_dir, 'pcps.csv');
 writetable(pcp_table, dest_path);
 end
 
-function pck_table = format_pcks(all_pcks, pck_thresholds, pck_joints)
-joint_names = pck_joints.keys;
-num_out_joints = length(joint_names);
-accs = cell([1 num_out_joints]);
-for joint_idx=1:num_out_joints
-    these_joints = pck_joints(joint_names{joint_idx});
-    these_pcks = cellfun(@(acc) mean(acc(these_joints)), all_pcks);
-    accs{joint_idx} = these_pcks';
-end
-pck_table = table(pck_thresholds', accs{:}, ...
-    'VariableNames', ['Threshold' joint_names]);
-end
-
 function pcp_table = format_pcps(all_pcps, pcp_thresholds, limbs, limb_combinations)
 limb_names = limb_combinations.keys;
 combined_pcps = cell([1, length(limb_names)]);
