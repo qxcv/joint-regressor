@@ -10,3 +10,4 @@ logs/
 keras_train_call.txt
 results/
 topk/
+resized-patches/
