@@ -32,7 +32,7 @@ parfor parent_type = 1:parent_K
     end
 end
 [score, Im] = max(score0, [], 4);
-assert(ndims(score) == 3 && ndims(Im) == 3);
+assert(ndims(Im) < 4 && size(Im, 3) == parent_K);
 [Ix, Iy] = deal(zeros(height, width, parent_K));
 for row = 1:height
     for col = 1:width
@@ -46,4 +46,8 @@ for row = 1:height
 end
 % "score" is a message that will be added to the parent's total score in
 % detect.m. Hence, we need it to be the right size.
-assert(all(size(score) == [height width parent_K]));
+% This assertion uses destructuring-followed-by-comparison because
+% otherwise it fails for parent_K == 1 (where the last dimension of score's
+% size disappears).
+[score_h, score_w, score_K] = size(score);
+assert(all([score_h, score_w, score_K] == [height width parent_K]));
