@@ -33,11 +33,11 @@ for child=1:length(subpose_graph)
     child_shareds = shared_parts{child}{1};
     parent_shareds = shared_parts{child}{2};
     
-    for child_poselet=1:length(centroids{child})
+    for child_poselet=1:size(child_centroids, 1)
         % Joint coordinates associated with child poselet
         child_coords = unflatten_coords(child_centroids(child_poselet, :));
         child_end = average_shareds(child_coords, child_shareds);
-        for parent_poselet=1:length(centroids{parent})
+        for parent_poselet=1:size(parent_centroids, 1)
             % Joint coordinates associated with parent centroid
             parent_coords = unflatten_coords(parent_centroids(parent_poselet, :));
             parent_end = average_shareds(parent_coords, parent_shareds);

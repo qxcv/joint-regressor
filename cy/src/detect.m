@@ -164,7 +164,9 @@ for level = levels
     
     for subpose_idx = 1:num_subposes
         components(subpose_idx).appMap = unary_map{level}{subpose_idx};
-        assert(ndims(components(subpose_idx).appMap) == 3, ...
+        % Use "< 4" rather than "== 3" because the last dimension
+        % disappears when we have only one biposelet.
+        assert(ndims(components(subpose_idx).appMap) < 4, ...
             'Need h*w*K unary map');
         
         % appid will be 1x1, and gives the unary weight associated with
@@ -174,7 +176,7 @@ for level = levels
         assert(isscalar(apps{f}), 'Should have only one weight for that ID');
         % .score will now be h*w*K for each part
         weighted_apps = components(subpose_idx).appMap * apps{f};
-        assert(ndims(weighted_apps) == 3);
+        assert(ndims(weighted_apps) < 4);
         assert(size(weighted_apps, 3) == model.K);
         components(subpose_idx).score = weighted_apps;
         components(subpose_idx).level = level;
@@ -244,7 +246,7 @@ for level = levels
     components(model.root).score = ...
         components(model.root).score + components(model.root).b;
     rscore = components(model.root).score;
-    assert(ndims(rscore) == 3);
+    assert(ndims(rscore) < 4);
     
     % keep the positive example with the highest score in bounded, positive,
     % training mode
