@@ -2,59 +2,61 @@
 
 import numpy as np
 
+from keras import backend as K
 from keras.models import Graph, Sequential
-from keras.layers.core import Dense, Dropout, Flatten
-from keras.layers.convolutional import (Convolution2D, MaxPooling2D,
-                                        ZeroPadding2D)
+from keras.layers.core import Activation, Dense, Dropout, Flatten, Lambda
+from keras.layers.convolutional import (AveragePooling2D, Convolution2D,
+                                        MaxPooling2D, ZeroPadding2D)
+from keras.layers.normalization import BatchNormalization
+from keras.regularizers import l2
 from keras.utils.layer_utils import container_from_config
 
 from utils import register_activation, convolution_softmax
 
 
-def make_conv_triple(model, channels, input_shape=None, **extra_args):
+def make_conv_triple(model, channels, input_shape=None, use_bn=False, **extra_args):
     zp_args = {}
     if input_shape is not None:
         zp_args['input_shape'] = input_shape
-    layers = [
-        ZeroPadding2D(padding=(1, 1), dim_ordering='th', **zp_args),
-        Convolution2D(channels, 3, 3, activation='relu', **extra_args)
-    ]
-    for layer in layers:
-        model.add(layer)
+    model.add(ZeroPadding2D(padding=(1, 1), dim_ordering='th', **zp_args))
+    model.add(Convolution2D(channels, 3, 3, activation='relu', **extra_args))
+    if use_bn:
+        # mode=0, channel=1 means "normalise feature maps the way God intended"
+        model.add(BatchNormalization(mode=0, axis=1))
 
 
-def vggnet16_base(input_shape, init):
+def vggnet16_base(input_shape, init, W_regularizer=None):
     """Like vggnet16_regressor_model, but with no output layers and no
     compilation. Very useful for embedding in other models."""
     model = Sequential()
-    make_conv_triple(model, 64, input_shape=input_shape, init=init)
-    make_conv_triple(model, 64, init=init)
+    make_conv_triple(model, 64, input_shape=input_shape, init=init, W_regularizer=W_regularizer)
+    make_conv_triple(model, 64, init=init, W_regularizer=W_regularizer)
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    make_conv_triple(model, 128, init=init)
-    make_conv_triple(model, 128, init=init)
+    make_conv_triple(model, 128, init=init, W_regularizer=W_regularizer)
+    make_conv_triple(model, 128, init=init, W_regularizer=W_regularizer)
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    make_conv_triple(model, 256, init=init)
-    make_conv_triple(model, 256, init=init)
-    make_conv_triple(model, 256, init=init)
+    make_conv_triple(model, 256, init=init, W_regularizer=W_regularizer)
+    make_conv_triple(model, 256, init=init, W_regularizer=W_regularizer)
+    make_conv_triple(model, 256, init=init, W_regularizer=W_regularizer)
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    make_conv_triple(model, 512, init=init)
-    make_conv_triple(model, 512, init=init)
-    make_conv_triple(model, 512, init=init)
+    make_conv_triple(model, 512, init=init, W_regularizer=W_regularizer)
+    make_conv_triple(model, 512, init=init, W_regularizer=W_regularizer)
+    make_conv_triple(model, 512, init=init, W_regularizer=W_regularizer)
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    make_conv_triple(model, 512, init=init)
-    make_conv_triple(model, 512, init=init)
-    make_conv_triple(model, 512, init=init)
+    make_conv_triple(model, 512, init=init, W_regularizer=W_regularizer)
+    make_conv_triple(model, 512, init=init, W_regularizer=W_regularizer)
+    make_conv_triple(model, 512, init=init, W_regularizer=W_regularizer)
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())
 
-    model.add(Dense(4096, activation='relu', init=init))
+    model.add(Dense(4096, activation='relu', init=init, W_regularizer=W_regularizer))
     model.add(Dropout(0.5))
 
-    model.add(Dense(4096, activation='relu', init=init))
+    model.add(Dense(4096, activation='relu', init=init, W_regularizer=W_regularizer))
     model.add(Dropout(0.5))
 
     return model
@@ -91,45 +93,58 @@ def vggnet16_joint_reg_class(input_shape, regressor_outputs, solver, init):
     return model
 
 
-def vgg16_twin_base(input_shape, init):
+def vgg16_twin_base(input_shape, init, W_regularizer=None, use_bn=False):
     """There will be two instances of this model created: one for flow and one
     for RGB data."""
     model = Sequential()
-    make_conv_triple(model, 64, input_shape=input_shape, init=init)
-    make_conv_triple(model, 64, init=init)
+    make_conv_triple(model, 64, input_shape=input_shape, init=init,
+                     W_regularizer=W_regularizer, use_bn=use_bn)
+    make_conv_triple(model, 64, init=init, W_regularizer=W_regularizer,
+                     use_bn=use_bn)
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    make_conv_triple(model, 128, init=init)
-    make_conv_triple(model, 128, init=init)
+    make_conv_triple(model, 128, init=init, W_regularizer=W_regularizer,
+                     use_bn=use_bn)
+    make_conv_triple(model, 128, init=init, W_regularizer=W_regularizer,
+                     use_bn=use_bn)
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    make_conv_triple(model, 256, init=init)
-    make_conv_triple(model, 256, init=init)
-    make_conv_triple(model, 256, init=init)
+    make_conv_triple(model, 256, init=init, W_regularizer=W_regularizer,
+                     use_bn=use_bn)
+    make_conv_triple(model, 256, init=init, W_regularizer=W_regularizer,
+                     use_bn=use_bn)
+    make_conv_triple(model, 256, init=init, W_regularizer=W_regularizer,
+                     use_bn=use_bn)
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
     return model
 
 
-def vgg16_twin_final(input_shape, init):
+def vgg16_twin_final(input_shape, init, use_bn=False, W_regularizer=None):
     """This is the second stage, after the two first stages have been joined
     together."""
     model = Sequential()
-    make_conv_triple(model, 512, input_shape=input_shape, init=init)
-    make_conv_triple(model, 512, init=init)
-    make_conv_triple(model, 512, init=init)
+    make_conv_triple(model, 512, input_shape=input_shape, init=init,
+                     W_regularizer=W_regularizer, use_bn=use_bn)
+    make_conv_triple(model, 512, init=init, W_regularizer=W_regularizer,
+                     use_bn=use_bn)
+    make_conv_triple(model, 512, init=init, W_regularizer=W_regularizer,
+                     use_bn=use_bn)
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
-    make_conv_triple(model, 512, init=init)
-    make_conv_triple(model, 512, init=init)
-    make_conv_triple(model, 512, init=init)
+    make_conv_triple(model, 512, init=init, W_regularizer=W_regularizer,
+                     use_bn=use_bn)
+    make_conv_triple(model, 512, init=init, W_regularizer=W_regularizer,
+                     use_bn=use_bn)
+    make_conv_triple(model, 512, init=init, W_regularizer=W_regularizer,
+                     use_bn=use_bn)
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())
 
-    model.add(Dense(4096, activation='relu', init=init))
+    model.add(Dense(4096, activation='relu', init=init, W_regularizer=W_regularizer))
     model.add(Dropout(0.5))
 
-    model.add(Dense(4096, activation='relu', init=init))
+    model.add(Dense(4096, activation='relu', init=init, W_regularizer=W_regularizer))
     model.add(Dropout(0.5))
 
     return model
@@ -234,6 +249,162 @@ def vggnet16_joint_reg_class_flow_leftright(shapes, solver, init):
     losses = {'class': 'categorical_crossentropy'}
     for name in reg_out_names:
         losses[name] = 'mae'
+    model.compile(
+        optimizer=solver, loss=losses
+    )
+    return model
+
+
+def vggnet16_poselet_class_flow_norm_l2(shapes, solver, init):
+    """Similar to above, but just predicitng poselet classes.
+
+    :param shapes: Dictionary mapping input or output names to their sizes.
+                   Should not include batch size or leading dimension in HDF5
+                   file (e.g. shape of RGB data might be ``(3, 224, 224)``
+                   rather than ``(None, 3, 224, 224)`` or ``(12091, 3, 224,
+                   224)``).
+    :param solver: Keras solver (e.g. SGD) instance.
+    :param init: String describing weight initialiser (e.g. 'glorot_uniform')
+    :return: Initialised ``keras.models.Graph``"""
+    model = Graph()
+
+    W_regularizer = l2(0.01)
+
+    # RGB data
+    rgb_shape = shapes['images']
+    model.add_input(input_shape=rgb_shape, name='images')
+    rgb_base = vgg16_twin_base(rgb_shape, init, W_regularizer=W_regularizer)
+    model.add_node(rgb_base, name='rgb_conv', input='images')
+
+    # Flow
+    flow_shape = shapes['flow']
+    model.add_input(input_shape=flow_shape, name='flow')
+    flow_norm_shape = (1,) + flow_shape[1:]
+    norm_layer = Lambda(
+        lambda f: K.sqrt(K.sum(K.square(f), axis=1, keepdims=True)),
+        output_shape=flow_norm_shape
+    )
+    model.add_node(norm_layer, name='flow_norm', input='flow')
+    flow_base = vgg16_twin_base(flow_norm_shape, init, W_regularizer=W_regularizer)
+    model.add_node(flow_base, name='flow_conv', input='flow_norm')
+
+    # Merging them together
+    rgb_out_shape = rgb_base.output_shape
+    flow_out_shape = flow_base.output_shape
+    in_channels = rgb_out_shape[1] + flow_out_shape[1]
+    shared_shape = (in_channels,) + rgb_out_shape[2:]
+    shared_final = vgg16_twin_final(shared_shape, init, W_regularizer=W_regularizer)
+    model.add_node(
+        shared_final, inputs=['rgb_conv', 'flow_conv'],
+        merge_mode='concat', concat_axis=1, name='shared_layers'
+    )
+
+    # Only predict poselet classes this time
+    poselet_classes, = shapes['poselet']
+    model.add_node(Dense(poselet_classes, init=init, activation='softmax', W_regularizer=W_regularizer),
+                   input='shared_layers', name='fc_pslt')
+    model.add_output(input='fc_pslt', name='poselet')
+    losses = {'poselet': 'categorical_crossentropy'}
+
+    model.compile(
+        optimizer=solver, loss=losses
+    )
+    return model
+
+def vggnet16_poselet_class_flow_norm(shapes, solver, init):
+    """Similar to above, but just predicitng poselet classes.
+
+    :param shapes: Dictionary mapping input or output names to their sizes.
+                   Should not include batch size or leading dimension in HDF5
+                   file (e.g. shape of RGB data might be ``(3, 224, 224)``
+                   rather than ``(None, 3, 224, 224)`` or ``(12091, 3, 224,
+                   224)``).
+    :param solver: Keras solver (e.g. SGD) instance.
+    :param init: String describing weight initialiser (e.g. 'glorot_uniform')
+    :return: Initialised ``keras.models.Graph``"""
+    model = Graph()
+
+    # RGB data
+    rgb_shape = shapes['images']
+    model.add_input(input_shape=rgb_shape, name='images')
+    rgb_base = vgg16_twin_base(rgb_shape, init)
+    model.add_node(rgb_base, name='rgb_conv', input='images')
+
+    # Flow
+    flow_shape = shapes['flow']
+    model.add_input(input_shape=flow_shape, name='flow')
+    flow_norm_shape = (1,) + flow_shape[1:]
+    norm_layer = Lambda(
+        lambda f: K.sqrt(K.sum(K.square(f), axis=1, keepdims=True)),
+        output_shape=flow_norm_shape
+    )
+    model.add_node(norm_layer, name='flow_norm', input='flow')
+    flow_base = vgg16_twin_base(flow_norm_shape, init)
+    model.add_node(flow_base, name='flow_conv', input='flow_norm')
+
+    # Merging them together
+    rgb_out_shape = rgb_base.output_shape
+    flow_out_shape = flow_base.output_shape
+    in_channels = rgb_out_shape[1] + flow_out_shape[1]
+    shared_shape = (in_channels,) + rgb_out_shape[2:]
+    shared_final = vgg16_twin_final(shared_shape, init)
+    model.add_node(
+        shared_final, inputs=['rgb_conv', 'flow_conv'],
+        merge_mode='concat', concat_axis=1, name='shared_layers'
+    )
+
+    # Only predict poselet classes this time
+    poselet_classes, = shapes['poselet']
+    model.add_node(Dense(poselet_classes, init=init, activation='softmax'),
+                   input='shared_layers', name='fc_pslt')
+    model.add_output(input='fc_pslt', name='poselet')
+    losses = {'poselet': 'categorical_crossentropy'}
+
+    model.compile(
+        optimizer=solver, loss=losses
+    )
+    return model
+
+
+def vggnet16_poselet_class_flow_norm_bn(shapes, solver, init):
+    model = Graph()
+
+    # RGB data
+    rgb_shape = shapes['images']
+    model.add_input(input_shape=rgb_shape, name='images')
+    rgb_base = vgg16_twin_base(rgb_shape, init, use_bn=True)
+    model.add_node(rgb_base, name='rgb_conv', input='images')
+
+    # Flow
+    flow_shape = shapes['flow']
+    model.add_input(input_shape=flow_shape, name='flow')
+    flow_norm_shape = (1,) + flow_shape[1:]
+    norm_layer = Lambda(
+        lambda f: K.sqrt(K.sum(K.square(f), axis=1, keepdims=True)),
+        output_shape=flow_norm_shape
+    )
+    model.add_node(norm_layer, name='flow_norm', input='flow')
+    flow_base = vgg16_twin_base(flow_norm_shape, init, use_bn=True)
+    model.add_node(flow_base, name='flow_conv', input='flow_norm')
+
+    # Merging them together
+    rgb_out_shape = rgb_base.output_shape
+    flow_out_shape = flow_base.output_shape
+    in_channels = rgb_out_shape[1] + flow_out_shape[1]
+    shared_shape = (in_channels,) + rgb_out_shape[2:]
+    shared_final = vgg16_twin_final(shared_shape, init, use_bn=True)
+    model.add_node(
+        shared_final, inputs=['rgb_conv', 'flow_conv'],
+        merge_mode='concat', concat_axis=1, name='shared_layers'
+    )
+
+    # Only predict poselet classes this time
+    poselet_classes, = shapes['poselet']
+    model.add_node(Dense(poselet_classes, init=init, activation='softmax'),
+                   input='shared_layers', name='fc_pslt')
+    model.add_output(input='fc_pslt', name='poselet')
+    losses = {'poselet': 'categorical_crossentropy'}
+
     model.compile(
         optimizer=solver, loss=losses
     )
@@ -489,3 +660,148 @@ def upgrade_multipath_poselet_vggnet(old_model):
     rv.add_output(input='fc_pslt', name='poselet')
 
     return rv
+
+
+def vggnet16_poselet_class_bn(shapes, solver, init):
+    model = Graph()
+
+    # RGB data
+    rgb_shape = shapes['images']
+    model.add_input(input_shape=rgb_shape, name='images')
+    rgb_base = vgg16_twin_base(rgb_shape, init, use_bn=True)
+    model.add_node(rgb_base, name='rgb_conv', input='images')
+
+    # We only have RGB this time (no flow)
+    shared_shape = rgb_base.output_shape[1:]
+    shared_final = vgg16_twin_final(shared_shape, init, use_bn=True)
+    model.add_node(shared_final, input='rgb_conv', name='shared_layers')
+
+    poselet_classes, = shapes['poselet']
+    model.add_node(Dense(poselet_classes, init=init, activation='softmax'),
+                   input='shared_layers', name='fc_pslt')
+    model.add_output(input='fc_pslt', name='poselet')
+    losses = {'poselet': 'categorical_crossentropy'}
+
+    model.compile(
+        optimizer=solver, loss=losses
+    )
+    return model
+
+
+def resnet34_poselet_class(shapes, solver, init):
+    model = Graph()
+
+    rgb_shape = shapes['images']
+
+    # This will help us assign unique names to our layers
+    def _unbounded():
+        x = 0
+        while True:
+            yield x
+            x += 1
+    _num_gen = _unbounded()
+    _next_num = lambda: next(_num_gen)
+    next_name = lambda s: s + str(_next_num())
+
+    def plain_block(channels, prev_name, subsample=False):
+        # First conv
+        conv_name_1, bn_name_1, relu_name_1 = next_name('conv'), \
+            next_name('norm'), next_name('relu')
+        if subsample:
+            # Old versions of Keras (pre-0.33) don't like border_mode == 'same'
+            # when subsampling in a convolution. Hence, we need to add padding
+            # in ourselves :/
+            zp_name = next_name('pad')
+            model.add_node(ZeroPadding2D(padding=(1, 1), dim_ordering='th'),
+                           input=prev_name, name=zp_name)
+            model.add_node(Convolution2D(channels, 3, 3, border_mode='valid', init=init, subsample=(2, 2)),
+                           input=zp_name, name=conv_name_1)
+        else:
+            model.add_node(Convolution2D(channels, 3, 3, border_mode='same', init=init),
+                           input=prev_name, name=conv_name_1)
+        # mode=0, channel=1 means "normalise feature maps the way God intended"
+        model.add_node(BatchNormalization(mode=0, axis=1),
+                       input=conv_name_1, name=bn_name_1)
+        model.add_node(Activation('relu'),
+                       input=bn_name_1, name=relu_name_1)
+
+        # Second conv
+        conv_name_2, bn_name_2, relu_name_2 = next_name('conv'), \
+            next_name('norm'), next_name('relu')
+        model.add_node(Convolution2D(channels, 3, 3, border_mode='same', init=init),
+                       input=relu_name_1, name=conv_name_2)
+        model.add_node(BatchNormalization(mode=0, axis=1),
+                       input=conv_name_2, name=bn_name_2)
+        model.add_node(Activation('relu'),
+                       input=bn_name_2, name=relu_name_2)
+
+        # Optional 1x1 convolution if we're subsampling
+        if subsample:
+            proj_name = next_name('proj')
+            # Yeah, thiss didn't really make sense in the paper. The way in
+            # which we skip some columns of the previous activation volume is a
+            # little worrying---shouldn't pooling help, in principle?
+            model.add_node(Convolution2D(channels, 1, 1, init=init, subsample=(2, 2)),
+                           input=prev_name, name=proj_name)
+            prev_scaled = proj_name
+        else:
+            prev_scaled = prev_name
+
+        # Skip layer. Linear activation is hacky. Whatever.
+        add_name = next_name('add')
+        model.add_node(Activation('linear'), merge_mode='sum', inputs=[prev_scaled, relu_name_2], name=add_name)
+        return add_name
+
+    # Weird input layer nonsense
+    print('Adding input layers')
+    model.add_input(input_shape=rgb_shape, name='images')
+    conv7_name = next_name('conv')
+    model.add_node(Convolution2D(64, 7, 7, border_mode='valid', init=init, subsample=(2, 2), input_shape=rgb_shape),
+                   input='images', name=conv7_name)
+    norm_name = next_name('norm')
+    model.add_node(BatchNormalization(mode=0, axis=1),
+                   input=conv7_name, name=norm_name)
+    relu_name = next_name('relu')
+    model.add_node(Activation('relu'),
+                   input=norm_name, name=relu_name)
+    max_pool_name = next_name('pool')
+    model.add_node(MaxPooling2D(pool_size=(2, 2)),
+                   input=relu_name, name=max_pool_name)
+
+    # Now the layers!
+    sizes = [64] * 3 + [128] * 4 + [256] * 6 + [512] * 3
+    last_layer = max_pool_name
+    last_size = None
+    for size in sizes:
+        print('Adding block of {} channels (from {} channels)'.format(
+            size, last_size
+        ))
+        should_subsample = last_size is not None and last_size != size
+        if should_subsample:
+            assert last_size * 2 == size, \
+                "Sizes %i and %i don't match" % (last_size, size)
+        last_layer = plain_block(size, last_layer, should_subsample)
+        last_size = size
+
+    # Average pool, flatten
+    print('Adding pool and flatten layers')
+    avg_pool_name = next_name('pool')
+    model.add_node(AveragePooling2D(pool_size=(7, 7), border_mode='valid'),
+                   input=last_layer, name=avg_pool_name)
+    flatten_name = next_name('flatten')
+    model.add_node(Flatten(),
+                   input=avg_pool_name, name=flatten_name)
+
+    # Final layer and loss
+    print('Adding final layers')
+    poselet_classes, = shapes['poselet']
+    dense_name = next_name('fc')
+    model.add_node(Dense(poselet_classes, init=init, activation='softmax'),
+                   input=flatten_name, name=dense_name)
+    model.add_output(input=dense_name, name='poselet')
+    losses = {'poselet': 'categorical_crossentropy'}
+
+    model.compile(
+        optimizer=solver, loss=losses
+    )
+    return model

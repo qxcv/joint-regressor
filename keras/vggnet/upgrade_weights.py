@@ -12,7 +12,10 @@ import numpy as np
 from vgg16_keras import VGG_16
 
 
-def upgrade_weights(new_layers, old_layers):
+def upgrade_weights(new_layers, old_layers, skip_incompat=True):
+    # "skip_incompat" means that new layers which have the wrong type will be
+    # skipped. This is a bit like a sequence alignment measure.
+
     # Now some safety checks on the first two layers
     for l0, l1 in [new_layers[:2], old_layers[:2]]:
         assert l0.get_config()['name'] == 'ZeroPadding2D'
@@ -44,14 +47,31 @@ def upgrade_weights(new_layers, old_layers):
             len(new_layers), len(old_layers)
         ))
 
-    zipped = list(zip(new_layers[2:], old_layers[2:]))
+    remaining_new = new_layers[2:]
+    remaining_old = old_layers[2:]
 
-    for idx, (new_layer, old_layer) in enumerate(zipped):
-        new_cfg = new_layer.get_config()
+    while remaining_new and remaining_old:
+        # Get the next layer from the old model
+        old_layer = remaining_old.pop(0)
         old_cfg = old_layer.get_config()
 
-        # XXX: Might need more aggressive checks than this
-        if idx == len(zipped) - 1:
+        # Get the equivalent layer from the new model, skipping new layers
+        # which have been inserted along the way
+        new_layer = None
+        while remaining_new:
+            new_layer = remaining_new.pop(0)
+            new_cfg = new_layer.get_config()
+            if new_cfg['name'] == old_cfg['name']:
+                # We've found the right layer
+                break
+            else:
+                print('Skipping %s layer in new model' % new_cfg['name'])
+        else:
+            print('No new layers left, but %i old layers left\n'
+                  'Remainder will be untouched' % len(remaining_old))
+            break
+
+        if not remaining_old:
             # It's the final layer
             if new_layer.input_shape != old_layer.input_shape:
                 print(
@@ -62,8 +82,9 @@ def upgrade_weights(new_layers, old_layers):
                 break
 
         assert new_layer.input_shape == old_layer.input_shape
-        assert new_cfg['name'] == old_cfg['name']
         print('Changing {}'.format(new_cfg['name']))
-
-        # If we got this far, we should be good!
         new_layer.set_weights(old_layer.get_weights())
+
+    print('%i new layers ignored and %i old layers ignored'
+          % (len(remaining_new), len(remaining_old)))
+    return len(remaining_old)
