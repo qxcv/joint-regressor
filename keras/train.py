@@ -30,7 +30,7 @@ import models
 from utils import get_model_lr
 
 
-INIT = 'glorot_normal'
+INIT = 'he_normal'
 
 
 def mkdir_p(dir_path):
@@ -40,6 +40,19 @@ def mkdir_p(dir_path):
         # 17 means "already exists"
         if e.errno != 17:
             raise e
+
+
+class TimedContext(object):
+    def __init__(self, name=None):
+        self.name = name
+
+    def __enter__(self):
+        self.start = time()
+
+    def __exit__(self, *args, **kwargs):
+        elapsed = time() - self.start
+        name_str = self.name or 'Unnamed timed context'
+        print('%s took %fs' % (name_str, elapsed))
 
 
 class NumericLogger(object):
@@ -61,16 +74,27 @@ class NumericLogger(object):
 numeric_log = None
 
 
-def group_sort_indices(indices):
+def group_sort_dedup_indices(indices):
     """Takes a list of the form `[(major_index, minor_index)]` and returns a
     list of the form `[(major_index, [minor_indices])]`, where major indices
     and minor indices are still grouped as before, but both major and minor
-    indices are sorted."""
+    indices are sorted. Minor indices are also deduplicated, so `p[1]` will be
+    a sorted, deduplicated list for each `p` in the return value.
+
+    This function is very useful for generating h5py slices, since h5py
+    requires sorted, deduplicated indices to batch-select specific elements
+    from a dataset."""
     sorted_ins = sorted(indices)
     keyfun = lambda indices: indices[0]
     rv = []
     for k, g in groupby(sorted_ins, keyfun):
-        rv.append((k, [t[1] for t in g]))
+        sorted_minors = [t[1] for t in g]
+        # Deduplicate as well
+        minors = []
+        for idx, val in enumerate(sorted_minors):
+            if idx == 0 or sorted_minors[idx - 1] != val:
+                minors.append(val)
+        rv.append((k, minors))
     return rv
 
 
@@ -140,13 +164,22 @@ class BatchReader(object):
             assert len(indices) - start_len > 0, \
                 "Looks like we ran out of indices :/"
 
-        return group_sort_indices(indices)
+        return group_sort_dedup_indices(indices)
 
     def _get_ds(self, ds_name, indices):
         sub_batch = None
         for fp_idx, data_indices in indices:
             fp = self.h5_files[fp_idx]
-            fp_data = fp[ds_name][data_indices].astype('float32')
+            # This line used to yield a cryptic internal error whenever
+            # data_indices contained duplicates. I submitted a patch to h5py to
+            # fix that, though.
+            try:
+                fp_data = fp[ds_name][data_indices].astype('float32')
+            except:
+                print('Error reading {} (ds={}, indices={})'.format(
+                    fp.filename, ds_name, data_indices
+                ))
+                raise
             if sub_batch is None:
                 sub_batch = fp_data
             else:
@@ -191,6 +224,10 @@ class BatchReader(object):
         inputs.update(outputs)
         return inputs
 
+    def close(self):
+        for fp in self.h5_files:
+            fp.close()
+
 
 def h5_read_worker(
         out_queue, end_evt, h5_paths, inputs, outputs, mean_pixels,
@@ -206,6 +243,17 @@ def h5_read_worker(
     At the end of each epoch, ``None`` will be pushed to the output queue iff
     ``mark_epochs`` is True. This notifies the training routine that it should
     perform validation or whatever it is training routines do nowadays."""
+    # See https://bugs.python.org/issue8426
+    # mp.Queues work by pickling objects to be enqueued and then sending them
+    # across a Unix pipe. By default, Queue installs an atexit handler which
+    # waits for all enqueued data to be written to the Unix pipe. This seems to
+    # hang when the receiver has exited, possibly due to limits on the amount
+    # of data which can be buffered in a pipe. cancel_join_thread() either
+    # removes that atexit handler or makes it a noop. This is not the default
+    # behaviour because it results in unwritten data being irrevocably lost
+    # (which is okay for us!).
+    out_queue.cancel_join_thread()
+
     reader = BatchReader(
         h5_paths=h5_paths, inputs=inputs, outputs=outputs,
         batch_size=batch_size, mark_epochs=mark_epochs, shuffle=shuffle,
@@ -213,20 +261,22 @@ def h5_read_worker(
     )
     # Outer loop is to keep pushing forever, inner loop just polls end_event
     # periodically if we're waiting to push to the queue
-    while True:
-        batch = reader.get_batch()
+    try:
         while True:
-            if end_evt.is_set():
-                out_queue.close()
-                return
+            batch = reader.get_batch()
+            while True:
+                if end_evt.is_set():
+                    return
 
-            try:
-                out_queue.put(batch, timeout=0.05)
-                break
-            except Full:
-                # Queue.Full (for Queue = the module in stdlib, not the
-                # class) is raised when we time out
-                pass
+                try:
+                    out_queue.put(batch, timeout=0.05)
+                    break
+                except Full:
+                    # Queue.Full (for Queue = the module in stdlib, not the
+                    # class) is raised when we time out
+                    pass
+    finally:
+        print('Worker hit finally block; exiting')
 
 
 def get_sample_weight(data, classname, masks):
@@ -269,6 +319,18 @@ def get_sample_weight(data, classname, masks):
     return sample_weight
 
 
+def horrible_get(q):
+    """Logically equivalent to ``q.get()``, but (possibly!) works around a
+    horrible, undocumented Python bug: https://bugs.python.org/issue1360. I say
+    "possibly" because I don't know whether this is actually fixing anything.
+    Might have to remove it later to find out."""
+    while True:
+        try:
+            return q.get(timeout=60)
+        except Full:
+            continue
+
+
 def train(model, queue, iterations, mask_class_name, masks):
     """Perform a fixed number of training iterations."""
     assert (mask_class_name is None) == (masks is None)
@@ -282,7 +344,7 @@ def train(model, queue, iterations, mask_class_name, masks):
     for iteration in xrange(iterations):
         # First, get some data from the queue
         start_time = time()
-        data = queue.get()
+        data = horrible_get(queue)
         fetch_time = time() - start_time
 
         if mask_class_name is not None:
@@ -328,7 +390,7 @@ def validate(model, queue, batches, mask_class_name, masks):
     weighted_loss = 0.0
 
     for batch_num in xrange(batches):
-        data = queue.get()
+        data = horrible_get(queue)
         assert data is not None
 
         if mask_class_name is not None:
@@ -683,6 +745,7 @@ if __name__ == '__main__':
                         'Maximum iterations (%i) exceeded; terminating',
                         args.max_iter
                     )
+                    break
         finally:
             # Always save afterwards, even if we get KeyboardInterrupt'd or
             # whatever
@@ -705,14 +768,9 @@ if __name__ == '__main__':
         # Make sure workers shut down gracefully
         end_event.set()
         stdout.write('\n')
-        info('Waiting for workers to exit')
-        train_worker.join(10.0)
-        val_worker.join(10.0)
+        info('Waiting for workers to exit (could take some time)')
         # XXX: My termination scheme (with end_event) is not working, and I
-        # can't tell where the workers are getting stuck.
-        info(
-            'Train worker alive? %s; Val worker alive? %s; terminating anyway',
-            train_worker.is_alive(), val_worker.is_alive()
-        )
-        train_worker.terminate()
-        val_worker.terminate()
+        # can't tell where the workers are getting stuck. It seems to be in a
+        # cleanup function somewhere (maybe attach GDB to it?)
+        train_worker.join()
+        val_worker.join()

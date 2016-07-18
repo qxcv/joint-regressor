@@ -747,6 +747,129 @@ def resnet34_poselet_class(shapes, solver, init):
         else:
             prev_scaled = prev_name
 
+        add_name = next_name('add')
+        model.add_node(Activation('relu'), merge_mode='sum', inputs=[prev_scaled, relu_name_2], name=add_name)
+        return add_name
+
+    # Weird input layer nonsense
+    print('Adding input layers')
+    model.add_input(input_shape=rgb_shape, name='images')
+    conv7_name = next_name('conv')
+    model.add_node(Convolution2D(64, 7, 7, border_mode='valid', init=init, subsample=(2, 2), input_shape=rgb_shape),
+                   input='images', name=conv7_name)
+    norm_name = next_name('norm')
+    model.add_node(BatchNormalization(mode=0, axis=1),
+                   input=conv7_name, name=norm_name)
+    relu_name = next_name('relu')
+    model.add_node(Activation('relu'),
+                   input=norm_name, name=relu_name)
+    pad_name = next_name('pad')
+    model.add_node(ZeroPadding2D((1, 0)),  # Yup, (1, 0) for 3x3 pool below
+                   input=relu_name, name=pad_name)
+    max_pool_name = next_name('pool')
+    # It really is meant to be a 3x3 pool with a 2x2 stride, as far as I can
+    # tell
+    model.add_node(MaxPooling2D(pool_size=(3, 3), strides=(2, 2)),
+                   input=pad_name, name=max_pool_name)
+
+    # Now the layers!
+    sizes = [64] * 3 + [128] * 4 + [256] * 6 + [512] * 3
+    last_layer = max_pool_name
+    last_size = None
+    for size in sizes:
+        print('Adding block of {} channels (from {} channels)'.format(
+            size, last_size
+        ))
+        should_subsample = last_size is not None and last_size != size
+        if should_subsample:
+            assert last_size * 2 == size, \
+                "Sizes %i and %i don't match" % (last_size, size)
+        last_layer = plain_block(size, last_layer, should_subsample)
+        last_size = size
+
+    # Average pool, flatten
+    print('Adding pool and flatten layers')
+    avg_pool_name = next_name('pool')
+    model.add_node(AveragePooling2D(pool_size=(7, 7), border_mode='valid'),
+                   input=last_layer, name=avg_pool_name)
+    flatten_name = next_name('flatten')
+    model.add_node(Flatten(),
+                   input=avg_pool_name, name=flatten_name)
+
+    # Final layer and loss
+    print('Adding final layers')
+    poselet_classes, = shapes['poselet']
+    dense_name = next_name('fc')
+    model.add_node(Dense(poselet_classes, init=init, activation='softmax'),
+                   input=flatten_name, name=dense_name)
+    model.add_output(input=dense_name, name='poselet')
+    losses = {'poselet': 'categorical_crossentropy'}
+
+    model.compile(
+        optimizer=solver, loss=losses
+    )
+    return model
+
+
+def resnet152_poselet_class(shapes, solver, init):
+    model = Graph()
+
+    rgb_shape = shapes['images']
+
+    # This will help us assign unique names to our layers
+    def _unbounded():
+        x = 0
+        while True:
+            yield x
+            x += 1
+    _num_gen = _unbounded()
+    _next_num = lambda: next(_num_gen)
+    next_name = lambda s: s + str(_next_num())
+
+    def plain_block(channels, prev_name, subsample=False):
+        # First conv
+        conv_name_1, bn_name_1, relu_name_1 = next_name('conv'), \
+            next_name('norm'), next_name('relu')
+        if subsample:
+            # Old versions of Keras (pre-0.33) don't like border_mode == 'same'
+            # when subsampling in a convolution. Hence, we need to add padding
+            # in ourselves :/
+            zp_name = next_name('pad')
+            model.add_node(ZeroPadding2D(padding=(1, 1), dim_ordering='th'),
+                           input=prev_name, name=zp_name)
+            model.add_node(Convolution2D(channels, 3, 3, border_mode='valid', init=init, subsample=(2, 2)),
+                           input=zp_name, name=conv_name_1)
+        else:
+            model.add_node(Convolution2D(channels, 3, 3, border_mode='same', init=init),
+                           input=prev_name, name=conv_name_1)
+        # mode=0, channel=1 means "normalise feature maps the way God intended"
+        model.add_node(BatchNormalization(mode=0, axis=1),
+                       input=conv_name_1, name=bn_name_1)
+        model.add_node(Activation('relu'),
+                       input=bn_name_1, name=relu_name_1)
+
+        # Second conv
+        conv_name_2, bn_name_2, relu_name_2 = next_name('conv'), \
+            next_name('norm'), next_name('relu')
+        model.add_node(Convolution2D(channels, 3, 3, border_mode='same', init=init),
+                       input=relu_name_1, name=conv_name_2)
+        model.add_node(BatchNormalization(mode=0, axis=1),
+                       input=conv_name_2, name=bn_name_2)
+        model.add_node(Activation('relu'),
+                       input=bn_name_2, name=relu_name_2)
+
+        # Optional 1x1 convolution if we're subsampling
+        if subsample:
+            proj_name = next_name('proj')
+            # Yeah, thiss didn't really make sense in the paper. The way in
+            # which we skip some columns of the previous activation volume is a
+            # little worrying---shouldn't pooling help, in principle?
+            model.add_node(Convolution2D(channels, 1, 1, init=init, subsample=(2, 2)),
+                           input=prev_name, name=proj_name)
+            prev_scaled = proj_name
+        else:
+            prev_scaled = prev_name
+
         # Skip layer. Linear activation is hacky. Whatever.
         add_name = next_name('add')
         model.add_node(Activation('linear'), merge_mode='sum', inputs=[prev_scaled, relu_name_2], name=add_name)
@@ -765,7 +888,7 @@ def resnet34_poselet_class(shapes, solver, init):
     model.add_node(Activation('relu'),
                    input=norm_name, name=relu_name)
     max_pool_name = next_name('pool')
-    model.add_node(MaxPooling2D(pool_size=(2, 2)),
+    model.add_node(MaxPooling2D(pool_size=(3, 3), subsample=(2, 2)),
                    input=relu_name, name=max_pool_name)
 
     # Now the layers!
@@ -805,3 +928,58 @@ def resnet34_poselet_class(shapes, solver, init):
         optimizer=solver, loss=losses
     )
     return model
+
+
+
+
+
+
+
+
+
+
+###############################################################################
+# SMALL MODELS                                                                #
+###############################################################################
+
+# These models are for quick, small-scale experiments with CNN architecture.
+# They're not intended to be used with full 200px+ crops.
+
+def small_vgglike_net(shapes, solver, init):
+    # Little net following VGG-like architecture
+    model = Sequential()
+    rgb_shape = shapes['images']
+    poselet_classes, = shapes['poselet']
+
+    # Will leave out BN for now
+    # model.add(BatchNormalization(mode=0, axis=1))
+    model.add(Convolution2D(64, 3, 3, border_mode='same', init=init, activation='relu', input_shape=rgb_shape))
+    model.add(Convolution2D(64, 3, 3, border_mode='same', init=init, activation='relu'))
+    model.add(Convolution2D(64, 3, 3, border_mode='same', init=init, activation='relu'))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Convolution2D(128, 3, 3, border_mode='same', init=init, activation='relu'))
+    model.add(Convolution2D(128, 3, 3, border_mode='same', init=init, activation='relu'))
+    model.add(Convolution2D(128, 3, 3, border_mode='same', init=init, activation='relu'))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Convolution2D(256, 3, 3, border_mode='same', init=init, activation='relu'))
+    model.add(Convolution2D(256, 3, 3, border_mode='same', init=init, activation='relu'))
+    model.add(Convolution2D(256, 3, 3, border_mode='same', init=init, activation='relu'))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Flatten())
+    model.add(Dense(1024, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(1024, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(poselet_classes, init=init, activation='softmax'))
+
+    # Use a graph container for the sake of the supporting code
+    container = Graph()
+    container.add_input(input_shape=rgb_shape, name='images')
+    container.add_node(model, input='images', name='sequential')
+    container.add_output(input='sequential', name='poselet')
+    losses = {'poselet': 'categorical_crossentropy'}
+    container.compile(
+        optimizer=solver, loss=losses
+    )
+
+    return container
