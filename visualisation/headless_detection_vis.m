@@ -3,7 +3,7 @@ function headless_detection_vis(dataset, pose_dets, dest_dir, pa)
 % Nice for making pretty movies
 figure('Visible', 'off');
 axes('Visible', 'off');
-set(0, 'DefaulttextInterpreter', 'none')
+set(0, 'DefaulttextInterpreter', 'none');
 mkdir_p(dest_dir);
 all_data = dataset.data;
 seqs = dataset.seqs;
