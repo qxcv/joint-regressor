@@ -171,15 +171,8 @@ class BatchReader(object):
         for fp_idx, data_indices in indices:
             fp = self.h5_files[fp_idx]
             # This line used to yield a cryptic internal error whenever
-            # data_indices contained duplicates. I submitted a patch to h5py to
-            # fix that, though.
-            try:
-                fp_data = fp[ds_name][data_indices].astype('float32')
-            except:
-                print('Error reading {} (ds={}, indices={})'.format(
-                    fp.filename, ds_name, data_indices
-                ))
-                raise
+            # data_indices contained duplicates.
+            fp_data = fp[ds_name][data_indices].astype('float32')
             if sub_batch is None:
                 sub_batch = fp_data
             else:

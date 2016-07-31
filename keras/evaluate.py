@@ -19,48 +19,32 @@ def label_to_coords(label):
         raise ValueError("label should be output for single sample or a batch")
 
 
-# TODO: Merge this with the new functions in the IPython notebook. The notebook
-# functions are meant to handle multiple sub-poses and poselet classifications
-# (where present).
-def get_predictions(model, mean_pixel_path, data, batch_size=32,
-                    coord_sets=('joints',)):
+def get_predictions(model, mean_pixel_path, data, batch_size=32):
     """Evaluate model on given images and flows in order to produce
     predictions.
 
-    :param model: a ``keras.models.Model``
+    :param model: a ``keras.models.Graph``
     :param mean_pixel_path: string pointing to a meat pixel to subtract
     :param data: dictionary mapping input names to ``n*c*h*w`` arrrays of image
-                 data
+                 data (may be HDF5 datasets, if desired)
     :param batch_size: size of batches which will be pushed through the
                        network. This is very helpful when you have a
                        ``h5py.Dataset`` to evaluate on.
-    :param coord_sets: an iterable of output names. The corresponding names
-                       will be treated as flattened coordinate arrays, and
-                       reshaped so that they are of size `n*k*2` (where `k` is
-                       the half the number of outputs associated with that
-                       label).
     :return: a dictionary mapping output names to actual predictions, where
              each prediction is an `np.ndarray` with zeroth axis of size
              `n`."""
     mean_pixels = read_mean_pixels(mean_pixel_path)
     inputs, outputs = get_model_io(model)
+    num_samples = len(data[inputs.keys()[0]])
+    num_batches = -(-num_samples // batch_size)
 
     # Make sure that our output shapes are right (we will add to the output as
     # we go along)
     rv = {}
     for output_name in outputs:
-        shape = model.output_shape[output_name]
-        rv_shape = (shape[0],)
-        if output_name in coord_sets:
-            assert len(shape) == 2
-            assert shape[1] % 2 == 0
-            rv_shape += (shape[1] // 2, 2)
-        else:
-            rv_shape += rv_shape[1:]
+        shape = model.outputs[output_name].output_shape
+        rv_shape = (num_samples,) + shape[1:]
         rv[output_name] = np.zeros(rv_shape)
-
-    num_samples = len(data[inputs[0]])
-    num_batches = -(-num_samples // batch_size)
 
     for batch_num in xrange(num_batches):
         print('Doing batch {}/{}'.format(batch_num+1, num_batches))
@@ -76,8 +60,6 @@ def get_predictions(model, mean_pixel_path, data, batch_size=32,
         subbed_batch_data = sub_mean_pixels(mean_pixels, batch_data)
         results_dict = model.predict(subbed_batch_data)
         for out_name, out_val in results_dict.iteritems():
-            if out_name in coord_sets:
-                out_val = label_to_coords(out_val)
             rv[out_name][slice_start:slice_end] = out_val
 
     return rv
