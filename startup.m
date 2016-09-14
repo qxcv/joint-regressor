@@ -46,6 +46,8 @@ cd('./cmas');
 CMAS_startup;
 cd_reset.task();
 
+set_pyversion;
+
 conf = get_conf();
 % if ~exist(conf.cache_dir, 'dir')
 %     % We have this stupid guard to avoid Matlab warnings
