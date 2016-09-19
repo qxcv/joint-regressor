@@ -76,7 +76,7 @@ fprintf('[T] Re-rewriting clusters took %fs\n', toc(clusterWriteStart));
 meanPixelStart = tic;
 fprintf('Calculating mean pixel\n');
 store_mean_pixel(train_patch_dir, conf.cache_dir);
-fprintf('[T] Writing mean pixe; took %fs\n', toc(meanPixelStart));
+fprintf('[T] Writing mean pixel took %fs\n', toc(meanPixelStart));
 
 cnnTrainStart = tic;
 fprintf('Training CNN\n');
